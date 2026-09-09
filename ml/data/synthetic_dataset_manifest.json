@@ -1,0 +1,52 @@
+{
+  "generated_at": "2026-09-08T10:26:24.823859",
+  "random_seed": 42,
+  "dataset_type": "domain_meaningful_synthetic_v2",
+  "version": "v2",
+  "complaints_count": 20000,
+  "transactions_count": 195565,
+  "accounts_count": 12000,
+  "atms_count": 2060,
+  "clusters_count": 60,
+  "withdrawals_count": 20000,
+  "cold_start_complaints": 1500,
+  "target_mechanisms": {
+    "beneficiary_mule_corridor": 8061,
+    "dynamic_hotspot_hub": 7025,
+    "intermediary_network_corridor": 4914
+  },
+  "cities": [
+    "Bengaluru",
+    "Bhopal",
+    "Delhi",
+    "Gurugram",
+    "Howrah",
+    "Hyderabad",
+    "Indore",
+    "Jabalpur",
+    "Jaipur",
+    "Kolkata",
+    "Lucknow",
+    "Mumbai",
+    "Navi Mumbai",
+    "Noida",
+    "Pune",
+    "Thane",
+    "Ujjain"
+  ],
+  "fraud_types": [
+    "Investment Scam",
+    "UPI / QR Code Fraud",
+    "Digital Arrest / Extortion",
+    "Part-Time Job Fraud",
+    "Loan App Extortion"
+  ],
+  "files": {
+    "clusters": "ml/data\\clusters.csv.gz",
+    "atms": "ml/data\\atms.csv.gz",
+    "accounts": "ml/data\\accounts.csv.gz",
+    "complaints": "ml/data\\complaints.csv.gz",
+    "transactions": "ml/data\\transactions.csv.gz",
+    "withdrawals": "ml/data\\withdrawals.csv.gz"
+  }
+}
