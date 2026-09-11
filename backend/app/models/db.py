@@ -1,14 +1,30 @@
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
+import os
+from typing import Dict, Any
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import declarative_base, sessionmaker
 from backend.app.config.settings import settings
 
-connect_args = {"check_same_thread": False} if settings.DATABASE_URL.startswith("sqlite") else {}
+db_url = settings.DATABASE_URL
+engine_kwargs: Dict[str, Any] = {"echo": False}
+
+# Detect engine backend using SQLAlchemy URL utilities
+is_sqlite = db_url.startswith("sqlite")
+
+if is_sqlite:
+    # SQLite requires check_same_thread=False for multithreading; do not pass to PostgreSQL
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
+else:
+    # Sensible connection resilience for PostgreSQL (verifies connections before checkout)
+    engine_kwargs["pool_pre_ping"] = True
+    # Production cloud connection pooling options with environment variable overrides
+    engine_kwargs["pool_size"] = int(os.getenv("DB_POOL_SIZE", "10"))
+    engine_kwargs["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "20"))
+    engine_kwargs["pool_recycle"] = int(os.getenv("DB_POOL_RECYCLE", "1800"))
+    engine_kwargs["pool_timeout"] = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 
 engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args=connect_args,
-    echo=False
+    db_url,
+    **engine_kwargs
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
@@ -21,3 +37,35 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def get_database_engine_type() -> str:
+    """
+    Safely identifies whether the configured database engine is 'sqlite', 'postgresql', etc.
+    Uses SQLAlchemy's URL backend inspection without parsing credentials manually.
+    """
+    try:
+        return engine.url.get_backend_name()
+    except Exception:
+        return "sqlite" if settings.DATABASE_URL.startswith("sqlite") else "postgresql"
+
+def check_database_connection() -> Dict[str, Any]:
+    """
+    Executes a lightweight query (SELECT 1) to verify active database connectivity.
+    Guarantees no credentials, passwords, or connection strings are leaked in return values or errors.
+    """
+    engine_type = get_database_engine_type()
+    try:
+        with engine.connect() as conn:
+            conn.execute(text("SELECT 1"))
+        return {
+            "status": "connected",
+            "engine": engine_type
+        }
+    except Exception as exc:
+        # Sanitize error to avoid leaking DB host, credentials, or connection details
+        return {
+            "status": "unavailable",
+            "engine": engine_type,
+            "error": f"Database connection failed: {exc.__class__.__name__}"
+        }
+

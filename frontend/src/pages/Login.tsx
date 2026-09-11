@@ -1,18 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  ShieldAlert,
+  Shield,
   Lock,
   Mail,
   ArrowRight,
-  ShieldCheck,
-  Building2,
   AlertCircle,
   KeyRound,
   CheckCircle2,
-  HelpCircle,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
 } from 'lucide-react';
 import { useAuth, DEMO_CREDENTIALS } from '../store/authContext';
 import { UserRole } from '../types';
@@ -23,11 +20,9 @@ export const Login: React.FC = () => {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [rememberMe, setRememberMe] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sessionExpiredNotice, setSessionExpiredNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [authSuccessStep, setAuthSuccessStep] = useState<string | null>(null);
   const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
   // Check for session expiration notice on mount
@@ -41,10 +36,10 @@ export const Login: React.FC = () => {
 
   // If already authenticated, redirect
   useEffect(() => {
-    if (isAuthenticated && !authSuccessStep) {
+    if (isAuthenticated) {
       navigate('/dashboard');
     }
-  }, [isAuthenticated, navigate, authSuccessStep]);
+  }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -54,13 +49,8 @@ export const Login: React.FC = () => {
 
     try {
       await login(email.trim(), password);
-      // Brief restrained transition as required by Phase 27
-      setAuthSuccessStep('Identity verified. Loading secure workspace...');
-      setTimeout(() => {
-        navigate('/dashboard');
-      }, 700);
+      navigate('/dashboard');
     } catch (err: any) {
-      // Professional generic error as required by Phase 26 (do not reveal account existence)
       setError(
         err.response?.data?.detail === 'Invalid officer credentials or password'
           ? 'Authentication failed. Check your Officer ID and password.'
@@ -80,224 +70,172 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#070b16] flex flex-col justify-center items-center px-4 py-8 relative overflow-x-hidden">
-      {/* Subtle geospatial grid & lighting background */}
-      <div className="absolute inset-0 bg-[radial-gradient(#14223d_1px,transparent_1px)] [background-size:28px_28px] opacity-40 pointer-events-none"></div>
-      <div className="absolute top-1/4 left-1/3 -translate-x-1/2 w-[600px] h-[350px] bg-cyan-600/5 blur-[140px] rounded-full pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/3 w-[500px] h-[300px] bg-blue-600/5 blur-[120px] rounded-full pointer-events-none"></div>
-
-      {/* Main Container */}
-      <div className="w-full max-w-5xl z-10 grid grid-cols-1 lg:grid-cols-12 gap-8 items-stretch">
-        {/* LEFT / INSTITUTIONAL PORTAL COLUMN */}
-        <div className="lg:col-span-6 bg-[#0a1122]/90 border border-[#162544] rounded-2xl p-8 shadow-2xl backdrop-blur-md flex flex-col justify-between">
+    <div className="min-h-screen bg-[#F6F8FC] flex items-center justify-center p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-4xl bg-white rounded-xl shadow-md border border-[#DCE5F0] overflow-hidden grid grid-cols-1 md:grid-cols-12">
+        {/* LEFT / INSTITUTIONAL BRAND PANEL */}
+        <div className="md:col-span-5 bg-[#173A63] text-white p-8 flex flex-col justify-between relative">
           <div>
-            {/* Header badges */}
-            <div className="flex flex-wrap items-center gap-2 mb-6">
-              <span className="px-2.5 py-1 rounded bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 font-mono text-[10px] font-bold tracking-wider">
-                SECURE LAW ENFORCEMENT ACCESS
-              </span>
-              <span className="px-2 py-1 rounded bg-[#101c36] border border-[#1b2f57] text-slate-400 font-mono text-[10px]">
-                Authorized Personnel Only
-              </span>
+            {/* Government Context */}
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/10 text-blue-100 text-[11px] font-medium border border-white/20 mb-6">
+              <Shield className="w-3.5 h-3.5 text-blue-300" />
+              <span>National Law Enforcement Portal</span>
             </div>
 
             {/* Brand Title */}
-            <div className="space-y-2 mb-6">
-              <div className="flex items-center space-x-3">
-                <div className="w-11 h-11 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(0,216,255,0.2)] shrink-0">
-                  <ShieldAlert className="w-6 h-6" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-bold tracking-wide text-white font-['JetBrains_Mono',monospace]">
-                    Cyber<span className="text-cyan-400">Shield</span> AI
-                  </h1>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    SIH Prototype — Cybercrime Intelligence Platform
-                  </span>
-                </div>
-              </div>
-              <h2 className="text-sm font-semibold text-slate-200 mt-2">
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight">
+                CyberShield <span className="text-blue-300">AI</span>
+              </h1>
+              <p className="text-xs text-blue-100 font-medium">
                 Cybercrime Predictive Intelligence & Intervention Platform
-              </h2>
-              <p className="text-xs text-slate-400 italic font-mono">
-                "Predict. Alert. Intervene. Protect."
               </p>
             </div>
 
-            {/* Mission / Architecture Brief */}
-            <div className="p-4 rounded-xl bg-[#070d1a] border border-[#162544] space-y-2.5 text-xs text-slate-300 font-mono">
-              <div className="flex items-start space-x-2">
-                <span className="text-cyan-400 font-bold">•</span>
-                <span>Automated multi-hop financial transaction layer extraction across nodal banks.</span>
+            <p className="text-xs text-blue-200/80 mt-4 leading-relaxed">
+              Decision-support platform for proactive cybercrime intervention, multi-hop financial tracking, and cash-out interception.
+            </p>
+
+            {/* Operational Focus List */}
+            <div className="mt-8 space-y-3 text-xs text-blue-100">
+              <div className="flex items-start space-x-2.5">
+                <CheckCircle2 className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
+                <span>Calibrated cash-out hotspot prediction</span>
               </div>
-              <div className="flex items-start space-x-2">
-                <span className="text-cyan-400 font-bold">•</span>
-                <span>Trained XGBoost v2 location ranker & time regressor with Platt probability calibration.</span>
+              <div className="flex items-start space-x-2.5">
+                <CheckCircle2 className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
+                <span>Multi-hop mule network path tracing</span>
               </div>
-              <div className="flex items-start space-x-2">
-                <span className="text-cyan-400 font-bold">•</span>
-                <span>Real-time rapid response dispatch to physical ATM and cashier extraction corridors.</span>
+              <div className="flex items-start space-x-2.5">
+                <CheckCircle2 className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
+                <span>Immutable regulatory chain-of-custody audit</span>
               </div>
             </div>
           </div>
 
-          {/* Institutional footer */}
-          <div className="mt-8 pt-4 border-t border-[#162544] flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-mono gap-2">
-            <span>Protected access • Role-based authorization • Activity audited</span>
-            <span>SIH26184</span>
+          <div className="mt-8 pt-6 border-t border-[#1E4A7D] text-[11px] text-blue-200/70">
+            Delhi Pilot Prototype • I4C / SIH 2026
           </div>
         </div>
 
-        {/* RIGHT / OFFICER AUTHENTICATION PANEL */}
-        <div className="lg:col-span-6 bg-[#0a1122]/90 border border-[#162544] rounded-2xl p-8 shadow-2xl backdrop-blur-md flex flex-col justify-between">
+        {/* RIGHT / LOGIN FORM PANEL */}
+        <div className="md:col-span-7 p-8 sm:p-10 flex flex-col justify-between bg-white">
           <div>
-            <div className="flex items-center justify-between pb-3 border-b border-[#162544] mb-6">
-              <div>
-                <h3 className="text-base font-bold text-white font-mono">Officer Sign In</h3>
-                <p className="text-xs text-slate-400 font-mono mt-0.5">
-                  Authenticate using authorized departmental credentials
-                </p>
-              </div>
-              <div className="w-8 h-8 rounded-lg bg-[#0c162c] border border-[#1a2f57] flex items-center justify-center text-cyan-400">
-                <Lock className="w-4 h-4" />
-              </div>
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-[#173A63]">Secure Officer Sign In</h2>
+              <p className="text-xs text-slate-500 mt-1">
+                Enter your official law enforcement or banking credentials to access the intelligence console.
+              </p>
             </div>
 
             {/* Session Expired Notice */}
             {sessionExpiredNotice && (
-              <div className="mb-4 p-3 rounded-xl bg-amber-950/40 border border-amber-500/40 text-amber-300 text-xs font-mono flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-amber-400" />
+              <div className="mb-4 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
                 <span>{sessionExpiredNotice}</span>
               </div>
             )}
 
             {/* Error Message */}
             {error && (
-              <div className="mb-4 p-3 rounded-xl bg-red-950/40 border border-red-500/40 text-red-300 text-xs font-mono flex items-center space-x-2">
-                <AlertCircle className="w-4 h-4 shrink-0 text-red-400" />
+              <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-red-700 text-xs flex items-center space-x-2">
+                <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
                 <span>{error}</span>
-              </div>
-            )}
-
-            {/* Success Feedback Step */}
-            {authSuccessStep && (
-              <div className="mb-4 p-3 rounded-xl bg-emerald-950/40 border border-emerald-500/40 text-emerald-300 text-xs font-mono flex items-center space-x-2">
-                <CheckCircle2 className="w-4 h-4 shrink-0 text-emerald-400 animate-pulse" />
-                <span>{authSuccessStep}</span>
               </div>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 font-mono">
-                  Officer ID / Official Email
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5" htmlFor="login-email">
+                  Official Email / Username
                 </label>
                 <div className="relative">
-                  <Mail className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
+                    id="login-email"
                     type="email"
+                    required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="district.lea@indore.police.gov.in"
-                    required
-                    disabled={loading || !!authSuccessStep}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#070d1a] border border-[#1a2b4d] rounded-xl text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-cyan-400 font-mono transition-all disabled:opacity-50"
+                    placeholder="officer@police.gov.in"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#DCE5F0] rounded-md text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1.5 font-mono">
+                <label className="block text-xs font-semibold text-slate-700 mb-1.5" htmlFor="login-password">
                   Password
                 </label>
                 <div className="relative">
-                  <Lock className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+                  <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
+                    id="login-password"
                     type="password"
+                    required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    required
-                    disabled={loading || !!authSuccessStep}
-                    className="w-full pl-10 pr-4 py-2.5 bg-[#070d1a] border border-[#1a2b4d] rounded-xl text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-cyan-400 font-mono transition-all disabled:opacity-50"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#DCE5F0] rounded-md text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   />
                 </div>
               </div>
 
-              <div className="flex items-center justify-between text-xs text-slate-400 font-mono">
-                <label className="flex items-center space-x-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    className="rounded border-[#1a2b4d] bg-[#070d1a] text-cyan-500 focus:ring-0"
-                  />
-                  <span>Remember this device</span>
-                </label>
-                <span className="text-[11px] text-slate-400">Encrypted TLS 1.3</span>
-              </div>
-
               <button
                 type="submit"
-                disabled={loading || !!authSuccessStep}
-                className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold text-xs font-mono tracking-wider shadow-[0_0_20px_rgba(0,216,255,0.25)] flex items-center justify-center space-x-2 transition-all disabled:opacity-50"
+                disabled={loading}
+                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 flex items-center justify-center space-x-2 disabled:opacity-60 shadow-sm mt-2"
               >
                 {loading ? (
-                  <span className="flex items-center space-x-2">
-                    <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
-                    <span>Authenticating...</span>
-                  </span>
-                ) : authSuccessStep ? (
-                  <span className="flex items-center space-x-2">
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Identity Verified</span>
-                  </span>
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
                 ) : (
                   <>
-                    <span>Secure Sign In</span>
+                    <span>Sign In to Console</span>
                     <ArrowRight className="w-4 h-4" />
                   </>
                 )}
               </button>
             </form>
+
+            {/* Controlled Seed / Prototype Quick Login */}
+            <div className="mt-6 pt-5 border-t border-[#DCE5F0]">
+              <button
+                type="button"
+                onClick={() => setShowDemoAccounts(!showDemoAccounts)}
+                className="w-full flex items-center justify-between text-xs text-slate-600 hover:text-[#173A63] font-medium py-1"
+              >
+                <span className="flex items-center space-x-1.5">
+                  <KeyRound className="w-3.5 h-3.5 text-blue-600" />
+                  <span>Controlled Pilot Credentials (Evaluation)</span>
+                </span>
+                {showDemoAccounts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+
+              {showDemoAccounts && (
+                <div className="mt-2.5 grid grid-cols-2 gap-1.5 p-2 bg-[#F6F8FC] rounded-md border border-[#DCE5F0]">
+                  {(Object.keys(DEMO_CREDENTIALS) as UserRole[]).map((r) => {
+                    const cred = DEMO_CREDENTIALS[r];
+                    return (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => handleSelectDemoAccount(r)}
+                        className="text-left px-2.5 py-1.5 rounded bg-white hover:bg-blue-50 border border-[#DCE5F0] text-xs transition-colors truncate"
+                      >
+                        <div className="font-medium text-slate-800 truncate">{cred.title}</div>
+                        <div className="text-[10px] text-slate-500 truncate">{cred.email}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Prototype Demo Accounts Accordion (Phase 31) */}
-          <div className="mt-6 pt-4 border-t border-[#162544]">
-            <button
-              type="button"
-              onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-              className="w-full flex items-center justify-between text-xs font-mono text-cyan-400 hover:text-cyan-300 py-1"
-            >
-              <div className="flex items-center space-x-1.5">
-                <KeyRound className="w-3.5 h-3.5" />
-                <span className="font-semibold">Prototype Demo Accounts (SIH Evaluation)</span>
-              </div>
-              {showDemoAccounts ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-            </button>
-
-            {showDemoAccounts && (
-              <div className="mt-3 space-y-2 max-h-48 overflow-y-auto pr-1">
-                {(Object.keys(DEMO_CREDENTIALS) as UserRole[]).map((roleKey) => {
-                  const cred = DEMO_CREDENTIALS[roleKey];
-                  return (
-                    <div
-                      key={roleKey}
-                      onClick={() => handleSelectDemoAccount(roleKey)}
-                      className="p-2 rounded-lg bg-[#070d1a] hover:bg-[#0f1b36] border border-[#1a2b4d] cursor-pointer transition-all flex items-center justify-between text-xs font-mono"
-                    >
-                      <div className="min-w-0 pr-2">
-                        <div className="text-slate-200 font-semibold truncate">{cred.title}</div>
-                        <div className="text-[10px] text-slate-400 truncate">{cred.email}</div>
-                      </div>
-                      <span className="px-2 py-0.5 rounded bg-[#13203c] text-cyan-300 text-[10px] shrink-0">
-                        Fill Credentials
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          {/* Compliance & Security Notice */}
+          <div className="mt-6 pt-4 border-t border-slate-100">
+            <p className="text-[11px] text-slate-400 leading-tight">
+              Authorized personnel only. Access and operational actions are logged to an immutable regulatory audit ledger in compliance with MHA/I4C standards.
+            </p>
           </div>
         </div>
       </div>

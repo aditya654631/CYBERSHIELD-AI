@@ -1,0 +1,157 @@
+{
+  "model_version": "cashout-location-xgb-v3.1",
+  "dataset_version": "delhi_synthetic_v2",
+  "dataset_type": "synthetic/anonymized prototype",
+  "operational_scope": "Delhi Pilot",
+  "cluster_count": 60,
+  "training_period": "2026-08-06 07:32:17.135681 to 2026-08-30 16:11:23.602412",
+  "validation_period": "2026-08-30 16:22:22.018590 to 2026-09-04 21:06:27.282915",
+  "test_period": "2026-09-04 21:13:28.460422 to 2026-09-11 11:15:35.488773",
+  "complaint_counts": {
+    "train": 2100,
+    "validation": 450,
+    "test": 450,
+    "total": 3000
+  },
+  "candidate_generation": {
+    "primary_k": 25,
+    "method": "Corridor-aware multi-pool scoring (terminal zone + origin zone + account nodes + risk + proximity)",
+    "train_force_add_allowed": true,
+    "train_force_add_count": 275,
+    "train_force_add_percentage": 19.23,
+    "validation_force_add": false,
+    "test_force_add": false,
+    "runtime_force_add": false,
+    "natural_recall": {
+      "K=10": 52.09,
+      "K=25": 79.8,
+      "K=60": 100.0
+    }
+  },
+  "hyperparameters": {
+    "n_estimators": 120,
+    "max_depth": 4,
+    "learning_rate": 0.06,
+    "subsample": 0.85,
+    "colsample_bytree": 0.85,
+    "scale_pos_weight": 24.192307692307693,
+    "random_state": 42,
+    "eval_metric": "logloss",
+    "tree_method": "hist"
+  },
+  "calibration": {
+    "method": "Platt Scaling (Logistic Regression on validation raw probabilities)",
+    "pre_calibration_brier": 0.1537,
+    "post_calibration_brier": 0.0291,
+    "ece": 0.0043
+  },
+  "test_metrics": {
+    "overall": {
+      "recall_at_1": 13.14,
+      "recall_at_3": 25.96,
+      "recall_at_5": 33.33,
+      "mrr": 0.2479,
+      "median_centroid_error_km": 8.81
+    },
+    "conditional_given_candidate_present": {
+      "candidate_hit_rate": 76.92,
+      "conditional_recall_at_1": 17.08,
+      "conditional_recall_at_3": 33.75,
+      "conditional_recall_at_5": 43.33,
+      "conditional_mrr": 0.3222
+    },
+    "baselines": {
+      "Random": {
+        "r1": 1.6025641025641024,
+        "r3": 4.487179487179487,
+        "r5": 7.371794871794872,
+        "mrr": 0.07592115535627522,
+        "median_err_km": 12.845679159455763
+      },
+      "Origin-first": {
+        "r1": 6.089743589743589,
+        "r3": 16.98717948717949,
+        "r5": 27.564102564102566,
+        "mrr": 0.18065595632418233,
+        "median_err_km": 9.463678089910388
+      },
+      "Terminal-zone-first": {
+        "r1": 5.448717948717949,
+        "r3": 16.346153846153847,
+        "r5": 24.03846153846154,
+        "mrr": 0.16208222268580366,
+        "median_err_km": 9.454456083723514
+      },
+      "Historical-risk": {
+        "r1": 4.487179487179487,
+        "r3": 9.615384615384617,
+        "r5": 15.064102564102564,
+        "mrr": 0.12716203142280597,
+        "median_err_km": 13.23875647942785
+      },
+      "Combined Heuristic": {
+        "r1": 10.256410256410255,
+        "r3": 22.435897435897438,
+        "r5": 28.846153846153843,
+        "mrr": 0.21653427836646905,
+        "median_err_km": 9.41051049811572
+      }
+    },
+    "by_scenario": {
+      "CROSS_ZONE": {
+        "r1": 0.0,
+        "r3": 0.0,
+        "r5": 0.0,
+        "mrr": 0.014526861295797703,
+        "count": 42
+      },
+      "HISTORICAL_HOTSPOT": {
+        "r1": 3.278688524590164,
+        "r3": 11.475409836065573,
+        "r5": 18.0327868852459,
+        "mrr": 0.13064716677301058,
+        "count": 61
+      },
+      "LOCAL": {
+        "r1": 37.362637362637365,
+        "r3": 48.35164835164835,
+        "r5": 56.043956043956044,
+        "mrr": 0.48794055294701716,
+        "count": 91
+      },
+      "MULE_CORRIDOR": {
+        "r1": 4.23728813559322,
+        "r3": 25.423728813559322,
+        "r5": 35.59322033898305,
+        "mrr": 0.20635166224575055,
+        "count": 118
+      }
+    },
+    "by_origin": {
+      "origin": {
+        "r1": 31.932773109243694,
+        "r3": 48.739495798319325,
+        "r5": 58.82352941176471,
+        "mrr": 0.4620785597935872,
+        "count": 119
+      },
+      "non_origin": {
+        "r1": 1.5544041450777202,
+        "r3": 11.917098445595855,
+        "r5": 17.616580310880828,
+        "mrr": 0.11577379893946849,
+        "count": 193
+      }
+    }
+  },
+  "leakage_audit": {
+    "target_derived_feature_count": 0,
+    "future_derived_feature_count": 0,
+    "fabricated_runtime_defaults": 0
+  },
+  "known_limitations": [
+    "Predictive power relies on observed transaction movements reaching terminal accounts before reporting cutoff.",
+    "Cross-zone evasive cashouts with zero observed intermediate hops remain challenging (0% R@3 on evasion corridor).",
+    "Models are strictly calibrated for the Delhi Pilot 60-cluster jurisdiction."
+  ]
+}

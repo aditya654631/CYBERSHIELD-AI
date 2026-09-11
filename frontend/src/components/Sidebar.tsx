@@ -1,34 +1,38 @@
 import React from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
-  ShieldAlert,
-  Activity,
+  LayoutDashboard,
   MapPin,
   FileText,
+  ShieldAlert,
   Network,
   BellRing,
   BarChart3,
   Cpu,
   History,
-  Settings,
-  Flame,
-  Radio,
+  Settings as SettingsIcon,
   LogOut,
-  ChevronRight
 } from 'lucide-react';
 import { useAuth } from '../store/authContext';
 
-const NAV_ITEMS = [
-  { name: 'Command Center', path: '/dashboard', icon: Activity },
-  { name: 'Live Risk Map', path: '/risk-map', icon: MapPin },
+interface NavItem {
+  name: string;
+  path: string;
+  icon: React.ComponentType<{ className?: string }>;
+  badge?: string;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Complaints', path: '/complaints', icon: FileText },
-  { name: 'Case Intelligence', path: '/cases/CMP-1042', icon: ShieldAlert, badge: 'CMP-1042' },
-  { name: 'Transaction Network', path: '/network/CMP-1042', icon: Network },
-  { name: 'Alerts Center', path: '/alerts', icon: BellRing },
+  { name: 'Case Intelligence', path: '/cases/CMP-NEW-000002', icon: ShieldAlert },
+  { name: 'Live Risk Map', path: '/risk-map', icon: MapPin },
+  { name: 'Alert Center', path: '/alerts', icon: BellRing },
+  { name: 'Transaction Network', path: '/network/CMP-NEW-000002', icon: Network },
   { name: 'Analytics', path: '/analytics', icon: BarChart3 },
   { name: 'Model Performance', path: '/model-performance', icon: Cpu },
   { name: 'System Audit', path: '/audit', icon: History },
-  { name: 'Settings', path: '/settings', icon: Settings },
+  { name: 'Settings', path: '/settings', icon: SettingsIcon },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -40,46 +44,51 @@ export const Sidebar: React.FC = () => {
     navigate('/login');
   };
 
+  const userInitials = user?.full_name
+    ? user.full_name
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'LE';
+
   return (
-    <aside className="w-72 bg-[#090e1d] border-r border-[#162544] flex flex-col h-screen select-none sticky top-0 shrink-0 z-30">
-      {/* Brand Header */}
-      <div className="p-5 border-b border-[#162544]">
+    <aside className="w-64 bg-[#173A63] border-r border-[#1E4A7D] flex flex-col h-screen select-none sticky top-0 shrink-0 z-30">
+      {/* Platform Identity Block */}
+      <div className="px-5 py-5 border-b border-[#1E4A7D]">
         <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-lg bg-cyan-500/10 border border-cyan-500/40 flex items-center justify-center text-cyan-400 shadow-[0_0_15px_rgba(0,216,255,0.25)]">
-            <ShieldAlert className="w-6 h-6 animate-pulse-subtle" />
+          <div className="w-9 h-9 rounded-md bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
+            <ShieldAlert className="w-5 h-5" />
           </div>
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center space-x-1.5">
-              <h1 className="text-lg font-bold tracking-wider text-slate-100 uppercase font-['JetBrains_Mono',monospace]">
-                Cyber<span className="text-cyan-400">Shield</span>
+              <h1 className="text-base font-bold tracking-tight text-white font-sans">
+                CyberShield <span className="text-blue-300">AI</span>
               </h1>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-300 font-semibold border border-cyan-500/30">
-                AI
-              </span>
             </div>
-            <p className="text-[11px] text-slate-400 tracking-wide font-medium">
-              Predict. Alert. Intervene. Protect.
+            <p className="text-[11px] text-blue-200/80 truncate">
+              Cybercrime Predictive Intelligence
             </p>
           </div>
         </div>
 
-        {/* Live Threat Bar */}
-        <div className="mt-4 px-3 py-2 rounded-md bg-[#060a15] border border-cyan-900/40 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-            <span className="text-[11px] font-mono text-emerald-400 tracking-wider">PREDICTIVE RADAR</span>
-          </div>
-          <span className="text-[10px] text-slate-400 font-mono">I4C SECURE</span>
+        {/* Operational Scope Banner */}
+        <div className="mt-3.5 px-2.5 py-1.5 rounded bg-[#122E4F] border border-[#1E4A7D] flex items-center justify-between">
+          <span className="text-[11px] font-medium text-blue-100">
+            I4C Pilot • Delhi NCT
+          </span>
+          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            Operational
+          </span>
         </div>
       </div>
 
-      {/* Navigation List */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-1.5">
-        <div className="px-3 pb-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wider font-mono">
-          Operations & Intelligence
+      {/* Navigation Links */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Primary Navigation">
+        <div className="px-3 pb-2 text-[11px] font-semibold text-blue-200/70 uppercase tracking-wider">
+          Intelligence & Operations
         </div>
         {NAV_ITEMS.map((item) => {
           const Icon = item.icon;
@@ -88,53 +97,49 @@ export const Sidebar: React.FC = () => {
               key={item.path}
               to={item.path}
               className={({ isActive }) =>
-                `group flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${
+                `group flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${
                   isActive
-                    ? 'bg-cyan-500/10 text-cyan-300 border border-cyan-500/40 shadow-[0_0_12px_rgba(0,216,255,0.15)] font-semibold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-[#101a33] border border-transparent'
+                    ? 'bg-[#1E4A7D] text-white font-semibold border-l-2 border-blue-400 pl-2.5 shadow-sm'
+                    : 'text-blue-100/80 hover:text-white hover:bg-[#1E4A7D]/50'
                 }`
               }
             >
-              <div className="flex items-center space-x-3">
-                <Icon className="w-4 h-4 transition-transform group-hover:scale-110" />
-                <span>{item.name}</span>
+              <div className="flex items-center space-x-2.5 min-w-0">
+                <Icon className="w-4 h-4 shrink-0" />
+                <span className="truncate">{item.name}</span>
               </div>
               {item.badge && (
-                <span className="text-[10px] px-1.5 py-0.5 rounded font-mono bg-red-500/20 text-red-400 border border-red-500/30 font-bold">
+                <span className="text-[10px] px-1.5 py-0.2 rounded font-mono bg-red-600 text-white font-bold">
                   {item.badge}
                 </span>
               )}
             </NavLink>
           );
         })}
-      </div>
+      </nav>
 
-      {/* Bottom Officer Profile */}
-      <div className="p-3 border-t border-[#162544] bg-[#070b17]">
-        <div className="p-2.5 rounded-lg bg-[#0c1428] border border-[#1b2b4d] flex items-center justify-between">
+      {/* Authenticated Officer Identity Footer */}
+      <div className="p-3 border-t border-[#1E4A7D] bg-[#143358]">
+        <div className="p-2.5 rounded-md bg-[#122E4F] border border-[#1E4A7D] flex items-center justify-between">
           <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-cyan-950 border border-cyan-500/30 flex items-center justify-center text-cyan-300 font-bold text-xs font-mono">
-              {user ? user.full_name.substring(0, 2).toUpperCase() : 'LE'}
+            <div className="w-8 h-8 rounded-full bg-[#1E4A7D] border border-blue-300/30 flex items-center justify-center text-white font-semibold text-xs shrink-0">
+              {userInitials}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-slate-200 truncate">
-                {user ? user.full_name : 'Authorized Officer'}
+              <p className="text-xs font-semibold text-white truncate">
+                {user ? user.full_name : 'Authenticated Officer'}
               </p>
-              <div className="flex items-center space-x-1.5">
-                <span className="text-[10px] font-mono text-cyan-400 font-medium">
-                  {user ? user.role : 'LEA'}
-                </span>
-                <span className="text-[9px] text-slate-400 font-mono">
-                  {user ? user.badge_number : 'OFFICER'}
-                </span>
-              </div>
+              <p className="text-[11px] text-blue-200/80 truncate">
+                {user ? `${user.role}` : 'Law Enforcement'}
+              </p>
             </div>
           </div>
 
           <button
             onClick={handleLogout}
-            title="Secure Officer Logout"
-            className="p-1.5 rounded hover:bg-red-500/10 text-slate-400 hover:text-red-400 transition-colors"
+            title="Sign Out"
+            aria-label="Sign Out"
+            className="p-1.5 rounded text-blue-200 hover:text-white hover:bg-red-500/30 transition-colors ml-1"
           >
             <LogOut className="w-4 h-4" />
           </button>

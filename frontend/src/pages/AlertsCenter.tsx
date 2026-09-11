@@ -7,7 +7,6 @@ import {
   CheckCircle2,
   Clock,
   MapPin,
-  DollarSign,
   Eye,
   Send,
   Radio,
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { AlertItem } from '../types';
-import { formatRisk } from '../utils/formatters';
+import { formatINR } from '../utils/formatters';
 
 export const AlertsCenter: React.FC = () => {
   const navigate = useNavigate();
@@ -42,11 +41,12 @@ export const AlertsCenter: React.FC = () => {
   useEffect(() => {
     fetchAlerts();
     // Setup WebSocket for live dashboard alert events
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.hostname}:8000/ws/alerts`;
+    const WS_URL =
+      import.meta.env.VITE_WS_URL ||
+      'ws://localhost:8000/ws/alerts';
     let socket: WebSocket | null = null;
     try {
-      socket = new WebSocket(wsUrl);
+      socket = new WebSocket(WS_URL);
       socket.onmessage = (evt) => {
         try {
           const data = JSON.parse(evt.data);
@@ -89,27 +89,27 @@ export const AlertsCenter: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-[#0a1020] rounded-2xl border border-[#162544] shadow-2xl gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <BellRing className="w-5 h-5 text-red-400 animate-bounce" />
-            <h1 className="text-xl font-bold text-white font-['JetBrains_Mono',monospace]">
+            <BellRing className="w-5 h-5 text-red-600 shrink-0" />
+            <h1 className="text-lg font-bold text-[#173A63] font-sans">
               Tactical Alerts & Rapid Intervention Center
             </h1>
           </div>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5">
             Automated predictive alarms triggered for high-risk (&gt;=80%) cash-out extractions
           </p>
         </div>
 
         {/* Filter */}
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 bg-[#070c18] px-3 py-1.5 rounded-lg border border-[#162544]">
+          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-md border border-[#DCE5F0]">
             <Filter className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent text-xs text-slate-200 focus:outline-none font-mono cursor-pointer"
+              className="bg-transparent text-xs text-slate-700 focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Alert States</option>
               <option value="NEW">NEW (Unacknowledged)</option>
@@ -120,7 +120,8 @@ export const AlertsCenter: React.FC = () => {
 
           <button
             onClick={fetchAlerts}
-            className="p-2 rounded-lg bg-[#070c18] border border-[#162544] text-slate-300 hover:text-cyan-400"
+            title="Refresh alerts"
+            className="p-2 rounded-md bg-white border border-[#DCE5F0] text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -128,74 +129,82 @@ export const AlertsCenter: React.FC = () => {
       </div>
 
       {/* Alert Cards List */}
-      <div className="space-y-4">
+      <div className="space-y-3">
         {alerts.map((alert) => {
           const isCritical = alert.severity === 'CRITICAL';
+          const isHigh = alert.severity === 'HIGH';
           const isNew = alert.status === 'NEW';
 
           return (
             <div
               key={alert.id}
-              className={`p-5 rounded-2xl border transition-all shadow-xl ${
+              className={`p-5 rounded-lg border bg-white shadow-xs transition-colors hover:border-slate-300 ${
                 isCritical
-                  ? isNew
-                    ? 'bg-[#120a14] border-red-500/60 shadow-[0_0_20px_rgba(239,68,68,0.15)]'
-                    : 'bg-[#0a1020] border-red-500/30'
-                  : 'bg-[#0a1020] border-[#162544]'
+                  ? 'border-l-4 border-l-red-600 border-r-[#DCE5F0] border-t-[#DCE5F0] border-b-[#DCE5F0]'
+                  : isHigh
+                  ? 'border-l-4 border-l-orange-500 border-r-[#DCE5F0] border-t-[#DCE5F0] border-b-[#DCE5F0]'
+                  : 'border-[#DCE5F0]'
               }`}
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span
-                      className={`px-2.5 py-0.5 rounded-full text-xs font-mono font-bold flex items-center space-x-1.5 ${
+                      className={`px-2.5 py-0.5 rounded text-xs font-semibold flex items-center space-x-1.5 ${
                         isCritical
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                          ? 'bg-red-50 text-red-700 border border-red-200'
+                          : isHigh
+                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                          : 'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}
                     >
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping"></span>
+                      <span className={`w-1.5 h-1.5 rounded-full ${isCritical ? 'bg-red-600' : isHigh ? 'bg-orange-600' : 'bg-amber-600'}`}></span>
                       <span>{alert.severity}</span>
                     </span>
 
-                    <span className="text-sm font-bold text-white font-mono">{alert.title}</span>
+                    <span className="text-sm font-bold text-slate-900">{alert.title}</span>
+
+                    {alert.prediction_id && (
+                      <span className="text-[10px] px-2 py-0.5 rounded font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                        PREDICTION #{alert.prediction_id}
+                      </span>
+                    )}
 
                     <span
-                      className={`text-[10px] px-2 py-0.5 rounded font-mono font-bold ${
-                        alert.status === 'NEW'
-                          ? 'bg-red-500 text-white animate-pulse'
+                      className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                        isNew
+                          ? 'bg-red-600 text-white'
                           : alert.status === 'ACKNOWLEDGED'
-                          ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                          : 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       }`}
                     >
                       STATUS: {alert.status}
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 text-xs font-mono text-slate-300">
-                    <div className="flex items-center space-x-1 text-cyan-300">
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                    <div className="flex items-center space-x-1 text-blue-700 font-medium">
                       <MapPin className="w-3.5 h-3.5" />
                       <span>{alert.location_name}</span>
                     </div>
                     <span>•</span>
-                    <div className="flex items-center space-x-1 text-amber-300">
-                      <Clock className="w-3.5 h-3.5" />
+                    <div className="flex items-center space-x-1 text-slate-600">
+                      <Clock className="w-3.5 h-3.5 text-slate-400" />
                       <span>Window: {alert.expected_window}</span>
                     </div>
                     <span>•</span>
-                    <div className="flex items-center space-x-1 text-emerald-400 font-bold">
-                      <DollarSign className="w-3.5 h-3.5" />
-                      <span>₹{alert.amount_at_risk.toLocaleString('en-IN')}</span>
+                    <div className="flex items-center space-x-1 text-emerald-700 font-semibold">
+                      <span>{formatINR(alert.amount_at_risk)}</span>
                     </div>
                     <span>•</span>
-                    <div className="text-slate-400">
-                      Risk Score: <strong className="text-red-400">{formatRisk(alert.risk_score)}</strong>
+                    <div className="text-slate-500">
+                      Operational Priority: <strong className={isCritical ? 'text-red-700' : isHigh ? 'text-orange-700' : 'text-amber-700'}>{alert.severity}</strong>
                     </div>
                   </div>
 
                   {alert.action_notes && (
-                    <div className="text-[11px] text-slate-400 font-mono bg-[#070c18] p-2 rounded border border-[#162544]">
+                    <div className="text-xs text-slate-600 bg-[#F6F8FC] p-2.5 rounded-md border border-[#DCE5F0]">
                       Officer Action: {alert.action_notes}
                       {alert.acknowledged_by && ` (${alert.acknowledged_by})`}
                     </div>
@@ -206,17 +215,25 @@ export const AlertsCenter: React.FC = () => {
                 <div className="flex items-center space-x-2.5 shrink-0">
                   <button
                     onClick={() => navigate(`/cases/${alert.complaint_number}`)}
-                    className="px-3 py-2 rounded-lg bg-[#0e1933] hover:bg-[#15254d] border border-cyan-500/30 text-cyan-300 text-xs font-mono font-bold flex items-center space-x-1.5 transition-all"
+                    className="px-3 py-1.5 rounded-md bg-white hover:bg-blue-50 border border-[#DCE5F0] text-blue-700 text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs"
                   >
                     <Eye className="w-3.5 h-3.5" />
                     <span>VIEW CASE</span>
+                  </button>
+
+                  <button
+                    onClick={() => navigate(`/risk-map`)}
+                    className="px-3 py-1.5 rounded-md bg-white hover:bg-blue-50 border border-[#DCE5F0] text-blue-700 text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs"
+                  >
+                    <MapPin className="w-3.5 h-3.5" />
+                    <span>RISK MAP</span>
                   </button>
 
                   {alert.status === 'NEW' && (
                     <button
                       onClick={() => handleAcknowledge(alert.id)}
                       disabled={actioningId === alert.id}
-                      className="px-3.5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono font-bold flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(0,216,255,0.3)]"
+                      className="px-3.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-60"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>ACKNOWLEDGE</span>
@@ -227,10 +244,10 @@ export const AlertsCenter: React.FC = () => {
                     <button
                       onClick={() => handleEscalate(alert.id)}
                       disabled={actioningId === alert.id}
-                      className="px-3.5 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-mono font-bold flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]"
+                      className="px-3.5 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-60"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>ESCALATE TO BANK / GATEWAY</span>
+                      <span>ESCALATE TO BANK</span>
                     </button>
                   )}
                 </div>

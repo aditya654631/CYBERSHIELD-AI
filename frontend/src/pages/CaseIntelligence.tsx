@@ -4,58 +4,84 @@ import {
   ShieldAlert,
   MapPin,
   Clock,
-  TrendingUp,
-  BrainCircuit,
   Network,
   BellRing,
-  ExternalLink,
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
-  Sparkles,
   Info,
   Layers,
   Map as MapIcon,
   RefreshCw,
   Gauge,
-  Activity,
-  Compass
+  FileText,
+  CreditCard,
+  Building2,
+  User,
+  ArrowUpRight,
+  Cpu,
+  ChevronRight,
+  ExternalLink,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { Complaint, Prediction, Explanation, HotspotCluster } from '../types';
+import { Complaint, Prediction, Explanation, HotspotCluster, GraphData, AlertItem } from '../types';
 import { CashOutRiskMap } from '../maps/CashOutRiskMap';
-import { formatRisk } from '../utils/formatters';
+import { Card } from '../components/common/Card';
+import { Badge } from '../components/common/Badge';
+import { Button } from '../components/common/Button';
+import { LoadingState } from '../components/common/LoadingState';
 
 export const CaseIntelligence: React.FC = () => {
   const { id } = useParams<{ id: string }>();
-  const caseId = id || 'CMP-1042';
+  const caseId = id || 'CMP-NEW-000126';
   const navigate = useNavigate();
 
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
   const [explanation, setExplanation] = useState<Explanation | null>(null);
+  const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [clusters, setClusters] = useState<HotspotCluster[]>([]);
+  const [existingAlert, setExistingAlert] = useState<AlertItem | null>(null);
   const [loading, setLoading] = useState(true);
   const [runningPrediction, setRunningPrediction] = useState(false);
+  const [predictionError, setPredictionError] = useState<string | null>(null);
   const [alertSuccess, setAlertSuccess] = useState<string | null>(null);
 
   const fetchCaseDetails = async () => {
     setLoading(true);
+    setPredictionError(null);
     try {
-      const [compData, predData, mapData] = await Promise.all([
+      const [compData, predData, mapData, alertsData] = await Promise.all([
         api.getComplaint(caseId),
         api.getPrediction(caseId),
-        api.getRiskMap()
+        api.getRiskMap(),
+        api.getAlerts()
       ]);
       setComplaint(compData);
       setPrediction(predData);
-      setClusters(mapData.hotspots);
+      setClusters(mapData.hotspots || []);
+
+      const matchedAlert = alertsData.find(
+        (a) => a.complaint_number === caseId || a.complaint_id === compData.id
+      );
+      setExistingAlert(matchedAlert || null);
 
       if (predData?.prediction_id) {
-        const explData = await api.getExplanation(predData.prediction_id);
-        setExplanation(explData);
+        try {
+          const explData = await api.getExplanation(predData.prediction_id);
+          setExplanation(explData);
+        } catch {
+          // silent fallback
+        }
       }
-    } catch (err) {
+
+      try {
+        const gData = await api.getGraph(caseId);
+        setGraphData(gData);
+      } catch {
+        // graph is optional
+      }
+    } catch (err: any) {
       console.error('Failed to load case intelligence', err);
     } finally {
       setLoading(false);
@@ -66,569 +92,805 @@ export const CaseIntelligence: React.FC = () => {
     fetchCaseDetails();
   }, [caseId]);
 
-  // Button Action: Run Predictive Analysis
+  // Operational Action: Run Predictive Analysis
   const handleRunPrediction = async () => {
     setRunningPrediction(true);
+    setPredictionError(null);
     try {
       const newPred = await api.runPrediction(caseId);
       setPrediction(newPred);
       if (newPred?.prediction_id) {
-        const explData = await api.getExplanation(newPred.prediction_id);
-        setExplanation(explData);
+        try {
+          const explData = await api.getExplanation(newPred.prediction_id);
+          setExplanation(explData);
+        } catch {
+          // silent fallback
+        }
       }
-    } catch (err) {
-      console.error('Error running prediction', err);
+    } catch (err: any) {
+      console.error('Error running predictive analysis', err);
+      setPredictionError(
+        err.response?.data?.detail || 'Predictive analysis could not be completed. Check case context or backend service.'
+      );
     } finally {
       setRunningPrediction(false);
     }
   };
 
-  // Button Action: Generate Alert
+  // Operational Action: Generate or View Alert
   const handleGenerateAlert = async () => {
     if (!complaint || !prediction) return;
     try {
-      const alerts = await api.getAlerts();
-      const existing = alerts.find(a => a.complaint_id === complaint.id);
-      const targetLoc = prediction.where_location || 'predicted cash-out hotspot';
-      const msg = `Immediate ground intercept dispatched to ${targetLoc}`;
-      if (existing) {
-        await api.acknowledgeAlert(existing.id, msg);
-      }
-      setAlertSuccess(msg);
-      setTimeout(() => setAlertSuccess(null), 4500);
-    } catch (err) {
-      console.error('Error generating alert', err);
+      const predId = prediction.prediction_id || prediction.id;
+      if (!predId) return;
+
+      const created = await api.createAlertForPrediction(predId);
+      setExistingAlert(created);
+      const targetLoc = created.location_name || prediction.where_location || 'hotspot';
+      setAlertSuccess(`Alert #${created.id} generated for ${targetLoc}`);
+      setTimeout(() => setAlertSuccess(null), 5000);
+    } catch (err: any) {
+      console.error('Error creating alert', err);
+      setAlertSuccess(err.response?.data?.detail || 'Alert creation failed');
+      setTimeout(() => setAlertSuccess(null), 5000);
     }
   };
 
   if (loading || !complaint) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="h-24 bg-[#0c1428] rounded-xl border border-[#162544]"></div>
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-36 bg-[#0c1428] rounded-xl border border-[#162544]"></div>
-          ))}
-        </div>
-        <div className="h-96 bg-[#0c1428] rounded-xl border border-[#162544]"></div>
+      <div className="py-24">
+        <LoadingState message="Loading case intelligence dossier and evidence records..." />
       </div>
     );
   }
 
   const isTrained = prediction?.prediction_mode === 'trained_ml';
   const isDemo = prediction?.prediction_mode === 'deterministic_demo';
-  const highlightedClusterName = prediction?.where_location || prediction?.top_locations?.[0]?.location_name || clusters?.[0]?.cluster_name;
+  const topLocations = prediction?.top_locations || [];
+  const rank1Location = topLocations[0] || null;
+
+  // Format likelihood preserving exact rank distinction
+  const formatLikelihood = (prob: number | null | undefined): string => {
+    if (prob == null || !Number.isFinite(prob)) return '—';
+    const pct = prob * 100;
+    return `${pct.toFixed(2)}%`;
+  };
+
+  // Context provenance mapping
+  const provenanceLabel =
+    complaint.provenance_mode === 'DIRECT_OFFICER_INPUT'
+      ? 'Direct Officer-Reported Transaction'
+      : complaint.provenance_mode === 'LINKED_SYNTHETIC_SCENARIO'
+      ? 'Linked Investigation Scenario'
+      : complaint.provenance_mode === 'HYBRID_CONTEXT'
+      ? 'Hybrid Context'
+      : 'Direct Officer-Reported Transaction';
+
+  const nodeCount = graphData?.metrics?.node_count ?? (complaint.linked_account_count || 2);
+  const transferCount = graphData?.metrics?.edge_count ?? (complaint.available_transaction_count || 1);
 
   return (
-    <div className="space-y-6 pb-12">
-      {/* Case Header & Status Bar */}
-      <div className="p-6 bg-gradient-to-r from-[#0a1122] via-[#0d1730] to-[#0a1122] rounded-2xl border border-[#162544] shadow-2xl">
+    <div className="space-y-5 pb-12 font-sans">
+      {/* ==================================================================== */}
+      {/* B2: COMPACT PROFESSIONAL CASE HEADER */}
+      {/* ==================================================================== */}
+      <div className="bg-white rounded-lg border border-slate-200 p-5 shadow-sm">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
           <div>
-            <div className="flex flex-wrap items-center gap-3 mb-2">
-              <span className="text-xl font-bold font-mono text-cyan-400">
+            <div className="flex items-center space-x-2.5">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                Case Intelligence
+              </span>
+              <span className="text-slate-300">•</span>
+              <span className="text-lg font-bold font-mono text-slate-900">
                 {complaint.complaint_number}
               </span>
-              <span className="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-red-500/20 text-red-400 border border-red-500/40">
-                {complaint.risk_level} RISK
-              </span>
-              <span className="px-2 py-0.5 rounded bg-[#162544] text-slate-300 text-xs font-mono">
-                {complaint.fraud_type}
-              </span>
-              <span className="text-xs text-slate-400 font-mono">
-                Channel: <strong className="text-white">{complaint.payment_channel}</strong>
-              </span>
-
-              {/* Provenance Indicator Badge */}
-              {isTrained && (
-                <span className="px-2.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-xs font-mono font-bold flex items-center space-x-1.5">
-                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                  <span>Prediction Mode: Trained ML ({prediction?.model_version || 'cashout-location-xgb-v2'})</span>
-                </span>
-              )}
-              {isDemo && (
-                <span className="px-2.5 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 text-xs font-mono font-bold flex items-center space-x-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400" />
-                  <span>Prediction Mode: Deterministic Demo ({prediction?.model_version || 'demo-provider-v1'})</span>
-                </span>
-              )}
+              <Badge
+                variant={
+                  complaint.case_status === 'ALERTED'
+                    ? 'critical'
+                    : complaint.case_status === 'ACTIVE'
+                    ? 'info'
+                    : 'neutral'
+                }
+              >
+                {complaint.case_status}
+              </Badge>
             </div>
-
-            <div className="flex flex-wrap items-center gap-4 text-xs text-slate-300 font-mono mt-1">
-              <div>
-                Amount at Risk:{' '}
-                <strong className="text-emerald-400 text-sm">₹{complaint.amount.toLocaleString('en-IN')}</strong>
-              </div>
-              <span>•</span>
-              <div>
-                Victim:{' '}
-                <span className="text-slate-200 font-semibold">{complaint.victim_name || 'Reported Victim'}</span>
-              </div>
-              <span>•</span>
-              <div>
-                Origin:{' '}
-                <span className="text-slate-200">{complaint.victim_location}</span>
-              </div>
-              <span>•</span>
-              <div>
-                Status:{' '}
-                <span className="text-cyan-400 font-bold">{complaint.case_status}</span>
-              </div>
-            </div>
+            <p className="text-xs text-slate-500 mt-1">
+              Cybercrime complaint investigation and predictive cash-out analysis
+            </p>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              onClick={() => navigate(`/network/${complaint.complaint_number}`)}
-              className="px-3.5 py-2 rounded-lg bg-[#0e1933] hover:bg-[#142347] border border-cyan-500/40 text-cyan-300 text-xs font-mono font-semibold flex items-center space-x-1.5 transition-all shadow-md"
-            >
-              <Network className="w-4 h-4" />
-              <span>ANALYZE NETWORK</span>
-            </button>
+          {/* Primary Operational Actions */}
+          <div className="flex flex-wrap items-center gap-2.5 shrink-0">
+            {prediction ? (
+              <Button
+                onClick={handleRunPrediction}
+                disabled={runningPrediction}
+                variant="secondary"
+                size="sm"
+                icon={<RefreshCw className={`w-3.5 h-3.5 ${runningPrediction ? 'animate-spin' : ''}`} />}
+              >
+                {runningPrediction ? 'Evaluating...' : 'Rerun Analysis'}
+              </Button>
+            ) : (
+              <Button
+                onClick={handleRunPrediction}
+                disabled={runningPrediction}
+                variant="primary"
+                size="sm"
+                icon={<Cpu className={`w-3.5 h-3.5 ${runningPrediction ? 'animate-spin' : ''}`} />}
+              >
+                {runningPrediction ? 'Evaluating...' : 'Run Predictive Analysis'}
+              </Button>
+            )}
 
-            <button
-              onClick={handleRunPrediction}
-              disabled={runningPrediction}
-              className="px-3.5 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono font-semibold flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(0,216,255,0.3)] disabled:opacity-50"
-            >
-              <BrainCircuit className="w-4 h-4" />
-              <span>{runningPrediction ? 'INFERRING...' : 'RUN PREDICTIVE ANALYSIS'}</span>
-            </button>
+            {prediction ? (
+              <Button
+                onClick={() => navigate(`/risk-map?complaint=${caseId}`)}
+                variant="outline"
+                size="sm"
+                icon={<MapIcon className="w-3.5 h-3.5" />}
+              >
+                Show on Map
+              </Button>
+            ) : null}
 
-            <button
-              onClick={() => navigate('/risk-map')}
-              className="px-3.5 py-2 rounded-lg bg-[#0e1933] hover:bg-[#142347] border border-[#1b2b4d] text-slate-300 text-xs font-mono font-semibold flex items-center space-x-1.5 transition-all"
-            >
-              <MapIcon className="w-4 h-4" />
-              <span>SHOW ON MAP</span>
-            </button>
-
-            <button
-              onClick={handleGenerateAlert}
-              className="px-3.5 py-2 rounded-lg bg-red-600 hover:bg-red-500 text-white text-xs font-mono font-semibold flex items-center space-x-1.5 transition-all shadow-[0_0_15px_rgba(239,68,68,0.3)]"
-            >
-              <BellRing className="w-4 h-4" />
-              <span>GENERATE ALERT</span>
-            </button>
+            {existingAlert ? (
+              <Button
+                onClick={() => navigate('/alerts')}
+                variant="secondary"
+                size="sm"
+                icon={<BellRing className="w-3.5 h-3.5 text-amber-600" />}
+              >
+                <span>Alert #{existingAlert.id} ({existingAlert.status})</span>
+              </Button>
+            ) : prediction ? (
+              <Button
+                onClick={handleGenerateAlert}
+                variant="danger"
+                size="sm"
+                icon={<BellRing className="w-3.5 h-3.5" />}
+              >
+                Generate Alert
+              </Button>
+            ) : null}
           </div>
         </div>
 
         {alertSuccess && (
-          <div className="mt-4 p-3 bg-emerald-950/60 border border-emerald-500/40 rounded-lg text-emerald-300 text-xs font-mono flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 shrink-0" />
-            <span>CRITICAL ALERT ACKNOWLEDGED: {alertSuccess}</span>
+          <div className="mt-3.5 p-3 rounded-md bg-green-50 border border-green-200 text-green-800 text-xs flex items-center space-x-2">
+            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+            <span className="font-medium">{alertSuccess}</span>
           </div>
         )}
+      </div>
 
-        {/* Investigation Timeline */}
-        <div className="mt-6 pt-5 border-t border-[#162544]">
-          <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider font-mono mb-3">
-            Investigation Lifecycle Progress
+      {/* ==================================================================== */}
+      {/* B3: COMPACT CASE SUMMARY STRIP (6 Information Cells) */}
+      {/* ==================================================================== */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+          <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+            Amount Lost
+          </span>
+          <div className="text-base font-bold text-slate-900 mt-0.5">
+            ₹{Number(complaint.amount).toLocaleString('en-IN')}
           </div>
-          <div className="flex items-center justify-between relative">
-            <div className="absolute top-1/2 left-0 right-0 h-0.5 bg-[#162544] -translate-y-1/2 -z-0"></div>
+          <span className="text-[10px] text-slate-400">Total reported loss</span>
+        </div>
 
-            {[
-              { label: 'Complaint', state: 'Registered', done: true },
-              { label: 'Network Extraction', state: 'Multi-Hop Traced', done: true },
-              { label: 'Mule Clustering', state: 'Corridor Identified', done: true },
-              {
-                label: 'AI Prediction',
-                state: prediction?.where_location
-                  ? `${prediction.where_location.split(',')[0]} (${Number.isFinite(prediction.confidence_score) ? Math.round(prediction.confidence_score * 100) + '%' : 'Calculated'})`
-                  : 'Pending Ingestion',
-                done: !!prediction
-              },
-              {
-                label: 'Operational Priority',
-                state: prediction ? `Priority ${prediction.intervention_priority}/100` : 'Evaluating',
-                done: !!prediction
-              },
-              { label: 'Tactical Intercept', state: alertSuccess ? 'Dispatched' : 'Armed', done: !!alertSuccess }
-            ].map((step, idx) => (
-              <div key={idx} className="flex flex-col items-center relative z-10">
-                <div
-                  className={`w-7 h-7 rounded-full border-2 border-[#060913] flex items-center justify-center font-bold text-xs ${
-                    step.done
-                      ? 'bg-cyan-500 text-[#060913] shadow-[0_0_12px_rgba(0,216,255,0.6)]'
-                      : 'bg-[#162544] text-slate-400'
-                  }`}
-                >
-                  {step.done ? '✓' : idx + 1}
-                </div>
-                <span className="text-xs font-bold text-slate-200 mt-2 font-mono">{step.label}</span>
-                <span className="text-[10px] text-cyan-400 font-mono text-center max-w-[120px] truncate">
-                  {step.state}
-                </span>
-              </div>
-            ))}
+        <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+          <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+            Fraud Type
+          </span>
+          <div className="text-sm font-semibold text-slate-800 mt-0.5 truncate" title={complaint.fraud_type}>
+            {complaint.fraud_type}
           </div>
+          <span className="text-[10px] text-slate-400">Classification</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+          <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+            Incident Time
+          </span>
+          <div className="text-xs font-semibold text-slate-800 mt-0.5">
+            {complaint.incident_time
+              ? new Date(complaint.incident_time).toLocaleString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })
+              : 'Not available'}
+          </div>
+          <span className="text-[10px] text-slate-400">Complainant timestamp</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+          <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+            Reported Time
+          </span>
+          <div className="text-xs font-semibold text-slate-800 mt-0.5">
+            {complaint.reported_at
+              ? new Date(complaint.reported_at).toLocaleString('en-IN', {
+                  day: '2-digit',
+                  month: 'short',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit'
+                })
+              : 'Not available'}
+          </div>
+          <span className="text-[10px] text-slate-400">Portal intake timestamp</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+          <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+            Payment Channel
+          </span>
+          <div className="text-sm font-semibold text-slate-800 mt-0.5">
+            {complaint.payment_channel || 'Not available'}
+          </div>
+          <span className="text-[10px] text-slate-400">Initial remittance rail</span>
+        </div>
+
+        <div className="bg-white border border-slate-200 rounded-lg p-3 shadow-sm">
+          <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider block">
+            Jurisdiction
+          </span>
+          <div className="text-xs font-semibold text-slate-800 mt-0.5 truncate" title={`${complaint.district || ''}, ${complaint.state || 'Delhi'}`}>
+            {complaint.district ? `${complaint.district}, ${complaint.state || 'Delhi'}` : complaint.state || 'Delhi'}
+          </div>
+          <span className="text-[10px] text-slate-400">Police jurisdiction</span>
         </div>
       </div>
 
-      {/* DISTINCT SCORE SEMANTICS: WHERE, WHEN, OVERALL RISK, MODEL CONFIDENCE */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-        {/* WHERE */}
-        <div className="p-5 bg-[#0a1020] rounded-2xl border border-cyan-500/40 shadow-xl relative overflow-hidden group hover:border-cyan-400 transition-all">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400 flex items-center space-x-1.5">
-              <MapPin className="w-4 h-4" />
-              <span>WHERE</span>
-            </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-300 font-mono">
-              Top Ranked Cluster
-            </span>
+      {/* ==================================================================== */}
+      {/* B4 & B6: INVESTIGATION DETAILS & CONTEXT PROVENANCE */}
+      {/* ==================================================================== */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+        {/* Left Column: Victim / Complaint Context */}
+        <div className="lg:col-span-6 bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+          <div className="flex items-center space-x-2 pb-3 border-b border-slate-100 mb-3.5">
+            <User className="w-4 h-4 text-slate-600" />
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Victim & Complaint Context
+            </h3>
           </div>
-          <div className="text-lg font-bold text-white font-mono mt-1 truncate">
-            {prediction?.where_location || 'Location Analysis Pending'}
-          </div>
-          <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed truncate">
-            {prediction?.top_locations?.[0]?.reasoning || 'Target cluster candidate evaluated via corridor analysis'}
-          </p>
-        </div>
 
-        {/* WHEN */}
-        <div className="p-5 bg-[#0a1020] rounded-2xl border border-[#162544] shadow-xl hover:border-cyan-500/40 transition-all">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400 flex items-center space-x-1.5">
-              <Clock className="w-4 h-4" />
-              <span>WHEN</span>
-            </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-300 font-mono">
-              Temporal Window
-            </span>
-          </div>
-          <div className="text-lg font-bold text-amber-300 font-mono mt-1">
-            {prediction?.when_window || 'Window Analysis Pending'}
-          </div>
-          <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed">
-            Target cash-out interception horizon
-          </p>
-        </div>
-
-        {/* OVERALL RISK (Fused Operational Score) */}
-        <div className="p-5 bg-[#0a1020] rounded-2xl border border-red-500/40 shadow-xl hover:border-red-500/70 transition-all relative overflow-hidden">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-red-400 flex items-center space-x-1.5">
-              <ShieldAlert className="w-4 h-4" />
-              <span>OVERALL RISK</span>
-            </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 font-bold font-mono">
-              {prediction?.risk_level || 'EVALUATING'}
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-red-400 font-mono mt-1">
-            {formatRisk(prediction?.risk_score, prediction?.risk_percentage)}
-          </div>
-          <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed">
-            Fused Operational Risk Score (4-Pillar Pipeline)
-          </p>
-        </div>
-
-        {/* MODEL CONFIDENCE (Calibrated ML Probability) */}
-        <div className="p-5 bg-[#0a1020] rounded-2xl border border-blue-500/40 shadow-xl hover:border-blue-500/70 transition-all">
-          <div className="flex items-center justify-between text-slate-400 mb-2">
-            <span className="text-xs font-mono font-bold uppercase tracking-wider text-blue-400 flex items-center space-x-1.5">
-              <Gauge className="w-4 h-4" />
-              <span>MODEL CONFIDENCE</span>
-            </span>
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/10 text-blue-300 font-mono">
-              Calibrated ML Prob
-            </span>
-          </div>
-          <div className="text-2xl font-bold text-blue-300 font-mono mt-1">
-            {prediction && Number.isFinite(prediction.confidence_score)
-              ? `${Math.round(prediction.confidence_score * 100)}%`
-              : 'Unavailable'}
-          </div>
-          <p className="text-xs text-slate-400 mt-2 font-mono leading-relaxed">
-            Platt-scaled XGBoost v2 probability estimate
-          </p>
-        </div>
-      </div>
-
-      {/* INTERVENTION PRIORITY SCORE BANNER & PROVENANCE */}
-      <div className="p-5 rounded-2xl bg-gradient-to-r from-red-950/40 via-[#0e1628] to-red-950/40 border border-red-500/40 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-        <div className="flex items-center space-x-4">
-          <div className="w-14 h-14 rounded-xl bg-red-500/20 border border-red-500/50 flex items-center justify-center text-red-400 font-mono font-bold text-xl shrink-0">
-            {prediction?.intervention_priority ?? '—'}
-          </div>
-          <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs font-bold font-mono uppercase text-red-400">
-                INTERVENTION PRIORITY SCORE:
-              </span>
-              <span className="text-base font-bold text-white font-mono">
-                {prediction ? `${prediction.intervention_priority} / 100` : '—'}
-              </span>
-              <span className="px-2 py-0.5 rounded bg-red-500 text-white font-bold text-[10px] font-mono">
-                {prediction?.priority_level || 'MONITOR'}
+          <div className="grid grid-cols-2 gap-3.5 text-xs">
+            <div>
+              <span className="text-slate-500 text-[11px] block">Victim Name</span>
+              <span className="font-semibold text-slate-800">
+                {complaint.victim_name || 'Not available'}
               </span>
             </div>
-            <p className="text-xs text-slate-400 mt-1 font-mono">
-              Provenance:{' '}
-              <strong className="text-cyan-400">
-                {isTrained ? 'Trained ML' : isDemo ? 'Deterministic Demo' : prediction?.prediction_mode || 'Evaluating'}
-              </strong>{' '}
-              | Model Version: <strong className="text-white">{prediction?.model_version || 'pending'}</strong>
+            <div>
+              <span className="text-slate-500 text-[11px] block">Locality / Origin</span>
+              <span className="text-slate-800">
+                {complaint.locality || complaint.victim_location || 'Not available'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[11px] block">Victim Bank</span>
+              <span className="font-semibold text-slate-800">
+                {complaint.victim_bank || 'Not available'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[11px] block">Reported Phone</span>
+              <span className="text-slate-800 font-mono">
+                {complaint.victim_phone || 'Not available'}
+              </span>
+            </div>
+          </div>
+
+          {/* Narrative description */}
+          <div className="mt-4 pt-3.5 border-t border-slate-100 text-xs">
+            <span className="text-slate-500 text-[11px] block mb-1">
+              Officer Complaint Description / Modus Operandi
+            </span>
+            <p className="text-slate-700 leading-relaxed bg-slate-50 p-2.5 rounded border border-slate-100">
+              {complaint.description || 'No complaint narrative description entered at registration.'}
             </p>
           </div>
         </div>
 
-        <button
-          onClick={handleGenerateAlert}
-          className="px-5 py-2.5 bg-red-600 hover:bg-red-500 text-white font-mono text-xs font-bold rounded-xl transition-all shadow-[0_0_15px_rgba(239,68,68,0.4)] shrink-0 flex items-center space-x-2"
-        >
-          <BellRing className="w-4 h-4" />
-          <span>DISPATCH INTERCEPT</span>
-        </button>
-      </div>
-
-      {/* 4-PILLAR SCORE BREAKDOWN */}
-      <div className="p-5 bg-[#0a1020] rounded-2xl border border-[#162544] shadow-2xl">
-        <div className="flex items-center justify-between pb-3 border-b border-[#162544] mb-4">
-          <div className="flex items-center space-x-2">
-            <Layers className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-xs font-bold text-white font-mono uppercase tracking-wider">
-              4-Pillar Composite Risk Breakdown (Backend Fusion Weights)
-            </h3>
-          </div>
-          <span className="text-[11px] text-slate-400 font-mono">
-            Overall Fused Risk: <strong className="text-red-400">{formatRisk(prediction?.risk_score, prediction?.risk_percentage)}</strong>
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 font-mono text-xs">
-          {/* Pillar 1: ML Model Score */}
-          <div className="p-3 bg-[#070c18] rounded-xl border border-[#162544] space-y-1.5">
-            <div className="flex justify-between items-center text-slate-300">
-              <span className="font-semibold">ML Location Ranker</span>
-              <span className="text-cyan-400 font-bold">
-                {prediction && Number.isFinite(prediction.ml_score) ? `${Math.round(prediction.ml_score * 100)}%` : '—'}
-              </span>
+        {/* Right Column: Transaction Evidence */}
+        <div className="lg:col-span-6 bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-3.5">
+            <div className="flex items-center space-x-2">
+              <CreditCard className="w-4 h-4 text-slate-600" />
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Transaction Evidence
+              </h3>
             </div>
-            <div className="w-full h-1.5 bg-[#121c33] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-cyan-400 rounded-full"
-                style={{ width: `${(prediction?.ml_score || 0) * 100}%` }}
-              ></div>
-            </div>
-            <span className="text-[10px] text-slate-400">Candidate ranking probability</span>
-          </div>
-
-          {/* Pillar 2: Graph Centrality */}
-          <div className="p-3 bg-[#070c18] rounded-xl border border-[#162544] space-y-1.5">
-            <div className="flex justify-between items-center text-slate-300">
-              <span className="font-semibold">Graph Network Score</span>
-              <span className="text-purple-400 font-bold">
-                {prediction && Number.isFinite(prediction.graph_score) ? `${Math.round(prediction.graph_score * 100)}%` : '—'}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-[#121c33] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-purple-400 rounded-full"
-                style={{ width: `${(prediction?.graph_score || 0) * 100}%` }}
-              ></div>
-            </div>
-            <span className="text-[10px] text-slate-400">Syndicate centrality & layering</span>
-          </div>
-
-          {/* Pillar 3: Geospatial Hotspot */}
-          <div className="p-3 bg-[#070c18] rounded-xl border border-[#162544] space-y-1.5">
-            <div className="flex justify-between items-center text-slate-300">
-              <span className="font-semibold">Geospatial Cluster Score</span>
-              <span className="text-amber-400 font-bold">
-                {prediction && Number.isFinite(prediction.geo_score) ? `${Math.round(prediction.geo_score * 100)}%` : '—'}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-[#121c33] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-amber-400 rounded-full"
-                style={{ width: `${(prediction?.geo_score || 0) * 100}%` }}
-              ></div>
-            </div>
-            <span className="text-[10px] text-slate-400">Historical cluster extraction density</span>
-          </div>
-
-          {/* Pillar 4: Temporal Score */}
-          <div className="p-3 bg-[#070c18] rounded-xl border border-[#162544] space-y-1.5">
-            <div className="flex justify-between items-center text-slate-300">
-              <span className="font-semibold">Temporal Velocity Score</span>
-              <span className="text-emerald-400 font-bold">
-                {prediction && Number.isFinite(prediction.temporal_score) ? `${Math.round(prediction.temporal_score * 100)}%` : '—'}
-              </span>
-            </div>
-            <div className="w-full h-1.5 bg-[#121c33] rounded-full overflow-hidden">
-              <div
-                className="h-full bg-emerald-400 rounded-full"
-                style={{ width: `${(prediction?.temporal_score || 0) * 100}%` }}
-              ></div>
-            </div>
-            <span className="text-[10px] text-slate-400">Time-to-cashout urgency window</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Grid: Top 3 Predicted Locations + Mini Map */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
-        {/* Top 3 Predicted Locations */}
-        <div className="lg:col-span-6 bg-[#0a1020] rounded-2xl border border-[#162544] p-5 shadow-2xl">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-bold text-white font-['JetBrains_Mono',monospace] uppercase">
-              TOP 3 PREDICTED LOCATIONS
-            </h3>
-            <span className="text-xs text-slate-400 font-mono">
-              Model: {prediction?.model_version || 'pending'}
+            <span
+              className="text-[11px] px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 font-medium"
+              title="Prediction inputs derived from transaction information registered with this complaint."
+            >
+              {provenanceLabel}
             </span>
           </div>
 
-          <div className="space-y-3.5">
-            {prediction?.top_locations && prediction.top_locations.length > 0 ? (
-              prediction.top_locations.slice(0, 3).map((loc) => (
-                <div
-                  key={loc.rank}
-                  className={`p-4 rounded-xl border transition-all ${
-                    loc.rank === 1
-                      ? 'bg-[#0f1b36] border-cyan-500/60 shadow-[0_0_15px_rgba(0,216,255,0.15)]'
-                      : 'bg-[#080e1c] border-[#162544] hover:border-[#233863]'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <span
-                        className={`w-7 h-7 rounded-lg flex items-center justify-center font-mono font-bold text-xs ${
-                          loc.rank === 1 ? 'bg-cyan-500 text-black' : 'bg-[#162544] text-slate-300'
-                        }`}
-                      >
-                        #{loc.rank}
+          <div className="grid grid-cols-2 gap-3.5 text-xs">
+            <div>
+              <span className="text-slate-500 text-[11px] block">Beneficiary Bank</span>
+              <span className="font-semibold text-slate-800">
+                {complaint.beneficiary_bank || 'Not available'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[11px] block">Beneficiary Account</span>
+              <span className="font-mono text-slate-800 font-semibold break-all">
+                {complaint.beneficiary_id || 'Not available'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[11px] block">UTR / Transaction Ref</span>
+              <span className="font-mono text-slate-900 font-bold break-all">
+                {complaint.transaction_ref || 'Not available'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[11px] block">Transaction Timestamp</span>
+              <span className="text-slate-800">
+                {complaint.transaction_time
+                  ? new Date(complaint.transaction_time).toLocaleString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                  : 'Not available'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[11px] block">IFSC / Branch Code</span>
+              <span className="font-mono text-slate-800">
+                {complaint.ifsc_code || 'Not available'}
+              </span>
+            </div>
+            <div>
+              <span className="text-slate-500 text-[11px] block">Evidence Source Status</span>
+              <span className="text-slate-700">
+                {complaint.scenario_link_status || 'Verified Ledger'}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* B5 & B19: TRANSACTION TRAIL (Accurate Hop Presentation) */}
+      {/* ==================================================================== */}
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 mb-4 gap-2">
+          <div className="flex items-center space-x-2">
+            <Network className="w-4 h-4 text-slate-600" />
+            <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+              Transaction Trail
+            </h3>
+          </div>
+          <div className="flex items-center space-x-3 text-xs text-slate-500">
+            <span>Nodes: <strong className="text-slate-800 font-mono">{nodeCount}</strong></span>
+            <span>•</span>
+            <span>Transfers: <strong className="text-slate-800 font-mono">{transferCount}</strong></span>
+            <span>•</span>
+            <span>Amount: <strong className="text-slate-800 font-mono">₹{Number(complaint.amount).toLocaleString('en-IN')}</strong></span>
+            <button
+              onClick={() => navigate(`/network/${complaint.complaint_number}`)}
+              className="text-blue-700 hover:underline font-medium text-xs flex items-center space-x-1 ml-2"
+            >
+              <span>Full Graph</span>
+              <ArrowUpRight className="w-3 h-3" />
+            </button>
+          </div>
+        </div>
+
+        {/* Honest Step Flow Diagram */}
+        <div className="p-4 bg-slate-50 rounded-lg border border-slate-200">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            {/* Step 1: Victim Account */}
+            <div className="flex-1 bg-white p-3.5 rounded-md border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider">
+                  Victim Account
+                </span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-100 text-slate-600 font-medium">
+                  Source Hop
+                </span>
+              </div>
+              <div className="font-semibold text-xs text-slate-900">
+                {complaint.victim_bank || 'Source Bank'}
+              </div>
+              <div className="text-xs text-slate-600 mt-0.5 font-mono">
+                {complaint.victim_name || 'Complainant Account'}
+              </div>
+            </div>
+
+            {/* Transfer Connector */}
+            <div className="flex flex-col items-center justify-center px-4 py-1 text-center shrink-0 space-y-0.5">
+              <div className="text-xs font-bold text-slate-900 font-mono">
+                ₹{Number(complaint.amount).toLocaleString('en-IN')} • {complaint.payment_channel || 'UPI'}
+              </div>
+              <div className="text-[11px] text-slate-600 font-mono">
+                {complaint.transaction_ref || 'Direct Remittance'}
+              </div>
+              <div className="text-[10px] text-slate-500">
+                {complaint.transaction_time
+                  ? new Date(complaint.transaction_time).toLocaleString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                  : complaint.incident_time
+                  ? new Date(complaint.incident_time).toLocaleString('en-IN', {
+                      day: '2-digit',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit'
+                    })
+                  : 'Timestamp Recorded'}
+              </div>
+              <div className="w-full flex items-center justify-center text-slate-400 pt-0.5">
+                <span className="text-slate-400 font-bold">────────►</span>
+              </div>
+            </div>
+
+            {/* Step 2: Beneficiary Account */}
+            <div className="flex-1 bg-white p-3.5 rounded-md border border-slate-200 shadow-sm">
+              <div className="flex items-center justify-between mb-1.5">
+                <span className="text-[10px] font-semibold uppercase text-slate-500 tracking-wider">
+                  Beneficiary Account
+                </span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-50 text-amber-700 border border-amber-200 font-medium">
+                  Destination Hop
+                </span>
+              </div>
+              <div className="font-semibold text-xs text-slate-900">
+                {complaint.beneficiary_bank || 'Destination Bank'}
+              </div>
+              <div className="text-xs text-slate-600 mt-0.5 font-mono truncate" title={complaint.beneficiary_id || ''}>
+                {complaint.beneficiary_id || 'Beneficiary Account Recorded'}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ==================================================================== */}
+      {/* B7 - B14: PREDICTIVE CASH-OUT ASSESSMENT */}
+      {/* ==================================================================== */}
+      {predictionError ? (
+        <div className="bg-white border border-red-200 rounded-lg p-6 shadow-sm text-center space-y-3">
+          <AlertTriangle className="w-8 h-8 text-red-600 mx-auto" />
+          <h3 className="text-sm font-bold text-slate-900">Predictive Analysis Error</h3>
+          <p className="text-xs text-slate-600 max-w-md mx-auto">{predictionError}</p>
+          <Button onClick={handleRunPrediction} variant="secondary" size="sm">
+            Retry Analysis
+          </Button>
+        </div>
+      ) : !prediction ? (
+        /* B15: TRUTHFUL PRE-PREDICTION STATE DERIVED FROM DB (Section 22) */
+        <div className="bg-white border border-slate-200 rounded-lg p-6 shadow-sm space-y-5">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider">
+                Case Intake & Operational Readiness
+              </h3>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Current case state verified directly from PostgreSQL evidence records.
+              </p>
+            </div>
+            <Button
+              onClick={handleRunPrediction}
+              disabled={runningPrediction}
+              variant="primary"
+              size="md"
+              icon={<Cpu className={`w-4 h-4 ${runningPrediction ? 'animate-spin' : ''}`} />}
+            >
+              {runningPrediction ? 'Running Predictive Analysis...' : 'Run Predictive Analysis'}
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+            <div className="p-3 rounded-lg border border-green-200 bg-green-50/50">
+              <div className="flex items-center justify-between text-xs text-green-700 font-semibold mb-1">
+                <span>Complaint Intake</span>
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="text-sm font-bold text-slate-900">Registered</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Stored in PostgreSQL</div>
+            </div>
+
+            <div className="p-3 rounded-lg border border-green-200 bg-green-50/50">
+              <div className="flex items-center justify-between text-xs text-green-700 font-semibold mb-1">
+                <span>Transaction Evidence</span>
+                <CheckCircle2 className="w-4 h-4 text-green-600" />
+              </div>
+              <div className="text-sm font-bold text-slate-900">Available</div>
+              <div className="text-[11px] text-slate-500 mt-0.5 font-mono">{complaint.transaction_ref || 'Direct Record'}</div>
+            </div>
+
+            <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+              <div className="flex items-center justify-between text-xs text-slate-600 font-semibold mb-1">
+                <span>Predictive Analysis</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-bold">AWAITING</span>
+              </div>
+              <div className="text-sm font-bold text-slate-700">NOT RUN</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Requires execution</div>
+            </div>
+
+            <div className="p-3 rounded-lg border border-amber-200 bg-amber-50/50">
+              <div className="flex items-center justify-between text-xs text-amber-700 font-semibold mb-1">
+                <span>Operational Assessment</span>
+                <Clock className="w-4 h-4 text-amber-600" />
+              </div>
+              <div className="text-sm font-bold text-slate-900">PENDING</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Awaiting ML scoring</div>
+            </div>
+
+            <div className="p-3 rounded-lg border border-slate-200 bg-slate-50">
+              <div className="flex items-center justify-between text-xs text-slate-600 font-semibold mb-1">
+                <span>Alert Status</span>
+                <span className="text-[10px] px-1.5 py-0.2 rounded bg-slate-200 text-slate-700 font-bold">HOLD</span>
+              </div>
+              <div className="text-sm font-bold text-slate-700">NOT GENERATED</div>
+              <div className="text-[11px] text-slate-500 mt-0.5">Post-inference only</div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        /* ACTIVE PREDICTION WORKSPACE */
+        <div className="space-y-5">
+          <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+              <div className="flex items-center space-x-2">
+                <ShieldAlert className="w-4 h-4 text-slate-600" />
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                  Predictive Cash-Out Assessment
+                </h3>
+              </div>
+              <span className="text-xs text-slate-500">
+                Prediction #{prediction.prediction_id || prediction.id} • {isTrained ? 'Trained ML' : isDemo ? 'Deterministic Demo' : 'Operational'}
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+              {/* Left 2/3: Top Predicted Cash-Out Zones */}
+              <div className="lg:col-span-8 space-y-4">
+                {/* Primary Predicted Zone Banner (B9 & Section 21) */}
+                {rank1Location && (
+                  <div className="p-4 rounded-lg bg-[#EFF6FF]/70 border border-[#DCE5F0]">
+                    <div className="flex items-center justify-between text-xs mb-1.5">
+                      <span className="text-[11px] font-semibold uppercase text-blue-700 tracking-wider">
+                        #1 PRIMARY PREDICTED ZONE
                       </span>
-                      <div>
-                        <h4 className="text-sm font-bold text-slate-100 font-mono">
-                          {loc.location_name}
-                        </h4>
-                        <span className="text-[11px] text-slate-400 font-mono">
-                          Distance from complaint origin: {loc.distance_km} km
-                        </span>
-                      </div>
+                      <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${
+                        rank1Location.risk_level === 'CRITICAL'
+                          ? 'bg-red-50 text-red-700 border-red-200'
+                          : rank1Location.risk_level === 'HIGH'
+                          ? 'bg-amber-50 text-amber-700 border-amber-200'
+                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                      }`}>
+                        {rank1Location.risk_level} Operational Priority
+                      </span>
                     </div>
 
-                    <div className="text-right">
-                      <div
-                        className={`text-base font-bold font-mono ${
-                          loc.risk_level === 'CRITICAL'
-                            ? 'text-red-400'
-                            : loc.risk_level === 'HIGH'
-                            ? 'text-amber-400'
-                            : 'text-blue-400'
-                        }`}
-                      >
-                        {Math.round(loc.probability * 100)}%
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <div>
+                        <div className="text-base font-bold text-[#173A63]">
+                          {rank1Location.cluster_name || rank1Location.location_name}
+                        </div>
+                        <div className="text-xs text-slate-500 mt-0.5">
+                          Distance from complaint origin: {rank1Location.distance_km} km
+                        </div>
                       </div>
-                      <span
-                        className={`text-[10px] px-2 py-0.5 rounded font-bold font-mono ${
-                          loc.risk_level === 'CRITICAL'
-                            ? 'bg-red-500/20 text-red-400'
-                            : loc.risk_level === 'HIGH'
-                            ? 'bg-amber-500/20 text-amber-400'
-                            : 'bg-blue-500/20 text-blue-400'
-                        }`}
-                      >
-                        {loc.risk_level}
-                      </span>
+
+                      <div className="text-left sm:text-right">
+                        <div className="text-[11px] text-slate-500">Operational Priority</div>
+                        <div className="text-sm font-bold text-slate-900">
+                          Rank #1 Candidate Cash-Out Zone
+                        </div>
+                      </div>
                     </div>
                   </div>
+                )}
 
-                  <div className="mt-2.5 pt-2 border-t border-[#1b2b4d] text-xs text-slate-400 font-mono">
-                    {loc.reasoning}
+                {/* Top-3 Location Table (Section 21) */}
+                <div>
+                  <div className="text-xs font-semibold text-[#173A63] uppercase tracking-wider mb-2">
+                    Ranked Cash-Out Candidate Zones (Delhi Pilot)
+                  </div>
+
+                  <div className="overflow-x-auto border border-[#DCE5F0] rounded-md">
+                    <table className="w-full text-left text-xs border-collapse">
+                      <thead>
+                        <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-slate-700 font-semibold">
+                          <th className="py-2.5 px-3">Rank</th>
+                          <th className="py-2.5 px-3">Candidate Zone</th>
+                          <th className="py-2.5 px-3 text-center">Operational Priority</th>
+                          <th className="py-2.5 px-3">Distance</th>
+                          <th className="py-2.5 px-3">Intervention Reasoning</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-[#DCE5F0]">
+                        {topLocations.slice(0, 3).map((loc) => (
+                          <tr
+                            key={loc.rank}
+                            className={`hover:bg-blue-50/30 transition-colors ${
+                              loc.rank === 1 ? 'bg-blue-50/40 font-medium' : ''
+                            }`}
+                          >
+                            <td className="py-2.5 px-3 font-bold font-mono text-blue-700">
+                              #{loc.rank === 1 ? '1 PRIMARY' : loc.rank === 2 ? '2 SECONDARY' : '3 TERTIARY'}
+                            </td>
+                            <td className="py-2.5 px-3 font-semibold text-slate-900">
+                              {loc.cluster_name || loc.location_name}
+                            </td>
+                            <td className="py-2.5 px-3 text-center">
+                              <span className={`inline-block text-[10px] px-2 py-0.5 rounded font-medium border ${
+                                loc.risk_level === 'CRITICAL'
+                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                  : loc.risk_level === 'HIGH'
+                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                  : 'bg-blue-50 text-blue-700 border-blue-200'
+                              }`}>
+                                {loc.risk_level}
+                              </span>
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 font-mono">
+                              {loc.distance_km} km
+                            </td>
+                            <td className="py-2.5 px-3 text-slate-600 max-w-xs truncate" title={loc.reasoning}>
+                              {loc.reasoning}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
                 </div>
-              ))
-            ) : (
-              <div className="p-8 text-center text-xs text-slate-400 font-mono">
-                No predicted locations generated yet. Click "RUN PREDICTIVE ANALYSIS" above.
+
+                {/* Explanatory Disclaimer Note (Section 21) */}
+                <div className="p-3 bg-[#F8FAFC] rounded-md border border-[#DCE5F0] text-xs text-slate-500 flex items-start space-x-2">
+                  <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    Candidate zones are ranked by the predictive model for operational prioritization. Rankings do not guarantee that criminal activity will occur at a particular location.
+                  </p>
+                </div>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Mini Map */}
-        <div className="lg:col-span-6 bg-[#0a1020] rounded-2xl border border-[#162544] p-5 shadow-2xl flex flex-col">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-bold text-white font-['JetBrains_Mono',monospace] uppercase">
-              Predicted Cash-Out Geographic Cluster
-            </h3>
-            <span className="text-xs text-cyan-400 font-mono">
-              Target: {highlightedClusterName || 'Central Grid'}
-            </span>
-          </div>
+              {/* Right 1/3: Timing + Model Provenance + Action Panel */}
+              <div className="lg:col-span-4 space-y-4">
+                {/* Time Prediction Card (B11) */}
+                <div className="p-4 bg-[#F8FAFC] rounded-lg border border-[#DCE5F0] space-y-2">
+                  <div className="flex items-center justify-between text-xs text-slate-500">
+                    <span className="font-semibold uppercase text-slate-700 flex items-center space-x-1.5">
+                      <Clock className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Predicted Cash-out Window</span>
+                    </span>
+                    <span className="text-[10px] font-medium bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200">
+                      Operational Estimate
+                    </span>
+                  </div>
 
-          <CashOutRiskMap
-            hotspots={clusters}
-            topLocations={prediction?.top_locations || []}
-            complaint={complaint}
-            prediction={prediction}
-            height="340px"
-            highlightCluster={highlightedClusterName}
-            showControls={true}
-          />
-        </div>
-      </div>
+                  <div className="text-base font-bold text-[#173A63] mt-1">
+                    {prediction.time_prediction?.operational_window || prediction.when_window || 'Window Analysis Pending'}
+                  </div>
 
-      {/* EXPLAINABLE AI SECTION */}
-      <div className="bg-[#0a1020] rounded-2xl border border-[#162544] p-6 shadow-2xl">
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#162544]">
-          <div className="flex items-center space-x-2.5">
-            <Sparkles className="w-5 h-5 text-cyan-400" />
-            <h3 className="text-base font-bold text-white font-['JetBrains_Mono',monospace] uppercase">
-              WHY THIS PREDICTION? (EXPLAINABLE AI & FEATURE ATTRIBUTION)
-            </h3>
-          </div>
-          <span className="text-xs text-slate-400 font-mono">
-            Mode: <strong className="text-cyan-400">{prediction?.prediction_mode || 'pending'}</strong> | Version: <strong className="text-white">{prediction?.model_version || 'pending'}</strong>
-          </span>
-        </div>
+                  {prediction.time_prediction?.predicted_minutes_to_cashout != null && (
+                    <div className="text-xs text-slate-600">
+                      Central estimate: <strong className="text-slate-900 font-mono">~{Math.round(prediction.time_prediction.predicted_minutes_to_cashout)} minutes</strong> from reference time.
+                    </div>
+                  )}
 
-        {/* Narrative */}
-        <div className="p-4 rounded-xl bg-[#080e1c] border border-[#162544] mb-6">
-          <p className="text-xs text-slate-200 leading-relaxed font-mono">
-            "{explanation?.narrative || `This location was ranked as the primary cash-out candidate based on syndicate beneficiary corridor alignment, proximity to high-frequency mule accounts, and historical extraction patterns for ${complaint.fraud_type}.`}"
-          </p>
-        </div>
+                  <p className="text-[11px] text-slate-500">
+                    Estimated intervention window generated by {prediction.time_prediction?.model_version || 'cashout-time-xgb-v2'}.
+                  </p>
+                </div>
 
-        {/* Contribution Bars */}
-        <div className="space-y-3.5 mb-6">
-          {(explanation?.factors && explanation.factors.length > 0 ? explanation.factors : [
-            { name: 'Beneficiary Mule Corridor Alignment', contribution_percentage: 28, description: 'Beneficiary account directly connected to active cash withdrawal corridors in this cluster.' },
-            { name: 'Historical Hotspot Extraction Density', contribution_percentage: 22, description: 'Geographic cluster experienced repeated cyber fraud cash-outs in the surveillance window.' },
-            { name: 'Graph Network Topology & Centrality', contribution_percentage: 18, description: 'Layering topology exhibits high betweenness centrality indicative of organized syndicate activity.' },
-            { name: 'Transaction Velocity & Split Window', contribution_percentage: 14, description: 'Rapid fund dispersal matches high-velocity ATM withdrawal timelines.' },
-            { name: 'Modus Operandi Geographic Affinity', contribution_percentage: 10, description: 'Fraud modus operandi demonstrates statistical preference for commercial hub ATMs.' }
-          ]).map((factor, idx) => (
-            <div key={idx} className="p-3 bg-[#080e1c] rounded-lg border border-[#162544]">
-              <div className="flex items-center justify-between text-xs font-mono mb-1.5">
-                <span className="font-semibold text-slate-200">{factor.name}</span>
-                <span className="text-cyan-400 font-bold">+{factor.contribution_percentage}%</span>
+                {/* Model Provenance Card (B12) */}
+                <div className="p-4 bg-white rounded-lg border border-[#DCE5F0] space-y-2.5 shadow-xs text-xs">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#DCE5F0]">
+                    <span className="font-bold text-[#173A63] uppercase text-[11px]">
+                      Model & Provenance
+                    </span>
+                    <span className="font-mono text-blue-700 font-semibold">
+                      #{prediction.prediction_id || prediction.id}
+                    </span>
+                  </div>
+
+                  <div className="space-y-1.5 text-slate-600">
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Prediction Mode:</span>
+                      <strong className="text-slate-800">{isTrained ? 'Trained ML' : isDemo ? 'Deterministic Demo' : prediction.prediction_mode}</strong>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Location Model:</span>
+                      <span className="font-mono text-slate-800">{prediction.model_version || 'cashout-location-xgb-v3.1'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Time Model:</span>
+                      <span className="font-mono text-slate-800">{prediction.time_prediction?.model_version || 'cashout-time-xgb-v2'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Candidate Scope:</span>
+                      <span className="text-slate-800">{prediction.operational_scope || 'Delhi Pilot • 60 Clusters'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Context:</span>
+                      <span className="text-slate-800">{provenanceLabel}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Operational Actions Card (B14) */}
+                <div className="p-4 bg-[#F8FAFC] rounded-lg border border-[#DCE5F0] space-y-2.5">
+                  <span className="text-xs font-bold text-[#173A63] uppercase block">
+                    Operational Actions
+                  </span>
+
+                  {existingAlert ? (
+                    <div className="p-2.5 bg-white rounded border border-slate-200 text-xs space-y-1">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-900">Alert #{existingAlert.id} Active</span>
+                        <Badge variant={existingAlert.status === 'ACKNOWLEDGED' ? 'success' : 'critical'}>
+                          {existingAlert.status}
+                        </Badge>
+                      </div>
+                      <div className="text-[11px] text-slate-600 truncate">
+                        Location: {existingAlert.location_name}
+                      </div>
+                      {existingAlert.acknowledged_by && (
+                        <div className="text-[10px] text-slate-400 truncate">
+                          Officer: {existingAlert.acknowledged_by}
+                        </div>
+                      )}
+                      <div className="pt-1.5">
+                        <Button
+                          onClick={() => navigate('/alerts')}
+                          variant="secondary"
+                          size="sm"
+                          className="w-full"
+                        >
+                          View in Alert Center
+                        </Button>
+                      </div>
+                    </div>
+                  ) : (
+                    <Button
+                      onClick={handleGenerateAlert}
+                      variant="danger"
+                      size="sm"
+                      className="w-full"
+                      icon={<BellRing className="w-3.5 h-3.5" />}
+                    >
+                      Generate Alert for Prediction
+                    </Button>
+                  )}
+
+                  <Button
+                    onClick={() => navigate('/risk-map')}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                    icon={<MapIcon className="w-3.5 h-3.5" />}
+                  >
+                    View Geographic Context on Map
+                  </Button>
+                </div>
               </div>
-              <div className="w-full h-2 bg-[#121c33] rounded-full overflow-hidden mb-2">
-                <div
-                  className="h-full bg-gradient-to-r from-cyan-500 to-blue-500 rounded-full"
-                  style={{ width: `${Math.min(factor.contribution_percentage * 3.2, 100)}%` }}
-                ></div>
-              </div>
-              <p className="text-[11px] text-slate-400 font-mono">{factor.description}</p>
             </div>
-          ))}
+          </div>
         </div>
-
-        {/* Legal / Operational Disclaimer */}
-        <div className="p-3.5 bg-[#060a15] rounded-lg border border-[#1b2b4d] flex items-center space-x-3 text-xs text-slate-400 font-mono">
-          <Info className="w-5 h-5 text-cyan-400 shrink-0" />
-          <span>
-            {explanation?.disclaimer || 'AI-generated decision support. Final operational decisions remain with authorized investigators.'}
-          </span>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

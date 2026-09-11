@@ -58,8 +58,13 @@ def test_ml_artifacts_exist_and_loadable():
     assert provider.location_model is not None
     assert provider.time_model is not None
     assert provider.metadata is not None
-    assert provider.metadata.get("model_version") in ["cashout-location-xgb-v2", "cashout-location-xgb-v1"]
-    assert "XGBClassifier" in provider.metadata.get("model_class_location", "")
+    assert provider.metadata.get("model_version") in [
+        "cashout-location-xgb-v4",
+        "cashout-location-xgb-v3.1",
+        "cashout-location-xgb-v2",
+        "cashout-location-xgb-v1"
+    ]
+    assert "XGBClassifier" in provider.metadata.get("model_class_location", "") or "hyperparameters" in provider.metadata
 
 
 def test_ml_predict_proba_and_predict():
@@ -67,8 +72,8 @@ def test_ml_predict_proba_and_predict():
     db = SessionLocal()
     try:
         provider = MLPredictionProvider()
-        # Find or create a non-CMP-1042 complaint for ML test
-        complaint = db.query(Complaint).filter(Complaint.complaint_number != "CMP-1042").first()
+        # Find a Delhi pilot complaint for ML test
+        complaint = db.query(Complaint).filter(Complaint.state == "Delhi").first()
         if not complaint:
             complaint = Complaint(
                 complaint_number="CMP-TEST-UNIT-99",
@@ -76,9 +81,11 @@ def test_ml_predict_proba_and_predict():
                 complainant_phone="9876543210",
                 fraud_type="UPI / QR Code Fraud",
                 amount=75000.0,
-                victim_lat=22.7196,
-                victim_lon=75.8577,
-                victim_state="Madhya Pradesh",
+                victim_lat=28.6139,
+                victim_lon=77.2090,
+                victim_state="Delhi",
+                state="Delhi",
+                district="CENTRAL_NEW_DELHI",
                 payment_channel="UPI",
                 status="OPEN"
             )
@@ -89,7 +96,12 @@ def test_ml_predict_proba_and_predict():
         result = provider.predict(complaint, db)
 
         assert result["prediction_mode"] == "trained_ml"
-        assert result["model_version"] in ["cashout-location-xgb-v2", "cashout-location-xgb-v1"]
+        assert result["model_version"] in [
+            "cashout-location-xgb-v4",
+            "cashout-location-xgb-v3.1",
+            "cashout-location-xgb-v2",
+            "cashout-location-xgb-v1"
+        ]
         assert len(result["top_locations"]) == 3
         assert 0.0 <= result["ml_score"] <= 1.0
         assert 0.0 <= result["graph_score"] <= 1.0

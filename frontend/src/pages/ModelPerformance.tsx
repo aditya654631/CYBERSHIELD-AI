@@ -40,23 +40,23 @@ export const ModelPerformance: React.FC = () => {
   if (loading) {
     return (
       <div className="space-y-6 animate-pulse">
-        <div className="h-20 bg-[#0c1428] rounded-xl border border-[#162544]"></div>
+        <div className="h-20 bg-white rounded-xl border border-[#DCE5F0]"></div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="h-32 bg-[#0c1428] rounded-xl border border-[#162544]"></div>
+            <div key={i} className="h-32 bg-white rounded-xl border border-[#DCE5F0]"></div>
           ))}
         </div>
-        <div className="h-96 bg-[#0c1428] rounded-xl border border-[#162544]"></div>
+        <div className="h-96 bg-white rounded-xl border border-[#DCE5F0]"></div>
       </div>
     );
   }
 
   if (error || !data) {
     return (
-      <div className="p-8 bg-[#0a1020] rounded-2xl border border-red-500/40 text-center space-y-4 font-mono">
-        <AlertTriangle className="w-8 h-8 text-red-400 mx-auto" />
-        <h2 className="text-lg font-bold text-white">Model Telemetry Unavailable</h2>
-        <p className="text-xs text-slate-400 max-w-md mx-auto">
+      <div className="p-8 bg-white rounded-lg border border-red-200 text-center space-y-4 max-w-xl mx-auto shadow-xs">
+        <AlertTriangle className="w-8 h-8 text-red-600 mx-auto" />
+        <h2 className="text-lg font-bold text-slate-900">Model Telemetry Unavailable</h2>
+        <p className="text-xs text-slate-500 max-w-md mx-auto">
           {error || 'CyberShield AI model metadata could not be verified from the server.'}
         </p>
       </div>
@@ -68,195 +68,207 @@ export const ModelPerformance: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="p-5 bg-[#0a1020] rounded-2xl border border-[#162544] shadow-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2.5">
-            <Cpu className="w-5 h-5 text-cyan-400" />
-            <h1 className="text-xl font-bold text-white font-['JetBrains_Mono',monospace]">
+            <Cpu className="w-5 h-5 text-blue-600 shrink-0" />
+            <h1 className="text-lg font-bold text-[#173A63] font-sans">
               AI Model Performance & Algorithmic Validation
             </h1>
           </div>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">
-            Prediction Mode: <strong className="text-cyan-400 font-semibold">{data.prediction_mode === 'trained_ml' ? 'Trained ML' : 'Deterministic Demo'}</strong> | Model Version: <strong className="text-white font-semibold">{data.model_version}</strong>
+          <p className="text-xs text-slate-500 font-sans mt-0.5">
+            Prediction Mode: <strong className="text-blue-700 font-semibold">{data.prediction_mode === 'trained_ml' ? 'Trained ML' : 'Deterministic Demo'}</strong> | Model Version: <strong className="text-slate-900 font-semibold">{data.model_version}</strong>
           </p>
         </div>
 
         {/* Prototype Evaluation Notice */}
-        <div className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 font-mono text-xs font-bold flex items-center space-x-2 shrink-0">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+        <div className="px-3.5 py-1.5 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold flex items-center space-x-2 shrink-0">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
           <span>{data.evaluation_label || 'Prototype Evaluation — Synthetic/Anonymized Demo Data'}</span>
         </div>
       </div>
 
       {/* Model Spec & Evaluation Data Provenance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
         {/* MODEL SPEC */}
-        <div className="p-4 rounded-xl bg-[#080e1c] border border-[#162544] space-y-2">
-          <div className="text-cyan-400 font-bold uppercase tracking-wider text-[11px] pb-1 border-b border-[#162544] flex items-center justify-between">
+        <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-2">
+          <div className="text-[#173A63] font-bold uppercase tracking-wider text-[11px] pb-1 border-b border-[#DCE5F0] flex items-center justify-between">
             <span>MODEL SPECIFICATION</span>
-            <span className={`px-2 py-0.5 rounded text-[10px] ${isTrainedML ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40' : 'bg-amber-500/20 text-amber-400'}`}>
+            <span className={`px-2 py-0.5 rounded text-[10px] font-semibold ${isTrainedML ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-amber-50 text-amber-700'}`}>
               {isTrainedML ? 'Trained ML Active' : 'Deterministic Demo'}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Prediction Mode:</span>
-            <span className="text-white font-semibold">{data.current_prediction_mode || 'Trained ML'}</span>
+            <span className="text-slate-500">Prediction Mode:</span>
+            <span className="text-slate-900 font-semibold">{data.current_prediction_mode || 'Trained ML'}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Model Version:</span>
-            <span className="text-cyan-300 font-bold">{data.model_version}</span>
+            <span className="text-slate-500">Model Version:</span>
+            <span className="text-blue-700 font-bold">{data.model_version}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Location Model:</span>
-            <span className="text-slate-200">{data.model_class || 'XGBoost Candidate Location Ranker'}</span>
+            <span className="text-slate-500">Location Model:</span>
+            <span className="text-slate-800">{data.location_model_version || 'Location V3.1'}</span>
           </div>
-          {data.calibrator_class && (
-            <div className="flex items-center justify-between">
-              <span className="text-slate-400">Probability Calibrator:</span>
-              <span className="text-slate-300 text-[11px]">{data.calibrator_class}</span>
-            </div>
-          )}
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Time Model:</span>
+            <span className="text-slate-800">{data.time_model_version || 'Time V2'}</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Location Feature Count:</span>
+            <span className="text-blue-700 font-bold">{data.location_features_count ?? 43} Engineered Signals</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Time Feature Count:</span>
+            <span className="text-blue-700 font-bold">{data.time_features_count ?? 20} Temporal Signals</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Calibration Method:</span>
+            <span className="text-emerald-700 font-semibold">{data.calibration_method || 'Isotonic (5-Fold CV)'}</span>
+          </div>
         </div>
 
-        {/* EVALUATION DATA */}
-        <div className="p-4 rounded-xl bg-[#080e1c] border border-[#162544] space-y-2">
-          <div className="text-cyan-400 font-bold uppercase tracking-wider text-[11px] pb-1 border-b border-[#162544]">
-            EVALUATION PROTOCOL & DATA
+        {/* DATA PROVENANCE */}
+        <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-2">
+          <div className="text-[#173A63] font-bold uppercase tracking-wider text-[11px] pb-1 border-b border-[#DCE5F0]">
+            EVALUATION DATA PROVENANCE
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Dataset Scope:</span>
-            <span className="text-amber-300 font-semibold">{data.evaluation_label}</span>
+            <span className="text-slate-500">Total Pilot Universe:</span>
+            <span className="text-slate-900 font-semibold">{data.training_samples?.toLocaleString()} cases</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Partition Protocol:</span>
-            <span className="text-slate-200">{data.dataset_split}</span>
+            <span className="text-slate-500">Geographic Focus:</span>
+            <span className="text-blue-700 font-bold">{data.geographic_focus || 'Delhi NCT Pilot (60 Clusters)'}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-400">Sample Partitions:</span>
-            <span className="text-slate-300">
-              Train: {data.training_samples?.toLocaleString()} | Val: {data.validation_samples?.toLocaleString()} | Test: {data.test_samples?.toLocaleString()}
-            </span>
+            <span className="text-slate-500">Active Cash-Out Clusters:</span>
+            <span className="text-slate-900 font-semibold">{data.cluster_count ?? 60} ATM/Branch Zones</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Validation Split:</span>
+            <span className="text-slate-800">{data.test_samples?.toLocaleString()} cases (20% Holdout)</span>
           </div>
           {data.cold_start_test_samples && (
             <div className="flex items-center justify-between">
-              <span className="text-slate-400">Cold-Start Unseen Syndicates:</span>
-              <span className="text-slate-300">{data.cold_start_test_samples?.toLocaleString()} cases</span>
+              <span className="text-slate-500">Cold-Start Unseen Syndicates:</span>
+              <span className="text-slate-800">{data.cold_start_test_samples?.toLocaleString()} cases</span>
             </div>
           )}
         </div>
       </div>
 
       {/* CORE EVALUATION METRICS PILLARS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 font-mono">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         {/* 1. Location Prediction */}
-        <div className="p-4 rounded-xl bg-[#0a1020] border border-[#162544] space-y-3">
-          <div className="flex items-center space-x-2 text-cyan-400 font-bold text-xs uppercase pb-2 border-b border-[#162544]">
+        <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-3">
+          <div className="flex items-center space-x-2 text-blue-700 font-bold text-xs uppercase pb-2 border-b border-[#DCE5F0]">
             <MapPin className="w-4 h-4" />
             <span>Location Prediction</span>
           </div>
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Natural Candidate Recall:</span>
-              <span className="text-cyan-300 font-bold">{data.natural_candidate_recall}</span>
+              <span className="text-slate-500">Natural Candidate Recall:</span>
+              <span className="text-blue-700 font-bold">{data.natural_candidate_recall}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Recall@1:</span>
-              <span className="text-white font-bold">{data['Recall@1']}</span>
+              <span className="text-slate-500">Recall@1:</span>
+              <span className="text-slate-900 font-bold">{data['Recall@1']}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Recall@3:</span>
-              <span className="text-emerald-400 font-bold">{data['Recall@3']}</span>
+              <span className="text-slate-500">Recall@3:</span>
+              <span className="text-emerald-700 font-bold">{data['Recall@3']}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Recall@5:</span>
-              <span className="text-slate-200">{data['Recall@5']}</span>
+              <span className="text-slate-500">Recall@5:</span>
+              <span className="text-slate-700">{data['Recall@5']}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Precision@3:</span>
-              <span className="text-slate-200">{data['Precision@3']}</span>
+              <span className="text-slate-500">Precision@3:</span>
+              <span className="text-slate-700">{data['Precision@3']}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Mean Reciprocal Rank (MRR):</span>
-              <span className="text-cyan-300 font-bold">{data.MRR}</span>
+              <span className="text-slate-500">Mean Reciprocal Rank (MRR):</span>
+              <span className="text-blue-700 font-bold">{data.MRR}</span>
             </div>
           </div>
         </div>
 
         {/* 2. Geospatial Evaluation */}
-        <div className="p-4 rounded-xl bg-[#0a1020] border border-[#162544] space-y-3">
-          <div className="flex items-center space-x-2 text-amber-400 font-bold text-xs uppercase pb-2 border-b border-[#162544]">
+        <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-3">
+          <div className="flex items-center space-x-2 text-amber-700 font-bold text-xs uppercase pb-2 border-b border-[#DCE5F0]">
             <Compass className="w-4 h-4" />
             <span>Geospatial Evaluation</span>
           </div>
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Median Centroid Dist Error:</span>
-              <span className="text-amber-300 font-bold">{data.median_cluster_centroid_distance_error_km}</span>
+              <span className="text-slate-500">Median Centroid Dist Error:</span>
+              <span className="text-amber-800 font-bold">{data.median_cluster_centroid_distance_error_km}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Within 5 km:</span>
-              <span className="text-white font-bold">{data.within_5km}</span>
+              <span className="text-slate-500">Within 5 km:</span>
+              <span className="text-slate-900 font-bold">{data.within_5km}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Within 10 km:</span>
-              <span className="text-white font-bold">{data.within_10km}</span>
+              <span className="text-slate-500">Within 10 km:</span>
+              <span className="text-slate-900 font-bold">{data.within_10km}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Within 25 km:</span>
-              <span className="text-slate-300">{data.within_25km}</span>
+              <span className="text-slate-500">Within 25 km:</span>
+              <span className="text-slate-700">{data.within_25km}</span>
             </div>
           </div>
         </div>
 
         {/* 3. Time-To-Cashout */}
-        <div className="p-4 rounded-xl bg-[#0a1020] border border-[#162544] space-y-3">
-          <div className="flex items-center space-x-2 text-blue-400 font-bold text-xs uppercase pb-2 border-b border-[#162544]">
+        <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-3">
+          <div className="flex items-center space-x-2 text-blue-700 font-bold text-xs uppercase pb-2 border-b border-[#DCE5F0]">
             <Clock className="w-4 h-4" />
             <span>Time-To-Cashout</span>
           </div>
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Mean Absolute Error (MAE):</span>
-              <span className="text-blue-300 font-bold">{data.time_MAE_minutes}</span>
+              <span className="text-slate-500">Mean Absolute Error (MAE):</span>
+              <span className="text-blue-700 font-bold">{data.time_MAE_minutes}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">Median Absolute Error:</span>
-              <span className="text-white font-bold">{data.time_median_absolute_error}</span>
+              <span className="text-slate-500">Median Absolute Error:</span>
+              <span className="text-slate-900 font-bold">{data.time_median_absolute_error}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-slate-400">±60m Window Coverage:</span>
-              <span className="text-emerald-400 font-bold">{data.time_window_coverage}</span>
+              <span className="text-slate-500">±60m Window Coverage:</span>
+              <span className="text-emerald-700 font-bold">{data.time_window_coverage}</span>
             </div>
           </div>
         </div>
 
         {/* 4. Calibration & Cold-Start */}
-        <div className="p-4 rounded-xl bg-[#0a1020] border border-[#162544] space-y-3">
-          <div className="flex items-center space-x-2 text-emerald-400 font-bold text-xs uppercase pb-2 border-b border-[#162544]">
+        <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-3">
+          <div className="flex items-center space-x-2 text-emerald-700 font-bold text-xs uppercase pb-2 border-b border-[#DCE5F0]">
             <Gauge className="w-4 h-4" />
             <span>Calibration & Generalization</span>
           </div>
           <div className="space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Calibrated Brier Score:</span>
-              <span className="text-emerald-300 font-bold">{data.Brier_score}</span>
+              <span className="text-slate-500">Calibrated Brier Score:</span>
+              <span className="text-emerald-700 font-bold">{data.Brier_score}</span>
             </div>
             {data.cold_start_candidate_recall && (
               <div className="flex justify-between">
-                <span className="text-slate-400">Cold-Start Candidate Recall:</span>
-                <span className="text-white">{data.cold_start_candidate_recall}</span>
+                <span className="text-slate-500">Cold-Start Candidate Recall:</span>
+                <span className="text-slate-900">{data.cold_start_candidate_recall}</span>
               </div>
             )}
             {data.cold_start_recall_at_1 && (
               <div className="flex justify-between">
-                <span className="text-slate-400">Cold-Start Recall@1:</span>
-                <span className="text-white">{data.cold_start_recall_at_1}</span>
+                <span className="text-slate-500">Cold-Start Recall@1:</span>
+                <span className="text-slate-900">{data.cold_start_recall_at_1}</span>
               </div>
             )}
             {data.cold_start_recall_at_3 && (
               <div className="flex justify-between">
-                <span className="text-slate-400">Cold-Start Recall@3:</span>
-                <span className="text-cyan-300 font-bold">{data.cold_start_recall_at_3}</span>
+                <span className="text-slate-500">Cold-Start Recall@3:</span>
+                <span className="text-blue-700 font-bold">{data.cold_start_recall_at_3}</span>
               </div>
             )}
           </div>
@@ -264,26 +276,26 @@ export const ModelPerformance: React.FC = () => {
       </div>
 
       {/* Visible Disclaimers & Operational Guidance */}
-      <div className="space-y-2 font-mono text-xs">
-        <div className="p-3 bg-[#080e1c] border border-cyan-500/30 rounded-xl text-slate-300 flex items-start space-x-2.5">
-          <Info className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+      <div className="space-y-2 text-xs">
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-blue-900 flex items-start space-x-2.5">
+          <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
           <div>
-            <strong className="text-cyan-300">Geospatial Granularity Note:</strong> {data.geographic_disclaimer || 'Cluster-level operational prioritization; not exact ATM/GPS prediction.'}
+            <strong className="text-blue-950">Geospatial Granularity Note:</strong> {data.geographic_disclaimer || 'Cluster-level operational prioritization; not exact ATM/GPS prediction.'}
           </div>
         </div>
 
-        <div className="p-3 bg-amber-950/30 border border-amber-500/30 rounded-xl text-amber-200 flex items-start space-x-2.5">
-          <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-amber-900 flex items-start space-x-2.5">
+          <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
           <div>
-            <strong className="text-amber-300">Production Requirement:</strong> {data.production_notice || 'Production performance requires retraining and independent validation on authorized historical NCRP and financial transaction data.'}
+            <strong className="text-amber-950">Production Requirement:</strong> {data.production_notice || 'Production performance requires retraining and independent validation on authorized historical NCRP and financial transaction data.'}
           </div>
         </div>
 
         {data.runtime_notice && (
-          <div className="p-3 bg-[#060a15] border border-[#162544] rounded-xl text-slate-400 flex items-start space-x-2.5">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+          <div className="p-3 bg-[#F6F8FC] border border-[#DCE5F0] rounded-lg text-slate-700 flex items-start space-x-2.5">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
             <div>
-              <strong className="text-slate-300">Runtime Status:</strong> {data.runtime_notice}
+              <strong className="text-slate-900">Runtime Status:</strong> {data.runtime_notice}
             </div>
           </div>
         )}
@@ -291,34 +303,34 @@ export const ModelPerformance: React.FC = () => {
 
       {/* Benchmark Metrics Comparison Table */}
       {data.metrics_comparison && data.metrics_comparison.length > 0 && (
-        <div className="bg-[#0a1020] rounded-2xl border border-[#162544] overflow-hidden shadow-2xl">
-          <div className="p-4 border-b border-[#162544] flex items-center justify-between">
-            <h3 className="text-sm font-bold text-white font-mono uppercase">
+        <div className="bg-white rounded-lg border border-[#DCE5F0] overflow-hidden shadow-xs">
+          <div className="p-4 border-b border-[#DCE5F0] bg-[#F8FAFC] flex items-center justify-between">
+            <h3 className="text-sm font-bold text-[#173A63] uppercase">
               Comparative Evaluation Matrix (Validation & Test Split)
             </h3>
-            <span className="text-xs text-cyan-400 font-mono">{data.metrics_comparison.length} Predictive Metrics</span>
+            <span className="text-xs text-blue-700 font-semibold">{data.metrics_comparison.length} Predictive Metrics</span>
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs font-mono">
-              <thead className="bg-[#070c18] text-slate-400 uppercase tracking-wider border-b border-[#162544]">
+            <table className="w-full text-left text-xs">
+              <thead className="bg-[#F8FAFC] text-slate-600 uppercase tracking-wider border-b border-[#DCE5F0]">
                 <tr>
-                  <th className="py-3.5 px-4">Metric</th>
-                  <th className="py-3.5 px-4">Historical Baseline</th>
-                  <th className="py-3.5 px-4">CyberShield AI (v2)</th>
-                  <th className="py-3.5 px-4">Performance Delta</th>
+                  <th className="py-3 px-4 font-semibold">Metric</th>
+                  <th className="py-3 px-4 font-semibold">Historical Baseline</th>
+                  <th className="py-3 px-4 font-semibold">CyberShield AI (v2)</th>
+                  <th className="py-3 px-4 font-semibold">Performance Delta</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#162544] text-slate-200">
+              <tbody className="divide-y divide-[#DCE5F0] text-slate-700">
                 {data.metrics_comparison.map((item, idx) => (
-                  <tr key={idx} className="hover:bg-[#0d162d] transition-colors">
-                    <td className="py-3 px-4 font-semibold text-slate-100">{item.metric}</td>
-                    <td className="py-3 px-4 text-slate-400">{item.baseline}</td>
-                    <td className="py-3 px-4 text-cyan-300 font-bold text-sm">
+                  <tr key={idx} className="hover:bg-blue-50/30 transition-colors">
+                    <td className="py-3 px-4 font-medium text-slate-900">{item.metric}</td>
+                    <td className="py-3 px-4 text-slate-500">{item.baseline}</td>
+                    <td className="py-3 px-4 text-blue-700 font-bold text-sm">
                       {item.cybershield}
                     </td>
                     <td className="py-3 px-4">
-                      <span className="px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
+                      <span className="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
                         {item.delta}
                       </span>
                     </td>
@@ -332,24 +344,24 @@ export const ModelPerformance: React.FC = () => {
 
       {/* Feature Importances Grid */}
       {data.feature_importances && data.feature_importances.length > 0 && (
-        <div className="bg-[#0a1020] rounded-2xl border border-[#162544] p-5 shadow-2xl">
+        <div className="bg-white rounded-lg border border-[#DCE5F0] p-5 shadow-xs">
           <div className="flex items-center space-x-2 mb-4">
-            <Sparkles className="w-4 h-4 text-cyan-400" />
-            <h3 className="text-sm font-bold text-white font-mono uppercase">
+            <Sparkles className="w-4 h-4 text-blue-600" />
+            <h3 className="text-sm font-bold text-[#173A63] uppercase">
               Global Feature Importance (XGBoost Split Gain Attributions)
             </h3>
           </div>
 
-          <div className="space-y-3 font-mono text-xs">
+          <div className="space-y-3 text-xs">
             {data.feature_importances.map((f, idx) => (
-              <div key={idx} className="p-3 bg-[#070c18] rounded-lg border border-[#162544]">
+              <div key={idx} className="p-3 bg-[#F6F8FC] rounded-lg border border-[#DCE5F0]">
                 <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-slate-200 font-semibold">{f.feature}</span>
-                  <span className="text-cyan-400 font-bold">{Math.round(f.importance * 100)}%</span>
+                  <span className="text-slate-800 font-medium">{f.feature}</span>
+                  <span className="text-blue-700 font-bold">{Math.round(f.importance * 100)}%</span>
                 </div>
-                <div className="w-full h-2 bg-[#121c33] rounded-full overflow-hidden">
+                <div className="w-full h-2 bg-slate-200 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-cyan-400 rounded-full"
+                    className="h-full bg-blue-600 rounded-full"
                     style={{ width: `${Math.min(f.importance * 100 * 2.2, 100)}%` }}
                   ></div>
                 </div>

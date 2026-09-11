@@ -1,6 +1,7 @@
 import axios from 'axios';
 import {
   Complaint,
+  ComplaintCreate,
   Prediction,
   Explanation,
   GraphData,
@@ -8,11 +9,14 @@ import {
   ATMLocationItem,
   AlertItem,
   AnalyticsOverview,
+  DashboardSummary,
   AuditLogItem,
   ModelPerformanceData,
 } from '../types';
 
-const API_BASE_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ||
+  'http://localhost:8000/api/v1';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
@@ -55,24 +59,38 @@ export const api = {
   },
 
   // Complaints
-  getComplaints: async (params?: { fraud_type?: string; risk_level?: string; search?: string; limit?: number; skip?: number }) => {
+  getComplaints: async (params?: { fraud_type?: string; risk_level?: string; search?: string; limit?: number; skip?: number; state?: string }) => {
     const res = await apiClient.get<Complaint[]>('/complaints', { params });
     return res.data;
+  },
+  getComplaintsRegistry: async (params?: {
+    fraud_type?: string;
+    case_status?: string;
+    district?: string;
+    prediction_status?: string;
+    alert_status?: string;
+    search?: string;
+    page?: number;
+    limit?: number;
+    state?: string;
+  }): Promise<{ complaints: Complaint[]; total: number; page: number; totalPages: number }> => {
+    const res = await apiClient.get<Complaint[]>('/complaints', { params });
+    const total = parseInt(res.headers['x-total-count'] || `${res.data.length}`, 10);
+    const page = parseInt(res.headers['x-page'] || '1', 10);
+    const limit = params?.limit || 25;
+    const totalPages = parseInt(res.headers['x-total-pages'] || `${Math.max(1, Math.ceil(total / limit))}`, 10);
+    return {
+      complaints: res.data,
+      total,
+      page,
+      totalPages,
+    };
   },
   getComplaint: async (id: string | number) => {
     const res = await apiClient.get<Complaint>(`/complaints/${id}`);
     return res.data;
   },
-  createComplaint: async (data: {
-    fraud_type: string;
-    amount: number;
-    victim_location: string;
-    state?: string;
-    district?: string;
-    payment_channel?: string;
-    victim_name?: string;
-    victim_phone?: string;
-  }) => {
+  createComplaint: async (data: ComplaintCreate) => {
     const res = await apiClient.post<Complaint>('/complaints', data);
     return res.data;
   },
@@ -83,8 +101,15 @@ export const api = {
     return res.data;
   },
   getPrediction: async (complaintId: string | number) => {
-    const res = await apiClient.get<Prediction>(`/predictions/${complaintId}`);
-    return res.data;
+    try {
+      const res = await apiClient.get<Prediction>(`/predictions/${complaintId}`);
+      return res.data;
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        return null;
+      }
+      throw err;
+    }
   },
   getExplanation: async (predictionId: number) => {
     const res = await apiClient.get<Explanation>(`/predictions/${predictionId}/explanation`);
@@ -116,6 +141,14 @@ export const api = {
     const res = await apiClient.get<AlertItem[]>('/alerts', { params });
     return res.data;
   },
+  createAlertForPrediction: async (predictionId: number) => {
+    const res = await apiClient.post<AlertItem>(`/alerts/prediction/${predictionId}`);
+    return res.data;
+  },
+  generateAlertForComplaint: async (complaintId: string | number) => {
+    const res = await apiClient.post<AlertItem>(`/alerts/generate/${complaintId}`);
+    return res.data;
+  },
   acknowledgeAlert: async (alertId: number, notes?: string) => {
     const res = await apiClient.post<AlertItem>(`/alerts/${alertId}/acknowledge`, { notes });
     return res.data;
@@ -128,6 +161,10 @@ export const api = {
   // Analytics
   getAnalyticsOverview: async () => {
     const res = await apiClient.get<AnalyticsOverview>('/analytics/overview');
+    return res.data;
+  },
+  getDashboardSummary: async () => {
+    const res = await apiClient.get<DashboardSummary>('/dashboard/summary');
     return res.data;
   },
 

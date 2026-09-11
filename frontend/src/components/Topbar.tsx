@@ -1,18 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import {
   Search,
   Bell,
-  Radio,
-  ShieldCheck,
   LogOut,
+  ChevronRight,
+  Shield,
 } from 'lucide-react';
 import { useAuth } from '../store/authContext';
 import { api } from '../services/api';
 
+const ROUTE_LABELS: Record<string, string> = {
+  '/dashboard': 'Dashboard',
+  '/complaints': 'Complaints Management',
+  '/risk-map': 'Live Risk Map',
+  '/alerts': 'Alert Center',
+  '/analytics': 'Analytics & Interception Metrics',
+  '/model-performance': 'Model Performance',
+  '/audit': 'System Audit & Compliance',
+  '/settings': 'Settings & Preferences',
+};
+
 export const Topbar: React.FC = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchQuery, setSearchQuery] = useState('');
   const [newAlertCount, setNewAlertCount] = useState<number>(0);
 
@@ -24,7 +36,7 @@ export const Topbar: React.FC = () => {
         if (mounted) {
           setNewAlertCount(alerts.length);
         }
-      } catch (err) {
+      } catch {
         // silent catch
       }
     };
@@ -48,76 +60,92 @@ export const Topbar: React.FC = () => {
     navigate('/login');
   };
 
+  // Determine current context label
+  let currentTitle = ROUTE_LABELS[location.pathname] || 'Operational Workspace';
+  if (location.pathname.startsWith('/cases/')) {
+    const caseId = location.pathname.split('/cases/')[1];
+    currentTitle = `Case Intelligence • ${caseId}`;
+  } else if (location.pathname.startsWith('/network/')) {
+    const caseId = location.pathname.split('/network/')[1];
+    currentTitle = `Transaction Network • ${caseId}`;
+  }
+
+  const userInitials = user?.full_name
+    ? user.full_name
+        .split(' ')
+        .map((n) => n[0])
+        .slice(0, 2)
+        .join('')
+        .toUpperCase()
+    : 'LE';
+
   return (
-    <header className="h-16 bg-[#070c1a]/95 backdrop-blur-md border-b border-[#162544] px-6 flex items-center justify-between sticky top-0 z-20">
-      {/* Global Search Bar */}
-      <form onSubmit={handleSearch} className="relative w-96">
-        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="Search CMP ID, location, mule account, IFSC..."
-          className="w-full pl-10 pr-4 py-2 bg-[#0c1428] border border-[#1b2b4d] rounded-lg text-xs text-slate-200 placeholder-slate-400 focus:outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 transition-all font-mono"
-        />
-        <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center space-x-1">
-          <kbd className="px-1.5 py-0.5 text-[9px] font-mono text-slate-400 bg-[#121c38] border border-[#233357] rounded">
-            Enter
-          </kbd>
+    <header className="h-14 bg-white border-b border-[#DCE5F0] px-6 flex items-center justify-between sticky top-0 z-20 shadow-xs">
+      {/* Left: Breadcrumb / Page Context */}
+      <div className="flex items-center space-x-3 min-w-0">
+        <div className="flex items-center space-x-1.5 text-xs text-slate-500 font-medium">
+          <span>CyberShield</span>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
+          <span className="text-[#1E293B] font-semibold truncate">{currentTitle}</span>
         </div>
-      </form>
 
-      {/* System Status Indicators & Actions */}
+        <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+          Operational Pilot
+        </span>
+      </div>
+
+      {/* Right: Search, Alerts, Officer Profile */}
       <div className="flex items-center space-x-4">
-        {/* System Online Badge */}
-        <div className="hidden sm:flex items-center space-x-2 px-3 py-1 rounded-full bg-emerald-950/40 border border-emerald-500/30">
-          <span className="relative flex h-2 w-2">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-          </span>
-          <span className="text-xs font-mono text-emerald-400 font-medium">SYSTEM ONLINE</span>
-        </div>
+        {/* Quick Search */}
+        <form onSubmit={handleSearch} className="relative hidden md:block w-72">
+          <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search complaint, account, UTR..."
+            aria-label="Search cases and accounts"
+            className="w-full pl-8 pr-3 py-1.5 bg-[#F6F8FC] border border-[#DCE5F0] rounded-md text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+          />
+        </form>
 
-        {/* Live Intelligence Indicator */}
-        <div className="hidden md:flex items-center space-x-2 px-3 py-1 rounded-full bg-cyan-950/40 border border-cyan-500/30">
-          <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
-          <span className="text-xs font-mono text-cyan-300 font-medium tracking-wide">
-            LIVE TELEMETRY
-          </span>
-        </div>
-
-        {/* Notifications */}
+        {/* Active Alerts Bell */}
         <button
           onClick={() => navigate('/alerts')}
-          className="relative p-2 rounded-lg bg-[#0c1428] border border-[#1b2b4d] text-slate-300 hover:text-cyan-400 hover:border-cyan-500/40 transition-colors"
+          className="relative p-1.5 rounded-md text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
           title="Active Alerts"
+          aria-label={`Active Alerts: ${newAlertCount} new`}
         >
           <Bell className="w-4 h-4" />
           {newAlertCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-[10px] font-bold text-white rounded-full flex items-center justify-center font-mono">
+            <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-600 text-[10px] font-bold text-white rounded-full flex items-center justify-center font-sans shadow-sm">
               {newAlertCount}
             </span>
           )}
         </button>
 
-        {/* Officer Profile Pill */}
-        <div className="flex items-center space-x-2.5 pl-2 border-l border-[#162544]">
-          <div className="text-right">
-            <div className="text-xs font-bold text-slate-200">
-              {user?.full_name || 'Inspector Rajesh Verma'}
-            </div>
-            <div className="text-[10px] font-mono text-cyan-400">
-              {user?.role || 'DISTRICT_LEA'} • {user?.organization_name?.split(' ')[0] || 'Indore LEA'}
-            </div>
+        {/* Real Authenticated Officer Profile */}
+        <div className="flex items-center space-x-3 pl-3 border-l border-[#DCE5F0]">
+          <div className="w-7 h-7 rounded-full bg-[#173A63] text-white flex items-center justify-center text-xs font-semibold shrink-0">
+            {userInitials}
           </div>
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-cyan-500/20 to-blue-600/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300 shadow-[0_0_10px_rgba(0,216,255,0.2)]">
-            <ShieldCheck className="w-5 h-5" />
+
+          <div className="hidden sm:block text-left leading-tight min-w-0">
+            <div className="text-xs font-semibold text-slate-900 truncate">
+              {user?.full_name || 'Authenticated Officer'}
+            </div>
+            <div className="text-[11px] text-slate-500 truncate">
+              {user?.role || 'Law Enforcement'}
+              {user?.organization_name ? ` • ${user.organization_name}` : ''}
+            </div>
           </div>
 
           <button
             onClick={handleLogout}
             title="Sign Out"
-            className="p-1.5 rounded-lg bg-[#0c1428] border border-[#1b2b4d] text-slate-400 hover:text-red-400 hover:border-red-500/30 transition-all ml-1"
+            aria-label="Sign Out"
+            className="p-1.5 rounded-md text-slate-400 hover:text-red-600 hover:bg-slate-100 transition-colors"
           >
             <LogOut className="w-4 h-4" />
           </button>

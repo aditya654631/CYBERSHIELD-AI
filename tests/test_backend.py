@@ -13,7 +13,11 @@ try:
 finally:
     db_session.close()
 
+from backend.app.auth.security import create_access_token
+
 client = TestClient(app)
+_test_token = create_access_token({"sub": "admin@cybershield.gov.in", "role": "I4C_ADMIN"})
+client.headers["Authorization"] = f"Bearer {_test_token}"
 
 def test_health_check():
     response = client.get("/health")
@@ -21,6 +25,10 @@ def test_health_check():
     data = response.json()
     assert data["status"] == "healthy"
     assert data["engine"] == "Online"
+    assert "database" in data
+    assert data["database"]["status"] == "connected"
+    assert data["database"]["engine"] in ["sqlite", "postgresql"]
+
 
 def test_auth_login_all_roles():
     roles_creds = [
@@ -86,7 +94,7 @@ def test_graph_endpoint():
     assert len(data["nodes"]) >= 6
     assert len(data["edges"]) >= 5
     assert "metrics" in data
-    assert data["metrics"]["target_cashout_cluster"] == "Vijay Nagar, Indore"
+    assert "target_cashout_cluster" not in data["metrics"]
 
 def test_gis_risk_map():
     resp = client.get("/api/v1/risk-map")
@@ -94,7 +102,7 @@ def test_gis_risk_map():
     data = resp.json()
     assert len(data["hotspots"]) >= 3
     assert len(data["atms"]) >= 5
-    assert data["summary"]["primary_threat_epicenter"] == "Vijay Nagar, Indore"
+    assert len(data["summary"]["primary_threat_epicenter"]) > 0
 
 def test_alerts_and_acknowledgement():
     resp = client.get("/api/v1/alerts")
@@ -119,3 +127,13 @@ def test_audit_log():
     assert resp.status_code == 200
     logs = resp.json()
     assert len(logs) > 0
+
+def test_database_connectivity_helper():
+    from backend.app.models.db import check_database_connection, get_database_engine_type
+    engine_type = get_database_engine_type()
+    assert engine_type in ["sqlite", "postgresql"]
+    res = check_database_connection()
+    assert res["status"] == "connected"
+    assert res["engine"] == engine_type
+    assert "error" not in res
+

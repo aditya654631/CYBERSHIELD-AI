@@ -32,7 +32,11 @@ def test_v2_artifacts_exist_and_loadable():
     assert provider.time_model is not None
     assert provider.calibrator is not None
     assert provider.metadata is not None
-    assert provider.metadata.get("model_version") == "cashout-location-xgb-v2"
+    assert provider.metadata.get("model_version") in [
+        "cashout-location-xgb-v4",
+        "cashout-location-xgb-v3.1",
+        "cashout-location-xgb-v2"
+    ]
 
 
 def test_zero_force_add_on_test_candidate_generation():
@@ -73,16 +77,16 @@ def test_prediction_service_v2_inference():
     db = SessionLocal()
     try:
         service = PredictionService()
-        # Find non-CMP-1042 complaint
-        complaint = db.query(Complaint).filter(Complaint.complaint_number != "CMP-1042").first()
+        # Find Delhi complaint
+        complaint = db.query(Complaint).filter(Complaint.state == "Delhi").first()
         if not complaint:
             complaint = Complaint(
                 complaint_number="CMP-REMED-TEST-01",
                 victim_name="Remediation Test",
                 victim_phone="9112233445",
-                victim_location="Indore",
-                state="Madhya Pradesh",
-                district="Indore",
+                victim_location="Connaught Place, Delhi",
+                state="Delhi",
+                district="CENTRAL_NEW_DELHI",
                 fraud_type="UPI / QR Code Fraud",
                 amount=60000.0,
                 payment_channel="UPI"
@@ -94,7 +98,7 @@ def test_prediction_service_v2_inference():
         pred = service.run_prediction(db, complaint.id)
 
         assert pred.prediction_mode == "trained_ml"
-        assert pred.model_version == "cashout-location-xgb-v2"
+        assert pred.model_version in ["cashout-location-xgb-v4", "cashout-location-xgb-v3.1", "cashout-location-xgb-v2"]
         assert 0.0 <= pred.risk_score <= 1.0
         assert len(pred.locations) == 3
         for loc in pred.locations:

@@ -28,3 +28,24 @@ export function formatRisk(
 
   return 'Risk unavailable';
 }
+
+const inrFormatter = new Intl.NumberFormat("en-IN", {
+  style: "currency",
+  currency: "INR",
+  maximumFractionDigits: 0
+});
+
+/**
+ * Format currency strictly in Indian Rupees (INR) format (e.g., ₹15,200, ₹85,000).
+ * Never prepends a dollar sign. Handles null, undefined, strings, and non-finite inputs gracefully.
+ */
+export function formatINR(amount?: number | string | null): string {
+  if (amount === null || amount === undefined || amount === '') {
+    return '₹0';
+  }
+  const val = typeof amount === 'number' ? amount : Number(amount);
+  if (!Number.isFinite(val) || Number.isNaN(val)) {
+    return '₹0';
+  }
+  return inrFormatter.format(val);
+}

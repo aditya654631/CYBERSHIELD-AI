@@ -1,0 +1,117 @@
+{
+  "model_name": "CyberShield AI Location Ranker V3",
+  "model_version": "v3",
+  "model_type": "XGBClassifier (Leakage-Free Ranking)",
+  "training_date": "2026-09-10",
+  "dataset_type": "Synthetic/anonymized Delhi-NCR prototype operational dataset",
+  "geographic_scope": "Delhi Pilot (validated prototype architecture expandable to authorized regional datasets)",
+  "features": {
+    "location_feature_count": 38,
+    "time_feature_count": 20,
+    "location_features": [
+      "log_amount",
+      "fraud_type_encoded",
+      "payment_channel_encoded",
+      "complaint_hour",
+      "day_of_week",
+      "weekend_flag",
+      "night_flag",
+      "complaint_delay_minutes",
+      "transaction_count",
+      "hop_count",
+      "unique_accounts",
+      "unique_banks",
+      "total_transferred",
+      "mean_transfer_amount",
+      "max_transfer_amount",
+      "transaction_velocity",
+      "chain_duration_minutes",
+      "average_hop_interval",
+      "branching_factor",
+      "max_degree",
+      "mean_degree",
+      "max_pagerank",
+      "max_betweenness",
+      "connected_component_size",
+      "fraud_neighbor_count",
+      "mule_connection_count",
+      "historical_cluster_cashout_count",
+      "historical_cluster_cashout_amount",
+      "historical_cluster_risk",
+      "atm_density",
+      "distance_from_victim",
+      "recent_cluster_activity",
+      "fraud_type_cluster_frequency",
+      "transaction_hour",
+      "time_since_first_transfer",
+      "time_since_last_transfer",
+      "fraud_type_historical_cashout_delay",
+      "account_historical_cashout_delay"
+    ],
+    "time_features": [
+      "log_amount",
+      "fraud_type_encoded",
+      "payment_channel_encoded",
+      "complaint_hour",
+      "day_of_week",
+      "weekend_flag",
+      "night_flag",
+      "complaint_delay_minutes",
+      "transaction_count",
+      "hop_count",
+      "transaction_velocity",
+      "chain_duration_minutes",
+      "average_hop_interval",
+      "branching_factor",
+      "max_degree",
+      "max_pagerank",
+      "mule_connection_count",
+      "fraud_type_historical_cashout_delay",
+      "account_historical_cashout_delay",
+      "time_since_last_transfer"
+    ]
+  },
+  "removed_leakage_features": [
+    "is_mule_corridor",
+    "distance_from_high_risk_account"
+  ],
+  "candidate_generation_policy": "Spatial proximity + historical hotspot ranking without beneficiary mule account prior or target cluster identity",
+  "temporal_split": {
+    "train_size": 14000,
+    "val_size": 3000,
+    "test_size": 3000,
+    "train_temporal_range": [
+      "2026-01-01T00:03:00",
+      "2026-05-06T23:45:00"
+    ],
+    "val_temporal_range": [
+      "2026-05-07T00:39:00",
+      "2026-06-03T00:20:00"
+    ],
+    "test_temporal_range": [
+      "2026-06-03T00:26:00",
+      "2026-06-30T02:29:00"
+    ]
+  },
+  "evaluation_metrics_held_out_test": {
+    "candidate_recall_pct": 54.77,
+    "recall_at_1": 4.57,
+    "recall_at_3": 12.6,
+    "recall_at_5": 19.43,
+    "mrr": 0.1255,
+    "median_centroid_error_km": 637.13,
+    "brier_score": 0.0213,
+    "expected_calibration_error": 0.001
+  },
+  "comparison_v2_vs_v3": {
+    "v2_recall_at_1": 99.1,
+    "v2_leakage_warning": "V2 metrics were artificially inflated by structural target proxy features (distance_from_high_risk_account and is_mule_corridor) and are NOT legitimate production metrics.",
+    "v3_recall_at_1": 4.57,
+    "v3_evaluation_nature": "Scientifically defensible, honest evaluation on held-out temporal data with zero target leakage."
+  },
+  "calibration": "Platt probability scaling via Logistic Regression fitted strictly on validation split logits",
+  "limitations": [
+    "Trained and evaluated on synthetic cybercrime transaction topologies",
+    "Decision-support ranking intended for regional cluster prioritization, not automated punitive actions or exact ATM certainty"
+  ]
+}

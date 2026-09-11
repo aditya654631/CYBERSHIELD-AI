@@ -38,27 +38,27 @@ export const AuditLog: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-[#0a1020] rounded-2xl border border-[#162544] shadow-2xl gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <History className="w-5 h-5 text-cyan-400" />
-            <h1 className="text-xl font-bold text-white font-['JetBrains_Mono',monospace]">
+            <History className="w-5 h-5 text-blue-600 shrink-0" />
+            <h1 className="text-lg font-bold text-[#173A63] font-sans">
               Regulatory Audit Ledger & Chain of Custody
             </h1>
           </div>
-          <p className="text-xs text-slate-400 font-mono mt-0.5">
+          <p className="text-xs text-slate-500 font-sans mt-0.5">
             Immutable trace of officer logins, case inspections, predictive inferences, and alert escalations
           </p>
         </div>
 
         {/* Filter */}
         <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 bg-[#070c18] px-3 py-1.5 rounded-lg border border-[#162544]">
+          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-md border border-[#DCE5F0]">
             <Filter className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={actionFilter}
               onChange={(e) => setActionFilter(e.target.value)}
-              className="bg-transparent text-xs text-slate-200 focus:outline-none font-mono cursor-pointer"
+              className="bg-transparent text-xs text-slate-700 focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Actions</option>
               <option value="LOGIN">LOGIN</option>
@@ -72,7 +72,8 @@ export const AuditLog: React.FC = () => {
 
           <button
             onClick={fetchLogs}
-            className="p-2 rounded-lg bg-[#070c18] border border-[#162544] text-slate-300 hover:text-cyan-400"
+            title="Refresh logs"
+            className="p-2 rounded-md bg-white border border-[#DCE5F0] text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -80,50 +81,50 @@ export const AuditLog: React.FC = () => {
       </div>
 
       {/* Audit Table */}
-      <div className="bg-[#0a1020] rounded-2xl border border-[#162544] overflow-hidden shadow-2xl">
+      <div className="bg-white rounded-lg border border-[#DCE5F0] overflow-hidden shadow-xs">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs font-mono">
-            <thead className="bg-[#070c18] text-slate-400 uppercase tracking-wider border-b border-[#162544]">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-[#F8FAFC] text-slate-600 uppercase tracking-wider border-b border-[#DCE5F0]">
               <tr>
-                <th className="py-3.5 px-4">Timestamp (UTC)</th>
-                <th className="py-3.5 px-4">Officer Name</th>
-                <th className="py-3.5 px-4">Role / Jurisdiction</th>
-                <th className="py-3.5 px-4">Action</th>
-                <th className="py-3.5 px-4">Case / Target</th>
-                <th className="py-3.5 px-4">Details / Result</th>
-                <th className="py-3.5 px-4">IP Address</th>
+                <th className="py-3 px-4 font-semibold">Timestamp</th>
+                <th className="py-3 px-4 font-semibold">Officer Name</th>
+                <th className="py-3 px-4 font-semibold">Role / Jurisdiction</th>
+                <th className="py-3 px-4 font-semibold">Action</th>
+                <th className="py-3 px-4 font-semibold">Case / Target</th>
+                <th className="py-3 px-4 font-semibold">Details / Result</th>
+                <th className="py-3 px-4 font-semibold">IP Address</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-[#162544] text-slate-300">
+            <tbody className="divide-y divide-[#DCE5F0] text-slate-700">
               {logs.map((log) => (
-                <tr key={log.id} className="hover:bg-[#0d162d] transition-colors">
-                  <td className="py-3 px-4 text-slate-400">
+                <tr key={log.id} className="hover:bg-blue-50/30 transition-colors">
+                  <td className="py-3 px-4 text-slate-500">
                     {new Date(log.created_at).toLocaleString()}
                   </td>
-                  <td className="py-3 px-4 font-semibold text-slate-100">{log.officer_name}</td>
+                  <td className="py-3 px-4 font-semibold text-slate-900">{log.officer_name}</td>
                   <td className="py-3 px-4">
-                    <span className="px-2 py-0.5 rounded bg-[#162544] text-cyan-300 font-bold text-[10px]">
+                    <span className="px-2 py-0.5 rounded bg-blue-50 text-blue-700 font-semibold border border-blue-200 text-[10px]">
                       {log.role}
                     </span>
                   </td>
                   <td className="py-3 px-4">
                     <span
-                      className={`px-2 py-0.5 rounded font-bold text-[10px] ${
+                      className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
                         log.action.includes('ALERT')
-                          ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                          ? 'bg-red-50 text-red-700 border border-red-200'
                           : log.action.includes('PREDICTION')
-                          ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                          ? 'bg-purple-50 text-purple-700 border border-purple-200'
                           : log.action.includes('LOGIN')
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                          ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                          : 'bg-blue-50 text-blue-700 border border-blue-200'
                       }`}
                     >
                       {log.action}
                     </span>
                   </td>
-                  <td className="py-3 px-4 text-cyan-400 font-bold">{log.case_number || 'N/A'}</td>
-                  <td className="py-3 px-4 text-slate-300 max-w-xs truncate">{log.details || '—'}</td>
-                  <td className="py-3 px-4 text-slate-400">{log.ip_address}</td>
+                  <td className="py-3 px-4 text-blue-700 font-semibold font-mono">{log.case_number || 'N/A'}</td>
+                  <td className="py-3 px-4 text-slate-600 max-w-xs truncate">{log.details || '—'}</td>
+                  <td className="py-3 px-4 text-slate-500 font-mono text-[11px]">{log.ip_address}</td>
                 </tr>
               ))}
             </tbody>

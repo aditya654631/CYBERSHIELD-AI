@@ -32,21 +32,71 @@ export interface Complaint {
   victim_location: string;
   state: string;
   district: string;
+  locality?: string | null;
   payment_channel: string;
   reported_at: string;
   incident_time: string;
-  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
-  risk_score: number;
-  prediction_status: 'PENDING' | 'COMPLETED' | 'IN_PROGRESS';
-  case_status: 'ACTIVE' | 'UNDER_INVESTIGATION' | 'ALERTED' | 'RESOLVED';
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | 'PENDING_EVALUATION' | string;
+  risk_score: number | null;
+  prediction_status: 'NOT RUN' | 'AVAILABLE' | 'PROCESSING' | 'UNAVAILABLE' | 'PENDING' | 'COMPLETED' | 'IN_PROGRESS' | string;
+  alert_status?: 'NOT GENERATED' | 'GENERATED' | 'ACKNOWLEDGED' | string;
+  case_status: 'ACTIVE' | 'UNDER_INVESTIGATION' | 'ALERTED' | 'RESOLVED' | string;
+  victim_lat?: number | null;
+  victim_lon?: number | null;
+  description?: string | null;
+  provenance_mode?: string | null;
+  victim_bank?: string | null;
+  beneficiary_bank?: string | null;
+  beneficiary_id?: string | null;
+  transaction_ref?: string | null;
+  transaction_time?: string | null;
+  ifsc_code?: string | null;
+  upi_id?: string | null;
   created_at: string;
+  source_scenario?: string | null;
+  scenario_link_status?: string | null;
+  linked_account_count?: number;
+  available_transaction_count?: number;
+}
+
+export interface ComplaintCreate {
+  fraud_type: string;
+  amount: number;
+  victim_name: string;
+  incident_time?: string;
+  reported_at?: string;
+  state?: string;
+  district: string;
+  locality?: string;
+  victim_location?: string;
+  payment_channel: string;
+  victim_bank?: string;
+  beneficiary_bank?: string;
+  beneficiary_id: string;
+  transaction_ref: string;
+  transaction_time?: string;
+  description?: string;
+  victim_lat?: number | null;
+  victim_lon?: number | null;
+  beneficiary_account?: string;
+  beneficiary_upi?: string;
+  ifsc_code?: string;
+  phone_or_merchant?: string;
+  additional_refs?: string;
 }
 
 export interface PredictionLocationItem {
   rank: number;
   location_name: string;
+  cluster_id?: number | null;
+  cluster_name?: string;
+  zone?: string;
+  district?: string;
+  state?: string;
   probability: number;
-  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  ml_probability?: number;
+  risk_level: string;
+  risk_band?: string;
   distance_km: number;
   reasoning: string;
   latitude: number;
@@ -55,13 +105,16 @@ export interface PredictionLocationItem {
 
 export interface Prediction {
   prediction_id: number;
+  id?: number;
   complaint_id: number;
   complaint_number: string;
   where_location: string;
+  primary_cluster_id?: number | null;
   when_window: string;
   risk_score: number;
   risk_percentage: number;
-  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW';
+  risk_level: string;
+  risk_band?: string;
   intervention_priority: number;
   priority_level: string;
   why_summary: string;
@@ -73,6 +126,8 @@ export interface Prediction {
   top_locations: PredictionLocationItem[];
   prediction_mode: string;
   model_version: string;
+  operational_scope?: string | null;
+  time_prediction?: any;
   created_at: string;
 }
 
@@ -193,6 +248,91 @@ export interface AnalyticsOverview {
   regional_risk: { district: string; risk_index: number; active_clusters: number; amount: number }[];
 }
 
+export interface DashboardKpis {
+  active_complaints: number;
+  high_risk_predictions: number;
+  active_alerts: number;
+  acknowledged_alerts: number;
+  total_amount_at_risk: number;
+  avg_response_time_minutes: number | null;
+  response_time_label: string;
+}
+
+export interface RiskDistribution {
+  HIGH: number;
+  MEDIUM: number;
+  LOW: number;
+  CRITICAL: number;
+  total: number;
+}
+
+export interface PredictionModeDistribution {
+  trained_ml: number;
+  deterministic_demo: number;
+  total: number;
+}
+
+export interface RecentComplaintItem {
+  id: number;
+  complaint_number: string;
+  fraud_type: string;
+  amount: number;
+  district?: string | null;
+  state?: string | null;
+  victim_location?: string | null;
+  case_status: string;
+  reported_at?: string | null;
+  created_at?: string | null;
+  prediction_available: boolean;
+  latest_prediction_id?: number | null;
+  latest_risk_level?: string | null;
+  latest_mode?: string | null;
+  latest_rank1_location?: string | null;
+}
+
+export interface RecentPredictionItem {
+  id: number;
+  complaint_id: number;
+  complaint_number: string;
+  prediction_mode: string;
+  model_version: string;
+  risk_level: string;
+  risk_score: number;
+  rank1_location?: string | null;
+  rank1_cluster_id?: number | null;
+  operational_window: string;
+  created_at: string;
+}
+
+export interface RecentAlertItem {
+  id: number;
+  complaint_id: number;
+  complaint_number: string;
+  prediction_id?: number | null;
+  title: string;
+  severity: string;
+  location_name: string;
+  risk_score: number;
+  expected_window: string;
+  amount_at_risk: number;
+  status: string;
+  created_at: string;
+}
+
+export interface DashboardSummary {
+  generated_at: string;
+  kpis: DashboardKpis;
+  risk_distribution: RiskDistribution;
+  mode_distribution: PredictionModeDistribution;
+  fraud_type_distribution: { name: string; count: number; amount: number; percentage: number }[];
+  cases_over_time: { date: string; cases: number; risk: number }[];
+  hourly_risk?: { hour: string; risk: number; cashouts: number }[];
+  regional_distribution: { district: string; cases: number; risk_index: number; amount: number }[];
+  recent_complaints: RecentComplaintItem[];
+  recent_predictions: RecentPredictionItem[];
+  recent_alerts: RecentAlertItem[];
+}
+
 export interface AuditLogItem {
   id: number;
   officer_name: string;
@@ -221,6 +361,13 @@ export interface ModelPerformanceData {
   prediction_mode: string;
   current_prediction_mode: string;
   model_version: string;
+  location_model_version?: string;
+  time_model_version?: string;
+  location_features_count?: number;
+  time_features_count?: number;
+  calibration_method?: string;
+  geographic_focus?: string;
+  cluster_count?: number;
   provider_version: string;
   dataset_type: string;
   model_class: string;

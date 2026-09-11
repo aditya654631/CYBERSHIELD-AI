@@ -8,11 +8,13 @@ services:
     ports:
       - "8000:8000"
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/cybershield
-      - SECRET_KEY=sih-cybershield-ai-super-secure-production-jwt-key-2026
-      - ENVIRONMENT=production
+      # Local development PostgreSQL connection string using modern psycopg v3 driver
+      - DATABASE_URL=postgresql+psycopg://cybershield:${POSTGRES_PASSWORD:-cybershield_local_only}@db:5432/cybershield
+      - JWT_SECRET=${JWT_SECRET:-dev-insecure-jwt-secret-key-for-development-only-cybershield-2026}
+      - ENVIRONMENT=development
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     volumes:
       - ./backend:/app
       - ./ml/artifacts:/app/ml/artifacts
@@ -24,19 +26,25 @@ services:
     ports:
       - "5173:5173"
     environment:
-      - VITE_API_URL=http://localhost:8000/api/v1
+      - VITE_API_BASE_URL=http://localhost:8000/api/v1
+      - VITE_WS_URL=ws://localhost:8000/ws/alerts
     depends_on:
       - backend
 
   db:
-    image: postgres:15-alpine
+    image: postgres:16
     restart: always
     environment:
-      - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
       - POSTGRES_DB=cybershield
+      - POSTGRES_USER=cybershield
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cybershield_local_only}
     ports:
       - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cybershield -d cybershield"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
 

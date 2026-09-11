@@ -32,12 +32,27 @@ class UserResponse(BaseModel):
 class ComplaintCreate(BaseModel):
     fraud_type: str
     amount: float
-    victim_location: str
-    state: str = "Madhya Pradesh"
-    district: str = "Bhopal"
+    victim_name: Optional[str] = None
+    victim_phone: Optional[str] = None
+    incident_time: Optional[datetime] = None
+    reported_at: Optional[datetime] = None
+    state: str = "Delhi"
+    district: str = "CENTRAL_NEW_DELHI"
+    locality: Optional[str] = None
+    victim_location: Optional[str] = None
+    victim_lat: Optional[float] = None
+    victim_lon: Optional[float] = None
+    description: Optional[str] = None
     payment_channel: str = "UPI"
-    victim_name: Optional[str] = "Anonymous Victim"
-    victim_phone: Optional[str] = "+91 98765 43210"
+    victim_bank: Optional[str] = None
+    beneficiary_bank: Optional[str] = None
+    beneficiary_id: Optional[str] = None
+    transaction_ref: Optional[str] = None
+    transaction_time: Optional[datetime] = None
+    beneficiary_account_number: Optional[str] = None
+    beneficiary_upi_id: Optional[str] = None
+    ifsc_code: Optional[str] = None
+    additional_references: Optional[str] = None
 
 class ComplaintResponse(BaseModel):
     id: int
@@ -46,17 +61,32 @@ class ComplaintResponse(BaseModel):
     amount: float
     victim_name: Optional[str]
     victim_phone: Optional[str]
-    victim_location: str
+    victim_location: Optional[str] = None
+    locality: Optional[str] = None
     state: str
     district: str
     payment_channel: str
     reported_at: datetime
     incident_time: datetime
+    victim_lat: Optional[float] = None
+    victim_lon: Optional[float] = None
     risk_level: str
-    risk_score: float
+    risk_score: Optional[float] = None
     prediction_status: str
+    alert_status: Optional[str] = "NOT GENERATED"
     case_status: str
     created_at: datetime
+    description: Optional[str] = None
+    provenance_mode: Optional[str] = None
+    victim_bank: Optional[str] = None
+    beneficiary_bank: Optional[str] = None
+    beneficiary_id: Optional[str] = None
+    transaction_ref: Optional[str] = None
+    transaction_time: Optional[datetime] = None
+    source_scenario: Optional[str] = None
+    scenario_link_status: Optional[str] = None
+    linked_account_count: Optional[int] = 0
+    available_transaction_count: Optional[int] = 0
 
     class Config:
         from_attributes = True
@@ -89,20 +119,50 @@ class TransactionResponse(BaseModel):
     hop_number: int
     status: str
     suspicious_flag: bool
+    context_type: Optional[str] = "DIRECT"
+    source_scenario: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class TransactionContextResponse(BaseModel):
+    complaint_number: str
+    context_type: str  # DIRECT, LINKED_SYNTHETIC_SCENARIO, EMPTY
+    source_scenario: Optional[str] = None
+    transaction_count: int
+    provenance: Optional[str] = None
+    transactions: List[TransactionResponse]
+
+    class Config:
+        from_attributes = True
+
 
 # Graph Intelligence Schemas (Cytoscape compatible)
 class CytoscapeNodeData(BaseModel):
     id: str
     label: str
-    node_type: str  # victim, account, mule, atm, cluster, bank
+    node_type: str  # victim, account, mule, atm, cluster, bank, source, sink, intermediary
     masked_id: str
     bank: str
-    risk_score: float
+    risk_score: float = 0.0
     amount_received: float = 0.0
     amount_sent: float = 0.0
     connections_count: int = 0
     previous_complaints: int = 0
     is_hotspot: bool = False
+    in_degree: Optional[int] = 0
+    out_degree: Optional[int] = 0
+    net_flow: Optional[float] = 0.0
+    hop_level: Optional[int] = 0
+    degree_centrality: Optional[float] = 0.0
+    betweenness_centrality: Optional[float] = 0.0
+    is_source: Optional[bool] = False
+    is_sink: Optional[bool] = False
+    is_intermediary: Optional[bool] = False
+    pattern_flags: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
 
 class CytoscapeNode(BaseModel):
     data: CytoscapeNodeData
@@ -114,10 +174,21 @@ class CytoscapeEdgeData(BaseModel):
     amount: float
     channel: str
     hop: int
-    is_suspicious: bool = True
+    is_suspicious: bool = False
+    total_amount: Optional[float] = None
+    transaction_count: Optional[int] = 1
+    transaction_ids: Optional[List[int]] = None
+    channels: Optional[List[str]] = None
+    min_hop: Optional[int] = None
+    max_hop: Optional[int] = None
+    pattern_flags: Optional[Dict[str, Any]] = None
+
+    class Config:
+        from_attributes = True
 
 class CytoscapeEdge(BaseModel):
     data: CytoscapeEdgeData
+
 
 class GraphDataResponse(BaseModel):
     nodes: List[CytoscapeNode]
@@ -128,34 +199,66 @@ class GraphDataResponse(BaseModel):
 class PredictionLocationItem(BaseModel):
     rank: int
     location_name: str
+    cluster_id: Optional[int] = None
+    cluster_name: Optional[str] = None
+    zone: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
     probability: float
-    risk_level: str
-    distance_km: float
-    reasoning: str
+    ml_probability: Optional[float] = None
+    risk_score: Optional[float] = None
+    risk_level: str = "MEDIUM"
+    risk_band: Optional[str] = None
+    distance_km: float = 0.0
+    reasoning: str = ""
+    evidence: Optional[List[str]] = None
     latitude: float
     longitude: float
 
+    class Config:
+        from_attributes = True
+
+class TimePredictionDetail(BaseModel):
+    predicted_minutes_to_cashout: float
+    model_version: str
+    prediction_reference_time: Optional[str] = None
+    operational_window: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
 class PredictionResponse(BaseModel):
-    prediction_id: int
+    prediction_id: Optional[int] = 0
     complaint_id: int
     complaint_number: str
-    where_location: str
-    when_window: str
-    risk_score: float
-    risk_percentage: int
-    risk_level: str
-    intervention_priority: int
-    priority_level: str
-    why_summary: str
-    confidence_score: float
-    ml_score: float
-    graph_score: float
-    geo_score: float
-    temporal_score: float
-    top_locations: List[PredictionLocationItem]
-    prediction_mode: str = "deterministic_demo"
-    model_version: str = "demo-provider-v1"
-    created_at: datetime
+    status: Optional[str] = "SUCCESS"
+    where_location: Optional[str] = ""
+    when_window: Optional[str] = ""
+    risk_score: Optional[float] = 0.0
+    risk_percentage: Optional[int] = 0
+    risk_level: Optional[str] = "MEDIUM"
+    risk_band: Optional[str] = None
+    intervention_priority: Optional[int] = 50
+    priority_level: Optional[str] = "MONITOR"
+    why_summary: Optional[str] = ""
+    confidence_score: Optional[float] = 0.0
+    ml_score: Optional[float] = 0.0
+    graph_score: Optional[float] = 0.0
+    geo_score: Optional[float] = 0.0
+    temporal_score: Optional[float] = 0.0
+    top_locations: List[PredictionLocationItem] = []
+    prediction_mode: str = "trained_ml"
+    model_version: str = "cashout-location-xgb-v3.1"
+    operational_scope: Optional[str] = "DELHI_PILOT"
+    candidate_pool_size: Optional[int] = 25
+    primary_cluster_id: Optional[int] = None
+    time_prediction: Optional[TimePredictionDetail] = None
+    limitations: Optional[List[str]] = None
+    message: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True
 
 class ExplanationFactor(BaseModel):
     name: str
@@ -244,9 +347,89 @@ class AnalyticsOverviewResponse(BaseModel):
     hourly_risk: List[Dict[str, Any]]
     regional_risk: List[Dict[str, Any]]
 
+# Dashboard Schemas
+class DashboardKpis(BaseModel):
+    active_complaints: int
+    high_risk_predictions: int
+    active_alerts: int
+    acknowledged_alerts: int
+    total_amount_at_risk: float
+    avg_response_time_minutes: Optional[float] = None
+    response_time_label: str = "Average response time"
+
+class RiskDistribution(BaseModel):
+    HIGH: int
+    MEDIUM: int
+    LOW: int
+    CRITICAL: int
+    total: int
+
+class PredictionModeDistribution(BaseModel):
+    trained_ml: int
+    deterministic_demo: int
+    total: int
+
+class RecentComplaintItem(BaseModel):
+    id: int
+    complaint_number: str
+    fraud_type: str
+    amount: float
+    district: Optional[str] = None
+    state: Optional[str] = None
+    victim_location: Optional[str] = None
+    case_status: str
+    reported_at: Optional[datetime] = None
+    created_at: Optional[datetime] = None
+    prediction_available: bool
+    latest_prediction_id: Optional[int] = None
+    latest_risk_level: Optional[str] = "NO PREDICTION"
+    latest_mode: Optional[str] = None
+    latest_rank1_location: Optional[str] = None
+
+class RecentPredictionItem(BaseModel):
+    id: int
+    complaint_id: int
+    complaint_number: str
+    prediction_mode: str
+    model_version: str
+    risk_level: str
+    risk_score: float
+    rank1_location: Optional[str] = None
+    rank1_cluster_id: Optional[int] = None
+    operational_window: str
+    created_at: datetime
+
+class RecentAlertItem(BaseModel):
+    id: int
+    complaint_id: int
+    complaint_number: str
+    prediction_id: Optional[int] = None
+    title: str
+    severity: str
+    location_name: str
+    risk_score: float
+    expected_window: str
+    amount_at_risk: float
+    status: str
+    created_at: datetime
+
+class DashboardSummaryResponse(BaseModel):
+    generated_at: datetime
+    kpis: DashboardKpis
+    risk_distribution: RiskDistribution
+    mode_distribution: PredictionModeDistribution
+    fraud_type_distribution: List[Dict[str, Any]]
+    cases_over_time: List[Dict[str, Any]]
+    hourly_risk: Optional[List[Dict[str, Any]]] = None
+    regional_distribution: List[Dict[str, Any]]
+    recent_complaints: List[RecentComplaintItem]
+    recent_predictions: List[RecentPredictionItem]
+    recent_alerts: List[RecentAlertItem]
+
 # Audit Schemas
 class AuditLogResponse(BaseModel):
     id: int
+    user_id: Optional[int] = None
     officer_name: str
     role: str
     action: str
