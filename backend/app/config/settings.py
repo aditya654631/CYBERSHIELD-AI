@@ -1,5 +1,5 @@
 import os
-from typing import Optional
+from typing import Optional, Union, List
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     APP_NAME: str = "CyberShield AI"
     ENVIRONMENT: str = "development"
     DEBUG: bool = True
+
+    # CORS Configuration
+    CORS_ORIGINS: Union[str, List[str]] = "http://localhost:5173,http://127.0.0.1:5173"
 
     # JWT Authentication Configuration
     JWT_SECRET: Optional[str] = None
@@ -58,6 +61,29 @@ class Settings(BaseSettings):
             elif db_u.startswith("postgresql://") and not db_u.startswith("postgresql+"):
                 self.DATABASE_URL = db_u.replace("postgresql://", "postgresql+psycopg://", 1)
         return self
+
+    @model_validator(mode="after")
+    def validate_cors_origins(self) -> "Settings":
+        is_prod = str(self.ENVIRONMENT).lower() in ("production", "prod")
+        origins = self.cors_origins_list
+        if is_prod:
+            if not origins or "*" in origins:
+                raise ValueError(
+                    "Production configuration error: CORS_ORIGINS must be set to explicit allowed origins and cannot contain wildcard '*' when allow_credentials=True."
+                )
+        return self
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parsed list of allowed CORS origins from CORS_ORIGINS environment variable."""
+        val = self.CORS_ORIGINS
+        if isinstance(val, list):
+            origins = val
+        elif isinstance(val, str):
+            origins = [origin.strip() for origin in val.split(",") if origin.strip()]
+        else:
+            origins = []
+        return [o.rstrip("/") for o in origins]
 
     @property
     def SECRET_KEY(self) -> str:
