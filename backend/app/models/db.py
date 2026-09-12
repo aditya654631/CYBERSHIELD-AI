@@ -19,7 +19,8 @@ else:
     # Production cloud connection pooling options with environment variable overrides
     engine_kwargs["pool_size"] = int(os.getenv("DB_POOL_SIZE", "10"))
     engine_kwargs["max_overflow"] = int(os.getenv("DB_MAX_OVERFLOW", "20"))
-    engine_kwargs["pool_recycle"] = int(os.getenv("DB_POOL_RECYCLE", "1800"))
+    default_recycle = "300" if "neon.tech" in db_url else "1800"
+    engine_kwargs["pool_recycle"] = int(os.getenv("DB_POOL_RECYCLE", default_recycle))
     engine_kwargs["pool_timeout"] = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 
 engine = create_engine(

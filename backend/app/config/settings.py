@@ -23,8 +23,14 @@ class Settings(BaseSettings):
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 480
 
-    # Database Configuration (supports SQLite for local dev and PostgreSQL for production)
-    DATABASE_URL: str = "sqlite:///./cybershield.db"
+    # Database Configuration (supports Neon PostgreSQL, standard PostgreSQL, and SQLite)
+    DATABASE_URL: Optional[str] = "sqlite:///./cybershield.db"
+    NEON_DATABASE_URL: Optional[str] = None
+    NEON_HOST: Optional[str] = None
+    NEON_USER: Optional[str] = None
+    NEON_PASSWORD: Optional[str] = None
+    NEON_DATABASE: Optional[str] = "neondb"
+    NEON_SSLMODE: Optional[str] = "require"
 
     # ML Model Configuration
     ML_MODEL_DIR: str = "ml/models"
@@ -53,13 +59,33 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def normalize_database_url(self) -> "Settings":
-        """Normalizes cloud PostgreSQL connection URLs (e.g. postgres:// or standard postgresql://) to psycopg v3 driver."""
-        if self.DATABASE_URL:
-            db_u = self.DATABASE_URL.strip()
+        """
+        Normalizes cloud PostgreSQL connection URLs (especially Neon Serverless PostgreSQL)
+        to psycopg v3 driver with SSL required.
+        Supports NEON_DATABASE_URL, DATABASE_URL, or discrete NEON credentials (NEON_HOST, NEON_USER, etc.).
+        """
+        # Priority 1: Direct NEON_DATABASE_URL
+        target_url = self.NEON_DATABASE_URL or self.DATABASE_URL
+
+        # Priority 2: Construct from discrete Neon parameters if provided
+        if (not target_url or target_url.startswith("sqlite")) and self.NEON_HOST and self.NEON_USER and self.NEON_PASSWORD:
+            target_url = f"postgresql://{self.NEON_USER}:{self.NEON_PASSWORD}@{self.NEON_HOST}/{self.NEON_DATABASE or 'neondb'}?sslmode={self.NEON_SSLMODE or 'require'}"
+
+        if target_url:
+            db_u = target_url.strip()
+            # Ensure modern psycopg driver prefix
             if db_u.startswith("postgres://"):
-                self.DATABASE_URL = db_u.replace("postgres://", "postgresql+psycopg://", 1)
+                db_u = db_u.replace("postgres://", "postgresql+psycopg://", 1)
             elif db_u.startswith("postgresql://") and not db_u.startswith("postgresql+"):
-                self.DATABASE_URL = db_u.replace("postgresql://", "postgresql+psycopg://", 1)
+                db_u = db_u.replace("postgresql://", "postgresql+psycopg://", 1)
+
+            # Ensure sslmode=require for Neon serverless endpoints
+            if "neon.tech" in db_u and "sslmode" not in db_u:
+                delimiter = "&" if "?" in db_u else "?"
+                db_u = f"{db_u}{delimiter}sslmode=require"
+
+            self.DATABASE_URL = db_u
+
         return self
 
     @model_validator(mode="after")

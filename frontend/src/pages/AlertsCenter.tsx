@@ -43,7 +43,7 @@ export const AlertsCenter: React.FC = () => {
     // Setup WebSocket for live dashboard alert events
     const WS_URL =
       import.meta.env.VITE_WS_URL ||
-      'ws://localhost:8000/ws/alerts';
+      'wss://cybershield-ai-production-66121.up.railway.app/ws/alerts';
     let socket: WebSocket | null = null;
     try {
       socket = new WebSocket(WS_URL);
