@@ -104,15 +104,15 @@ export const ModelPerformance: React.FC = () => {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Model Version:</span>
-            <span className="text-blue-700 font-bold">{data.model_version}</span>
+            <span className="text-blue-700 font-bold break-all sm:break-normal">{data.model_version}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Location Model:</span>
-            <span className="text-slate-800">{data.location_model_version || 'Location V3.1'}</span>
+            <span className="text-slate-800 break-all sm:break-normal">{data.location_model_version || 'Location V3.1'}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Time Model:</span>
-            <span className="text-slate-800">{data.time_model_version || 'Time V2'}</span>
+            <span className="text-slate-800 break-all sm:break-normal">{data.time_model_version || 'Time V2'}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Location Feature Count:</span>
@@ -159,7 +159,7 @@ export const ModelPerformance: React.FC = () => {
       </div>
 
       {/* CORE EVALUATION METRICS PILLARS */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         {/* 1. Location Prediction */}
         <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-3">
           <div className="flex items-center space-x-2 text-blue-700 font-bold text-xs uppercase pb-2 border-b border-[#DCE5F0]">

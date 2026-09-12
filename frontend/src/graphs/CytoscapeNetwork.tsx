@@ -175,12 +175,12 @@ export const CytoscapeNetwork: React.FC<CytoscapeNetworkProps> = ({
   };
 
   return (
-    <div className="relative w-full h-[520px] bg-[#f8fafc] rounded-lg border border-[#DCE5F0] overflow-hidden">
+    <div className="relative w-full h-[380px] sm:h-[520px] bg-[#f8fafc] rounded-lg border border-[#DCE5F0] overflow-hidden">
       {/* Network Canvas */}
       <div ref={containerRef} className="w-full h-full" />
 
       {/* Graph Control Bar */}
-      <div className="absolute top-4 right-4 flex items-center space-x-1.5 bg-white/95 backdrop-blur-xs p-1.5 rounded-md border border-[#DCE5F0] shadow-xs z-10">
+      <div className="absolute top-3 sm:top-4 right-3 sm:right-4 flex items-center space-x-1.5 bg-white/95 backdrop-blur-xs p-1.5 rounded-md border border-[#DCE5F0] shadow-xs z-10">
         <button
           onClick={handleZoomIn}
           title="Zoom In"
@@ -205,21 +205,21 @@ export const CytoscapeNetwork: React.FC<CytoscapeNetworkProps> = ({
       </div>
 
       {/* Graph Legend */}
-      <div className="absolute bottom-4 left-4 flex flex-wrap items-center gap-3 bg-white/95 backdrop-blur-xs px-3 py-2 rounded-md border border-[#DCE5F0] text-xs z-10 shadow-xs">
+      <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 right-3 sm:right-auto max-w-[calc(100%-1.5rem)] sm:max-w-none flex flex-wrap items-center gap-2 sm:gap-3 bg-white/95 backdrop-blur-xs px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-md border border-[#DCE5F0] text-[10px] sm:text-xs z-10 shadow-xs">
         <div className="flex items-center space-x-1.5">
-          <div className="w-3 h-3 rounded-full bg-[#0ea5e9]"></div>
+          <div className="w-3 h-3 rounded-full bg-[#0ea5e9] shrink-0"></div>
           <span className="text-slate-700">Victim</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <div className="w-3 h-3 rounded bg-[#f59e0b]"></div>
+          <div className="w-3 h-3 rounded bg-[#f59e0b] shrink-0"></div>
           <span className="text-slate-700">Account Layer</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <div className="w-3 h-3 transform rotate-45 bg-[#ef4444]"></div>
+          <div className="w-3 h-3 transform rotate-45 bg-[#ef4444] shrink-0"></div>
           <span className="text-slate-700">Mule Terminal</span>
         </div>
         <div className="flex items-center space-x-1.5">
-          <div className="w-3.5 h-3.5 bg-[#dc2626] border border-blue-600"></div>
+          <div className="w-3.5 h-3.5 bg-[#dc2626] border border-blue-600 shrink-0"></div>
           <span className="text-blue-700 font-semibold">Cash-Out Cluster</span>
         </div>
       </div>

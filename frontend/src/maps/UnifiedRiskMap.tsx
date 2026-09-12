@@ -582,12 +582,12 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
     <div className="relative w-full rounded-xl overflow-hidden border border-[#DCE5F0] shadow-xs bg-[#F6F8FC]">
       {/* Top Map Control Bar */}
       {showControls && (
-        <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap items-center justify-between gap-2 pointer-events-none">
+        <div className="absolute top-2 sm:top-3 left-2 sm:left-3 right-2 sm:right-3 z-20 flex flex-wrap items-center justify-between gap-1.5 sm:gap-2 pointer-events-none">
           {/* Provider & Map Type Switcher */}
-          <div className="flex items-center space-x-1.5 bg-white/95 backdrop-blur-md p-1 rounded-lg border border-[#DCE5F0] pointer-events-auto shadow-xs text-xs font-sans">
+          <div className="flex items-center space-x-1 sm:space-x-1.5 bg-white/95 backdrop-blur-md p-1 rounded-lg border border-[#DCE5F0] pointer-events-auto shadow-xs text-xs font-sans">
             <button
               onClick={() => setMapTypeId('roadmap')}
-              className={`px-2.5 py-1 rounded transition-all font-semibold cursor-pointer ${
+              className={`px-2 sm:px-2.5 py-1 rounded transition-all font-semibold cursor-pointer ${
                 mapTypeId === 'roadmap' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -595,7 +595,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
             </button>
             <button
               onClick={() => setMapTypeId('satellite')}
-              className={`px-2.5 py-1 rounded transition-all font-semibold cursor-pointer ${
+              className={`px-2 sm:px-2.5 py-1 rounded transition-all font-semibold cursor-pointer ${
                 mapTypeId === 'satellite' ? 'bg-blue-50 text-blue-700 border border-blue-200' : 'text-slate-600 hover:text-slate-900'
               }`}
             >
@@ -603,7 +603,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
             </button>
             <button
               onClick={() => setProvider('leaflet')}
-              className="px-2.5 py-1 rounded text-slate-500 hover:text-slate-800 transition-all text-[11px] cursor-pointer"
+              className="px-2 sm:px-2.5 py-1 rounded text-slate-500 hover:text-slate-800 transition-all text-[11px] cursor-pointer"
               title="Switch to Leaflet OpenStreetMap fallback"
             >
               Fallback
@@ -611,7 +611,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
           </div>
 
           {/* Layer Toggles */}
-          <div className="flex items-center space-x-1.5 bg-white/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[#DCE5F0] pointer-events-auto shadow-xs text-xs font-sans">
+          <div className="flex items-center space-x-1 sm:space-x-1.5 bg-white/95 backdrop-blur-md px-2 sm:px-2.5 py-1 rounded-lg border border-[#DCE5F0] pointer-events-auto shadow-xs text-xs font-sans">
             {topLocations.length > 0 && (
               <label className="flex items-center space-x-1.5 cursor-pointer px-1 py-0.5 rounded hover:bg-slate-100/80">
                 <input
@@ -701,20 +701,20 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
       )}
 
       {/* Map Legend Footer */}
-      <div className="absolute bottom-2 left-3 z-10 pointer-events-none bg-white/95 backdrop-blur-xs px-3 py-1 rounded-md border border-[#DCE5F0] text-[10px] font-sans text-slate-600 shadow-xs flex items-center space-x-3">
+      <div className="absolute bottom-2 left-2 sm:left-3 right-2 sm:right-auto max-w-[calc(100%-1rem)] sm:max-w-none z-10 pointer-events-none bg-white/95 backdrop-blur-xs px-2 sm:px-3 py-1 rounded-md border border-[#DCE5F0] text-[9px] sm:text-[10px] font-sans text-slate-600 shadow-xs flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-0.5">
         <span className="flex items-center space-x-1">
-          <span className="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block"></span>
+          <span className="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block shrink-0"></span>
           <span className="font-semibold text-slate-700">Predicted Zone (#1 Tactical Rings)</span>
         </span>
         <span className="flex items-center space-x-1">
-          <span className="w-2 h-2 rounded-full bg-red-500 inline-block"></span>
+          <span className="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0"></span>
           <span>Hotspot Cluster</span>
         </span>
         <span className="flex items-center space-x-1">
-          <span className="w-2 h-2 bg-sky-500 inline-block"></span>
+          <span className="w-2 h-2 bg-sky-500 inline-block shrink-0"></span>
           <span>ATM Context Node</span>
         </span>
-        <span className="text-slate-400">Provider: Google Maps (Roadmap)</span>
+        <span className="text-slate-400 hidden sm:inline">Provider: Google Maps (Roadmap)</span>
       </div>
     </div>
   );

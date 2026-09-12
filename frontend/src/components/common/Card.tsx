@@ -21,15 +21,15 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const paddingMap = {
     none: '',
-    sm: 'p-4',
-    md: 'p-5',
-    lg: 'p-6',
+    sm: 'p-3 sm:p-4',
+    md: 'p-4 sm:p-5',
+    lg: 'p-4 sm:p-6',
   };
 
   return (
-    <div className={`bg-white border border-[#DCE5F0] rounded-lg shadow-xs ${className}`}>
+    <div className={`bg-white border border-[#DCE5F0] rounded-lg shadow-xs min-w-0 ${className}`}>
       {(title || action || icon) && (
-        <div className="px-5 py-4 border-b border-[#DCE5F0] flex items-center justify-between">
+        <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#DCE5F0] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center space-x-2.5 min-w-0">
             {icon && <span className="text-blue-600 shrink-0">{icon}</span>}
             <div className="min-w-0">
@@ -37,7 +37,7 @@ export const Card: React.FC<CardProps> = ({
               {subtitle && <p className="text-xs text-slate-500 truncate mt-0.5">{subtitle}</p>}
             </div>
           </div>
-          {action && <div className="shrink-0 ml-4">{action}</div>}
+          {action && <div className="shrink-0 sm:ml-4">{action}</div>}
         </div>
       )}
       <div className={paddingMap[padding]}>{children}</div>

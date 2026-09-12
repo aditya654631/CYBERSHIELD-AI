@@ -103,13 +103,13 @@ export const AlertsCenter: React.FC = () => {
         </div>
 
         {/* Filter */}
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-md border border-[#DCE5F0]">
-            <Filter className="w-3.5 h-3.5 text-slate-400" />
+        <div className="flex items-center space-x-2 sm:space-x-3 w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-md border border-[#DCE5F0] flex-1 sm:flex-initial">
+            <Filter className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             <select
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
-              className="bg-transparent text-xs text-slate-700 focus:outline-none cursor-pointer"
+              className="bg-transparent text-xs text-slate-700 focus:outline-none cursor-pointer w-full sm:w-auto"
             >
               <option value="ALL">All Alert States</option>
               <option value="NEW">NEW (Unacknowledged)</option>
@@ -121,7 +121,7 @@ export const AlertsCenter: React.FC = () => {
           <button
             onClick={fetchAlerts}
             title="Refresh alerts"
-            className="p-2 rounded-md bg-white border border-[#DCE5F0] text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+            className="p-2 rounded-md bg-white border border-[#DCE5F0] text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors shrink-0"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -138,7 +138,7 @@ export const AlertsCenter: React.FC = () => {
           return (
             <div
               key={alert.id}
-              className={`p-5 rounded-lg border bg-white shadow-xs transition-colors hover:border-slate-300 ${
+              className={`p-4 sm:p-5 rounded-lg border bg-white shadow-xs transition-colors hover:border-slate-300 ${
                 isCritical
                   ? 'border-l-4 border-l-red-600 border-r-[#DCE5F0] border-t-[#DCE5F0] border-b-[#DCE5F0]'
                   : isHigh
@@ -147,7 +147,7 @@ export const AlertsCenter: React.FC = () => {
               }`}
             >
               <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <div className="flex flex-wrap items-center gap-2.5">
                     <span
                       className={`px-2.5 py-0.5 rounded text-xs font-semibold flex items-center space-x-1.5 ${
@@ -162,7 +162,7 @@ export const AlertsCenter: React.FC = () => {
                       <span>{alert.severity}</span>
                     </span>
 
-                    <span className="text-sm font-bold text-slate-900">{alert.title}</span>
+                    <span className="text-sm font-bold text-slate-900 break-words">{alert.title}</span>
 
                     {alert.prediction_id && (
                       <span className="text-[10px] px-2 py-0.5 rounded font-medium bg-blue-50 text-blue-700 border border-blue-200">
@@ -183,14 +183,14 @@ export const AlertsCenter: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-4 text-xs text-slate-600">
+                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
                     <div className="flex items-center space-x-1 text-blue-700 font-medium">
-                      <MapPin className="w-3.5 h-3.5" />
-                      <span>{alert.location_name}</span>
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      <span className="truncate">{alert.location_name}</span>
                     </div>
                     <span>•</span>
                     <div className="flex items-center space-x-1 text-slate-600">
-                      <Clock className="w-3.5 h-3.5 text-slate-400" />
+                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                       <span>Window: {alert.expected_window}</span>
                     </div>
                     <span>•</span>
@@ -204,7 +204,7 @@ export const AlertsCenter: React.FC = () => {
                   </div>
 
                   {alert.action_notes && (
-                    <div className="text-xs text-slate-600 bg-[#F6F8FC] p-2.5 rounded-md border border-[#DCE5F0]">
+                    <div className="text-xs text-slate-600 bg-[#F6F8FC] p-2.5 rounded-md border border-[#DCE5F0] break-words">
                       Officer Action: {alert.action_notes}
                       {alert.acknowledged_by && ` (${alert.acknowledged_by})`}
                     </div>
@@ -212,7 +212,7 @@ export const AlertsCenter: React.FC = () => {
                 </div>
 
                 {/* Tactical Actions */}
-                <div className="flex items-center space-x-2.5 shrink-0">
+                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 pt-2 lg:pt-0">
                   <button
                     onClick={() => navigate(`/cases/${alert.complaint_number}`)}
                     className="px-3 py-1.5 rounded-md bg-white hover:bg-blue-50 border border-[#DCE5F0] text-blue-700 text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs"

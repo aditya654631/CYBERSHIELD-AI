@@ -361,7 +361,7 @@ export const CaseIntelligence: React.FC = () => {
             </h3>
           </div>
 
-          <div className="grid grid-cols-2 gap-3.5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
             <div>
               <span className="text-slate-500 text-[11px] block">Victim Name</span>
               <span className="font-semibold text-slate-800">
@@ -416,7 +416,7 @@ export const CaseIntelligence: React.FC = () => {
             </span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3.5 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 text-xs">
             <div>
               <span className="text-slate-500 text-[11px] block">Beneficiary Bank</span>
               <span className="font-semibold text-slate-800">
@@ -539,7 +539,8 @@ export const CaseIntelligence: React.FC = () => {
                   : 'Timestamp Recorded'}
               </div>
               <div className="w-full flex items-center justify-center text-slate-400 pt-0.5">
-                <span className="text-slate-400 font-bold">────────►</span>
+                <span className="hidden md:inline text-slate-400 font-bold">────────►</span>
+                <span className="md:hidden text-slate-400 font-bold">▼</span>
               </div>
             </div>
 
@@ -709,7 +710,8 @@ export const CaseIntelligence: React.FC = () => {
                     Ranked Cash-Out Candidate Zones (Delhi Pilot)
                   </div>
 
-                  <div className="overflow-x-auto border border-[#DCE5F0] rounded-md">
+                  {/* Desktop Table View (>= md) */}
+                  <div className="hidden md:block overflow-x-auto border border-[#DCE5F0] rounded-md">
                     <table className="w-full text-left text-xs border-collapse">
                       <thead>
                         <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-slate-700 font-semibold">
@@ -755,6 +757,44 @@ export const CaseIntelligence: React.FC = () => {
                         ))}
                       </tbody>
                     </table>
+                  </div>
+
+                  {/* Mobile Top-3 Cards (< md) */}
+                  <div className="md:hidden space-y-2.5">
+                    {topLocations.slice(0, 3).map((loc) => (
+                      <div
+                        key={`m-ci-${loc.rank}`}
+                        className={`p-3 rounded-lg border text-xs space-y-2 ${
+                          loc.rank === 1 ? 'bg-blue-50/50 border-blue-200 border-l-4 border-l-blue-600' : 'bg-white border-[#DCE5F0]'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold font-mono text-blue-700">
+                            #{loc.rank === 1 ? '1 PRIMARY' : loc.rank === 2 ? '2 SECONDARY' : '3 TERTIARY'}
+                          </span>
+                          <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${
+                            loc.risk_level === 'CRITICAL'
+                              ? 'bg-red-50 text-red-700 border-red-200'
+                              : loc.risk_level === 'HIGH'
+                              ? 'bg-amber-50 text-amber-700 border-amber-200'
+                              : 'bg-blue-50 text-blue-700 border-blue-200'
+                          }`}>
+                            {loc.risk_level}
+                          </span>
+                        </div>
+                        <div className="font-semibold text-slate-900 text-sm">
+                          {loc.cluster_name || loc.location_name}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500">
+                          <span>Distance: <strong className="text-slate-700 font-mono">{loc.distance_km} km</strong></span>
+                        </div>
+                        {loc.reasoning && (
+                          <div className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed">
+                            {loc.reasoning}
+                          </div>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 </div>
 

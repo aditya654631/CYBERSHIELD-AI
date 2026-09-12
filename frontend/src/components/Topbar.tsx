@@ -6,6 +6,7 @@ import {
   LogOut,
   ChevronRight,
   Shield,
+  Menu,
 } from 'lucide-react';
 import { useAuth } from '../store/authContext';
 import { api } from '../services/api';
@@ -21,7 +22,11 @@ const ROUTE_LABELS: Record<string, string> = {
   '/settings': 'Settings & Preferences',
 };
 
-export const Topbar: React.FC = () => {
+interface TopbarProps {
+  onToggleMobileSidebar?: () => void;
+}
+
+export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -80,23 +85,35 @@ export const Topbar: React.FC = () => {
     : 'LE';
 
   return (
-    <header className="h-14 bg-white border-b border-[#DCE5F0] px-6 flex items-center justify-between sticky top-0 z-20 shadow-xs">
-      {/* Left: Breadcrumb / Page Context */}
-      <div className="flex items-center space-x-3 min-w-0">
-        <div className="flex items-center space-x-1.5 text-xs text-slate-500 font-medium">
-          <span>CyberShield</span>
-          <ChevronRight className="w-3.5 h-3.5 text-slate-400" />
-          <span className="text-[#1E293B] font-semibold truncate">{currentTitle}</span>
+    <header className="h-14 bg-white border-b border-[#DCE5F0] px-3 sm:px-6 flex items-center justify-between sticky top-0 z-20 shadow-xs">
+      {/* Left: Hamburger (Mobile) + Breadcrumb / Page Context */}
+      <div className="flex items-center space-x-2 sm:space-x-3 min-w-0">
+        {onToggleMobileSidebar && (
+          <button
+            onClick={onToggleMobileSidebar}
+            className="lg:hidden p-1.5 rounded-md text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors shrink-0"
+            aria-label="Open sidebar menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
+
+        <div className="flex items-center space-x-1 sm:space-x-1.5 text-xs text-slate-500 font-medium min-w-0">
+          <span className="hidden xs:inline">CyberShield</span>
+          <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden xs:inline" />
+          <span className="text-[#1E293B] font-semibold truncate max-w-[130px] sm:max-w-xs md:max-w-none">
+            {currentTitle}
+          </span>
         </div>
 
-        <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
+        <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           Operational Pilot
         </span>
       </div>
 
       {/* Right: Search, Alerts, Officer Profile */}
-      <div className="flex items-center space-x-4">
+      <div className="flex items-center space-x-2 sm:space-x-4 shrink-0">
         {/* Quick Search */}
         <form onSubmit={handleSearch} className="relative hidden md:block w-72">
           <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />

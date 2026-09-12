@@ -17,11 +17,11 @@ export const Settings: React.FC = () => {
   return (
     <div className="space-y-6 pb-12 max-w-5xl">
       {/* Header */}
-      <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs flex items-center justify-between">
+      <div className="p-4 sm:p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs flex items-center justify-between">
         <div>
           <div className="flex items-center space-x-2">
             <SettingsIcon className="w-5 h-5 text-blue-600 shrink-0" />
-            <h1 className="text-lg font-bold text-[#173A63] font-sans">
+            <h1 className="text-base sm:text-lg font-bold text-[#173A63] font-sans">
               Platform Configuration & Policy Parameters
             </h1>
           </div>

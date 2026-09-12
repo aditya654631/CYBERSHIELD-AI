@@ -138,7 +138,7 @@ export const Dashboard: React.FC = () => {
       </div>
 
       {/* 6 DB-Backed KPI Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-2.5 sm:gap-3.5">
         <MetricCard
           label="Active Complaints"
           value={kpis.active_complaints.toLocaleString('en-IN')}
@@ -183,8 +183,8 @@ export const Dashboard: React.FC = () => {
       {/* Main Grid: Live Risk Map + Alerts Feed */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Live Cash-Out Risk Map */}
-        <div className="lg:col-span-8 bg-white rounded-lg border border-[#DCE5F0] p-5 shadow-xs flex flex-col">
-          <div className="flex items-center justify-between mb-4">
+        <div className="lg:col-span-8 bg-white rounded-lg border border-[#DCE5F0] p-4 sm:p-5 shadow-xs flex flex-col">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
               <h2 className="text-sm font-bold text-[#173A63]">
                 Live Cash-Out Hotspot Map
@@ -204,7 +204,7 @@ export const Dashboard: React.FC = () => {
             </Button>
           </div>
 
-          <div className="h-96 w-full rounded-md overflow-hidden border border-[#DCE5F0] relative">
+          <div className="h-[320px] sm:h-96 w-full rounded-md overflow-hidden border border-[#DCE5F0] relative">
             <CashOutRiskMap hotspots={hotspots} />
           </div>
         </div>
@@ -380,7 +380,8 @@ export const Dashboard: React.FC = () => {
           </Button>
         }
       >
-        <div className="overflow-x-auto -mx-5 -mb-5">
+        {/* Desktop Table: shown at md and above */}
+        <div className="hidden md:block overflow-x-auto -mx-5 -mb-5">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="bg-[#F8FAFC] border-y border-[#DCE5F0] text-slate-700 font-semibold">
@@ -434,6 +435,47 @@ export const Dashboard: React.FC = () => {
               ))}
             </tbody>
           </table>
+        </div>
+
+        {/* Mobile Card Presentation: shown below md */}
+        <div className="md:hidden divide-y divide-[#DCE5F0] -mx-4 -mb-4">
+          {recent_complaints.map((comp) => (
+            <div
+              key={comp.id}
+              onClick={() => navigate(`/cases/${comp.complaint_number}`)}
+              className="p-3.5 hover:bg-blue-50/30 cursor-pointer transition-colors space-y-2"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-xs text-blue-700">{comp.complaint_number}</span>
+                <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-100 text-slate-700 border border-slate-200">
+                  {comp.case_status}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-700 font-medium">{comp.fraud_type}</span>
+                <span className="font-bold text-slate-900">₹{comp.amount.toLocaleString('en-IN')}</span>
+              </div>
+              <div className="flex items-center justify-between text-[11px] text-slate-500">
+                <span>{comp.district || comp.state || 'Delhi'}</span>
+                <span>{comp.reported_at ? new Date(comp.reported_at).toLocaleDateString() : '—'}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 text-xs">
+                <div>
+                  {comp.prediction_available ? (
+                    <Badge
+                      variant={comp.latest_risk_level === 'CRITICAL' ? 'critical' : comp.latest_risk_level === 'HIGH' ? 'high' : 'medium'}
+                      size="sm"
+                    >
+                      {comp.latest_risk_level} • {comp.latest_rank1_location || 'Available'}
+                    </Badge>
+                  ) : (
+                    <span className="text-[11px] text-slate-400">Pending</span>
+                  )}
+                </div>
+                <span className="text-blue-700 font-semibold text-xs">Inspect →</span>
+              </div>
+            </div>
+          ))}
         </div>
       </Card>
     </div>
