@@ -127,10 +127,20 @@ class PredictionPersistenceService:
 
         # 5. Atomic Transaction Execution
         try:
+            persisted_time_model_version = None
+            persisted_predicted_minutes = None
+            if pred_mode == "trained_ml":
+                raw_time_pred = prediction_data.get("time_prediction")
+                if isinstance(raw_time_pred, dict):
+                    persisted_predicted_minutes = raw_time_pred.get("predicted_minutes_to_cashout")
+                    persisted_time_model_version = raw_time_pred.get("model_version") or None
+
             prediction = Prediction(
                 complaint_id=complaint.id,
                 prediction_mode=pred_mode,
                 model_version=prediction_data.get("model_version", "cashout-location-xgb-v3.1"),
+                time_model_version=persisted_time_model_version,
+                predicted_minutes_to_cashout=persisted_predicted_minutes,
                 predicted_window_start=window_start,
                 predicted_window_end=window_end,
                 window_label=window_label,

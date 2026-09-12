@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.app.models.db import get_db
@@ -9,6 +9,36 @@ from backend.app.services.audit_service import log_audit
 from backend.app.services.prediction_service import prediction_service
 
 router = APIRouter(prefix="/predictions", tags=["Predictive Intelligence"])
+
+
+def _derive_priority_level(intervention_priority: Optional[int], risk_level: Optional[str] = None) -> str:
+    """
+    Aligns priority_level with the live inference response logic from prediction_service.py:
+    CRITICAL / >= 80 -> IMMEDIATE ACTION
+    HIGH / >= 70 -> HIGH PRIORITY
+    MEDIUM / >= 45 -> MONITOR
+    otherwise / < 45 -> ROUTINE
+    """
+    if risk_level:
+        band = str(risk_level).upper()
+        if band == "CRITICAL":
+            return "IMMEDIATE ACTION"
+        elif band == "HIGH":
+            return "HIGH PRIORITY"
+        elif band == "MEDIUM":
+            return "MONITOR"
+        elif band in ("LOW", "ROUTINE"):
+            return "ROUTINE"
+
+    prio = intervention_priority if intervention_priority is not None else 50
+    if prio >= 80:
+        return "IMMEDIATE ACTION"
+    elif prio >= 70:
+        return "HIGH PRIORITY"
+    elif prio >= 45:
+        return "MONITOR"
+    else:
+        return "ROUTINE"
 
 
 def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
@@ -42,15 +72,10 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
         for loc in locations
     ]
 
-    ref_time = complaint.reported_at or complaint.incident_time or prediction.created_at
-    if prediction.predicted_window_start and ref_time:
-        diff_mins = (prediction.predicted_window_start - ref_time).total_seconds() / 60.0
-        est_mins = max(15.0, round(diff_mins + 35.0, 1))
-    else:
-        est_mins = 120.0
+    ref_time = complaint.reported_at or complaint.incident_time or getattr(prediction, "created_at", None)
 
-    pred_mode = getattr(prediction, "prediction_mode", None) or (prediction.get("prediction_mode") if isinstance(prediction, dict) else "trained_ml")
-    primary_cid = getattr(prediction, "primary_cluster_id", None) or (prediction.get("primary_cluster_id") if isinstance(prediction, dict) else None)
+    pred_mode = getattr(prediction, "prediction_mode", None) or "trained_ml"
+    primary_cid = getattr(prediction, "primary_cluster_id", None)
     if not primary_cid and locations:
         primary_cid = locations[0].cluster_id
 
@@ -58,12 +83,15 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
         op_scope = "DELHI_PILOT"
         pool_size = 25
     elif pred_mode == "deterministic_demo":
-        raw_scope = getattr(prediction, "operational_scope", None) or (prediction.get("operational_scope") if isinstance(prediction, dict) else None)
+        raw_scope = getattr(prediction, "operational_scope", None)
         op_scope = raw_scope if raw_scope else None
         pool_size = 3
     else:
         op_scope = None
         pool_size = 0
+
+    interv_prio = getattr(prediction, "intervention_priority", 50)
+    risk_level_val = getattr(prediction, "risk_level", None)
 
     return {
         "prediction_id": getattr(prediction, "id", 0) if not isinstance(prediction, dict) else prediction.get("prediction_id", 0),
@@ -72,29 +100,29 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
         "status": "SUCCESS",
         "where_location": primary_loc,
         "primary_cluster_id": primary_cid,
-        "when_window": getattr(prediction, "window_label", None) or (prediction.get("when_window") if isinstance(prediction, dict) else ("Next 2–4 Hours" if pred_mode == "deterministic_demo" else "Next 2–4 Hours (operational estimate window)")),
-        "risk_score": getattr(prediction, "risk_score", None) if not isinstance(prediction, dict) else prediction.get("risk_score"),
-        "risk_percentage": int(((getattr(prediction, "risk_score", None) or 0.0) if not isinstance(prediction, dict) else (prediction.get("risk_score") or 0.0)) * 100),
-        "risk_level": getattr(prediction, "risk_level", None) or (prediction.get("risk_level") if isinstance(prediction, dict) else "MEDIUM"),
-        "risk_band": getattr(prediction, "risk_level", None) or (prediction.get("risk_level") if isinstance(prediction, dict) else "MEDIUM"),
-        "intervention_priority": getattr(prediction, "intervention_priority", 50) if not isinstance(prediction, dict) else prediction.get("intervention_priority", 50),
-        "priority_level": "IMMEDIATE ACTION" if ((getattr(prediction, "intervention_priority", 0) or 0) if not isinstance(prediction, dict) else (prediction.get("intervention_priority", 0) or 0)) >= 80 else "HIGH PRIORITY",
-        "why_summary": getattr(prediction, "why_explanation", None) or (prediction.get("why_summary") if isinstance(prediction, dict) else "Predicted cash-out cluster"),
-        "confidence_score": getattr(prediction, "confidence_score", 0.0) if not isinstance(prediction, dict) else prediction.get("confidence_score", 0.0),
-        "ml_score": getattr(prediction, "ml_score", 0.0) if not isinstance(prediction, dict) else prediction.get("ml_score", 0.0),
-        "graph_score": getattr(prediction, "graph_score", 0.0) if not isinstance(prediction, dict) else prediction.get("graph_score", 0.0),
-        "geo_score": getattr(prediction, "geo_score", 0.0) if not isinstance(prediction, dict) else prediction.get("geo_score", 0.0),
-        "temporal_score": getattr(prediction, "temporal_score", 0.0) if not isinstance(prediction, dict) else prediction.get("temporal_score", 0.0),
+        "when_window": getattr(prediction, "window_label", None) or ("Next 2–4 Hours" if pred_mode == "deterministic_demo" else "Next 2–4 Hours (operational estimate window)"),
+        "risk_score": getattr(prediction, "risk_score", None),
+        "risk_percentage": int((getattr(prediction, "risk_score", 0.0) or 0.0) * 100),
+        "risk_level": risk_level_val or "MEDIUM",
+        "risk_band": risk_level_val or "MEDIUM",
+        "intervention_priority": interv_prio,
+        "priority_level": _derive_priority_level(interv_prio, risk_level_val),
+        "why_summary": getattr(prediction, "why_explanation", None) or "Predicted cash-out cluster",
+        "confidence_score": getattr(prediction, "confidence_score", 0.0) or 0.0,
+        "ml_score": getattr(prediction, "ml_score", 0.0) or 0.0,
+        "graph_score": getattr(prediction, "graph_score", 0.0) or 0.0,
+        "geo_score": getattr(prediction, "geo_score", 0.0) or 0.0,
+        "temporal_score": getattr(prediction, "temporal_score", 0.0) or 0.0,
         "top_locations": top_loc_items,
         "prediction_mode": pred_mode,
-        "model_version": getattr(prediction, "model_version", None) or (prediction.get("model_version") if isinstance(prediction, dict) else "cashout-location-xgb-v3.1"),
+        "model_version": getattr(prediction, "model_version", None) or "cashout-location-xgb-v3.1",
         "operational_scope": op_scope,
         "candidate_pool_size": pool_size,
         "time_prediction": {
-            "predicted_minutes_to_cashout": est_mins,
-            "model_version": "cashout-time-xgb-v2" if pred_mode == "trained_ml" else "demo-time-v1",
-            "prediction_reference_time": str(ref_time),
-            "operational_window": getattr(prediction, "window_label", None) or (prediction.get("when_window") if isinstance(prediction, dict) else "Next 2–4 Hours (operational estimate window)")
+            "predicted_minutes_to_cashout": getattr(prediction, "predicted_minutes_to_cashout", None),
+            "model_version": getattr(prediction, "time_model_version", None),
+            "prediction_reference_time": str(ref_time) if ref_time else None,
+            "operational_window": getattr(prediction, "window_label", None) or ("Next 2–4 Hours" if pred_mode == "deterministic_demo" else "Next 2–4 Hours (operational estimate window)")
         },
         "limitations": [
             "Operational scope is strictly calibrated for Delhi Pilot 60 clusters."

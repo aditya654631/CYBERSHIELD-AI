@@ -219,8 +219,8 @@ class PredictionLocationItem(BaseModel):
         from_attributes = True
 
 class TimePredictionDetail(BaseModel):
-    predicted_minutes_to_cashout: float
-    model_version: str
+    predicted_minutes_to_cashout: Optional[float] = None
+    model_version: Optional[str] = None
     prediction_reference_time: Optional[str] = None
     operational_window: Optional[str] = None
 
