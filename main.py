@@ -1,10 +1,13 @@
 import os
 import sys
 
-# Ensure the root directory (/app on Railway) is the very first entry in sys.path
+# Ensure both root and backend are in sys.path
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
-if ROOT_DIR not in sys.path:
-    sys.path.insert(0, ROOT_DIR)
+BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
+
+for p in [ROOT_DIR, BACKEND_DIR]:
+    if p not in sys.path:
+        sys.path.insert(0, p)
 
 from backend.app.main import app
 
