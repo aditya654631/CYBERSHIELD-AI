@@ -42,6 +42,24 @@ export const RiskMap: React.FC = () => {
   const [hotspots, setHotspots] = useState<HotspotCluster[]>([]);
   const [atms, setAtms] = useState<ATMLocationItem[]>([]);
   const [gisLoading, setGisLoading] = useState<boolean>(true);
+  const [mapHeight, setMapHeight] = useState<string>('620px');
+
+  useEffect(() => {
+    const updateHeight = () => {
+      if (typeof window !== 'undefined') {
+        if (window.innerWidth < 640) {
+          setMapHeight('380px');
+        } else if (window.innerWidth < 1024) {
+          setMapHeight('460px');
+        } else {
+          setMapHeight('620px');
+        }
+      }
+    };
+    updateHeight();
+    window.addEventListener('resize', updateHeight);
+    return () => window.removeEventListener('resize', updateHeight);
+  }, []);
 
   // Filters for Generic Hotspots
   const [districtFilter, setDistrictFilter] = useState('ALL');
@@ -185,12 +203,12 @@ export const RiskMap: React.FC = () => {
 
         {/* Dynamic Complaint Selector (Correction 2) */}
         <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center space-x-2 bg-[#F6F8FC] px-3 py-1.5 rounded-md border border-[#DCE5F0]">
-            <span className="text-xs text-blue-700 font-semibold">Case:</span>
+          <div className="flex items-center space-x-2 bg-[#F6F8FC] px-3 py-1.5 rounded-md border border-[#DCE5F0] w-full sm:w-auto">
+            <span className="text-xs text-blue-700 font-semibold shrink-0">Case:</span>
             <select
               value={selectedComplaintId}
               onChange={(e) => setSelectedComplaintId(e.target.value)}
-              className="bg-transparent text-xs text-slate-800 focus:outline-none cursor-pointer font-medium max-w-[220px]"
+              className="bg-transparent text-xs text-slate-800 focus:outline-none cursor-pointer font-medium w-full sm:max-w-[220px]"
             >
               {complaints.map((c) => (
                 <option key={c.complaint_number} value={c.complaint_number} className="bg-white text-slate-800">
@@ -201,7 +219,7 @@ export const RiskMap: React.FC = () => {
           </div>
 
           {/* Quick Context Layer Toggles */}
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <button
               onClick={() => setShowPredictionZones(!showPredictionZones)}
               className={`px-2.5 py-1 rounded text-xs font-medium transition-colors border ${
@@ -246,7 +264,7 @@ export const RiskMap: React.FC = () => {
             topLocations={showPredictionZones ? topLocations : []}
             complaint={selectedComplaint}
             prediction={currentPrediction}
-            height="620px"
+            height={mapHeight}
             highlightCluster={highlightClusterName}
           />
           <div className="mt-3 flex flex-wrap items-center justify-between text-[11px] text-slate-500 px-2">

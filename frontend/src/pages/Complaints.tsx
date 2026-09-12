@@ -359,7 +359,7 @@ export const Complaints: React.FC = () => {
         </div>
 
         {/* Operational Filter Dropdowns */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1">
           {/* Filter: Case Status */}
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
@@ -475,8 +475,8 @@ export const Complaints: React.FC = () => {
 
       {/* Main Table Surface */}
       <div className="bg-white border border-[#DCE5F0] rounded-lg shadow-xs overflow-hidden">
-        {/* Table View */}
-        <div className="overflow-x-auto">
+        {/* Desktop Table View (>= md) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-50 text-slate-600 uppercase tracking-wider font-semibold border-b border-slate-200">
               <tr>
@@ -688,6 +688,90 @@ export const Complaints: React.FC = () => {
           </table>
         </div>
 
+        {/* Mobile Card Presentation (< md) */}
+        <div className="md:hidden divide-y divide-slate-100">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, idx) => (
+              <div key={`skel-m-${idx}`} className="p-4 animate-pulse space-y-2">
+                <div className="h-4 bg-slate-200 rounded w-28" />
+                <div className="h-3 bg-slate-200 rounded w-48" />
+                <div className="h-3 bg-slate-200 rounded w-36" />
+              </div>
+            ))
+          ) : error ? (
+            <div className="p-6 text-center space-y-3">
+              <ShieldAlert className="w-6 h-6 text-red-600 mx-auto" />
+              <p className="text-xs text-slate-600">{error}</p>
+              <button
+                onClick={() => fetchComplaints(page)}
+                className="px-3 py-1.5 text-xs font-semibold text-blue-700 bg-blue-50 rounded border border-blue-200"
+              >
+                RETRY
+              </button>
+            </div>
+          ) : complaints.length === 0 ? (
+            <div className="p-6 text-center text-xs text-slate-500">
+              No registered Delhi complaints found matching filters.
+            </div>
+          ) : (
+            complaints.map((c) => {
+              const isHighlighted = c.complaint_number === newlyCreatedNumber;
+              return (
+                <div
+                  key={`m-${c.id}`}
+                  className={`p-3.5 space-y-2.5 transition-colors ${
+                    isHighlighted ? 'bg-blue-50/60 border-l-4 border-l-blue-600' : 'hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <button
+                      onClick={() => navigate(`/cases/${c.complaint_number}`)}
+                      className="font-mono font-bold text-xs text-blue-700 hover:underline"
+                    >
+                      {c.complaint_number}
+                    </button>
+                    {renderCaseStatusBadge(c.case_status)}
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="font-semibold text-slate-800">{c.victim_name || 'Anonymous'}</span>
+                    <span className="font-bold text-slate-900">₹{Number(c.amount).toLocaleString('en-IN')}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-500">
+                    <span>{c.fraud_type} • {c.payment_channel || 'UPI'}</span>
+                    <span>{c.locality || c.district || 'Delhi'}</span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                    {renderPredictionBadge(c.prediction_status)}
+                    {renderAlertBadge(c.alert_status)}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-100 text-[11px] text-slate-400">
+                    <span>{formatDateTime(c.reported_at)}</span>
+                    <div className="flex items-center space-x-1.5">
+                      <button
+                        onClick={() => navigate(`/cases/${c.complaint_number}`)}
+                        className="px-2.5 py-1 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded"
+                      >
+                        VIEW CASE
+                      </button>
+                      <button
+                        onClick={() => navigate(`/network/${c.complaint_number}`)}
+                        title="Transaction Network"
+                        className="p-1 text-slate-500 hover:text-slate-800 hover:bg-slate-100 rounded border border-slate-200"
+                      >
+                        <Network className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
         {/* Pagination Bar */}
         {!loading && !error && complaints.length > 0 && (
           <div className="py-3 px-4 bg-slate-50 border-t border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-600">
@@ -736,8 +820,8 @@ export const Complaints: React.FC = () => {
 
       {/* OPERATIONAL COMPLAINT REGISTRATION MODAL */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-300 rounded-lg shadow-xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="bg-white border border-slate-300 rounded-lg shadow-xl w-full max-w-3xl max-h-[92vh] sm:max-h-[90vh] overflow-y-auto">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-slate-200 bg-slate-50 sticky top-0 z-10">
               <div className="flex items-center space-x-2.5">
@@ -1119,21 +1203,21 @@ export const Complaints: React.FC = () => {
               </div>
 
               {/* Action Buttons */}
-              <div className="pt-2 flex items-center justify-end space-x-3 border-t border-slate-200">
+              <div className="pt-2 flex flex-col-reverse sm:flex-row sm:items-center justify-end gap-2 sm:space-x-3 border-t border-slate-200">
                 <button
                   type="button"
                   onClick={() => {
                     setIsModalOpen(false);
                     setFormError(null);
                   }}
-                  className="px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded transition-colors"
+                  className="w-full sm:w-auto px-4 py-2 bg-white hover:bg-slate-50 border border-slate-300 text-slate-700 font-medium rounded transition-colors text-center"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={creating}
-                  className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded shadow-xs flex items-center justify-center space-x-1.5 transition-colors disabled:opacity-50 cursor-pointer"
+                  className="w-full sm:w-auto px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded shadow-xs flex items-center justify-center space-x-1.5 transition-colors disabled:opacity-50 cursor-pointer"
                 >
                   <span>{creating ? 'Registering...' : 'REGISTER COMPLAINT'}</span>
                 </button>

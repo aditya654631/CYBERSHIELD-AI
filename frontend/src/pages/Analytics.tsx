@@ -49,11 +49,11 @@ export const Analytics: React.FC = () => {
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
-      <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs flex items-center justify-between">
+      <div className="p-4 sm:p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <div className="flex items-center space-x-2">
             <BarChart3 className="w-5 h-5 text-blue-600 shrink-0" />
-            <h1 className="text-lg font-bold text-[#173A63] font-sans">
+            <h1 className="text-base sm:text-lg font-bold text-[#173A63] font-sans">
               Macro Cybercrime Intelligence Analytics
             </h1>
           </div>
@@ -61,7 +61,7 @@ export const Analytics: React.FC = () => {
             Cross-jurisdictional telemetry, modus operandi trends, and cash-out velocity
           </p>
         </div>
-        <div className="text-right text-xs font-medium text-blue-700">
+        <div className="text-left sm:text-right text-xs font-medium text-blue-700 shrink-0">
           Sync: Automated I4C Daily Consolidation
         </div>
       </div>

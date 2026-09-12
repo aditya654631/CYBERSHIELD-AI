@@ -73,7 +73,7 @@ export const Login: React.FC = () => {
     <div className="min-h-screen bg-[#F6F8FC] flex items-center justify-center p-4 sm:p-6 lg:p-8">
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-md border border-[#DCE5F0] overflow-hidden grid grid-cols-1 md:grid-cols-12">
         {/* LEFT / INSTITUTIONAL BRAND PANEL */}
-        <div className="md:col-span-5 bg-[#173A63] text-white p-8 flex flex-col justify-between relative">
+        <div className="md:col-span-5 bg-[#173A63] text-white p-5 sm:p-8 flex flex-col justify-between relative">
           <div>
             {/* Government Context */}
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/10 text-blue-100 text-[11px] font-medium border border-white/20 mb-6">
@@ -118,7 +118,7 @@ export const Login: React.FC = () => {
         </div>
 
         {/* RIGHT / LOGIN FORM PANEL */}
-        <div className="md:col-span-7 p-8 sm:p-10 flex flex-col justify-between bg-white">
+        <div className="md:col-span-7 p-4 sm:p-8 md:p-10 flex flex-col justify-between bg-white">
           <div>
             <div className="mb-6">
               <h2 className="text-lg font-bold text-[#173A63]">Secure Officer Sign In</h2>
@@ -211,7 +211,7 @@ export const Login: React.FC = () => {
               </button>
 
               {showDemoAccounts && (
-                <div className="mt-2.5 grid grid-cols-2 gap-1.5 p-2 bg-[#F6F8FC] rounded-md border border-[#DCE5F0]">
+                <div className="mt-2.5 grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 bg-[#F6F8FC] rounded-md border border-[#DCE5F0]">
                   {(Object.keys(DEMO_CREDENTIALS) as UserRole[]).map((r) => {
                     const cred = DEMO_CREDENTIALS[r];
                     return (

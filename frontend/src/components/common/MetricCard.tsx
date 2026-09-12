@@ -39,26 +39,26 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   };
 
   return (
-    <div className={`bg-white border border-[#DCE5F0] rounded-lg p-4 shadow-xs hover:border-blue-200 transition-colors ${className}`}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</span>
+    <div className={`bg-white border border-[#DCE5F0] rounded-lg p-3 sm:p-4 shadow-xs hover:border-blue-200 transition-colors min-w-0 ${className}`}>
+      <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-1">
+        <span className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider truncate">{label}</span>
         {icon && (
-          <div className={`w-8 h-8 rounded-md flex items-center justify-center shrink-0 ${iconBgStyles[variant]}`}>
+          <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-md flex items-center justify-center shrink-0 ${iconBgStyles[variant]}`}>
             {icon}
           </div>
         )}
       </div>
-      <div className={`text-2xl font-bold tracking-tight ${variantStyles[variant]}`}>
+      <div className={`text-xl sm:text-2xl font-bold tracking-tight truncate ${variantStyles[variant]}`}>
         {value}
       </div>
       {(subtitle || trend) && (
-        <div className="mt-1 flex items-center gap-1.5 text-xs text-slate-500">
+        <div className="mt-1 flex items-center gap-1.5 text-[11px] sm:text-xs text-slate-500 truncate">
           {trend && (
-            <span className={trend.positive ? 'text-green-600 font-medium' : 'text-red-600 font-medium'}>
+            <span className={trend.positive ? 'text-green-600 font-medium shrink-0' : 'text-red-600 font-medium shrink-0'}>
               {trend.text}
             </span>
           )}
-          {subtitle && <span>{subtitle}</span>}
+          {subtitle && <span className="truncate">{subtitle}</span>}
         </div>
       )}
     </div>

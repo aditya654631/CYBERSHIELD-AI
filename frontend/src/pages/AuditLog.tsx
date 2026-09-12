@@ -52,8 +52,8 @@ export const AuditLog: React.FC = () => {
         </div>
 
         {/* Filter */}
-        <div className="flex items-center space-x-3">
-          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-md border border-[#DCE5F0]">
+        <div className="flex items-center space-x-2 sm:space-x-3 w-full sm:w-auto justify-between sm:justify-start">
+          <div className="flex items-center space-x-2 bg-white px-3 py-1.5 rounded-md border border-[#DCE5F0] flex-1 sm:flex-initial">
             <Filter className="w-3.5 h-3.5 text-slate-400" />
             <select
               value={actionFilter}
