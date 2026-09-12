@@ -1,10 +1,11 @@
 import os
 import sys
+import types
 
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
 PARENT_DIR = os.path.dirname(CURRENT_DIR)
 
-# Add parent directory (project root) so 'backend', 'ml', 'database' can be imported
+# Add parent directory (project root) so 'backend', 'ml', 'database' can be imported if running from root
 if PARENT_DIR and PARENT_DIR != "/" and PARENT_DIR not in sys.path:
     sys.path.insert(0, PARENT_DIR)
 
@@ -12,16 +13,17 @@ if PARENT_DIR and PARENT_DIR != "/" and PARENT_DIR not in sys.path:
 if CURRENT_DIR not in sys.path:
     sys.path.insert(0, CURRENT_DIR)
 
-try:
-    from backend.app.main import app
-except ModuleNotFoundError:
-    import importlib.util
-    app_path = os.path.join(CURRENT_DIR, "app", "main.py")
-    spec = importlib.util.spec_from_file_location("cybershield_fastapi_app", app_path)
-    module = importlib.util.module_from_spec(spec)
-    sys.modules["cybershield_fastapi_app"] = module
-    spec.loader.exec_module(module)
-    app = module.app
+# If 'backend' package cannot be found (e.g. Railway Root Directory set to backend),
+# alias 'backend' to CURRENT_DIR so 'from backend.app...' imports work transparently
+if "backend" not in sys.modules:
+    try:
+        import backend
+    except ModuleNotFoundError:
+        backend_pkg = types.ModuleType("backend")
+        backend_pkg.__path__ = [CURRENT_DIR]
+        sys.modules["backend"] = backend_pkg
+
+from backend.app.main import app
 
 if __name__ == "__main__":
     import uvicorn

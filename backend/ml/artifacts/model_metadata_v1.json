@@ -1,0 +1,66 @@
+{
+  "model_version": "cashout-location-xgb-v1",
+  "training_timestamp": "2026-09-08T10:09:10.664639",
+  "dataset_type": "domain_meaningful_synthetic",
+  "training_complaints": 14000,
+  "validation_complaints": 3000,
+  "test_complaints": 3000,
+  "training_rows_location": 291718,
+  "random_seed": 42,
+  "model_class_location": "xgboost.XGBClassifier",
+  "model_class_time": "xgboost.XGBRegressor",
+  "evaluation_label": "Prototype Evaluation \u2014 Synthetic/Anonymized Demo Data",
+  "dataset_split": "Chronological Temporal Split (70% Train: 14000, 15% Val: 3000, 15% Test: 3000)",
+  "model_architecture": "XGBoost Candidate-Location Ranker (predict_proba) + XGBoost Time Regressor + 4-Pillar Risk Fusion",
+  "metrics": {
+    "recall_at_1": "86.9%",
+    "recall_at_3": "94.0%",
+    "recall_at_5": "95.1%",
+    "precision_at_3": "31.3%",
+    "mrr": 0.91,
+    "median_distance_error_km": "0.0 km",
+    "within_5km": "89.6%",
+    "within_10km": "93.2%",
+    "within_25km": "95.9%",
+    "brier_score": 0.015,
+    "time_mae_minutes": "33.2 mins",
+    "time_median_absolute_error_minutes": "27.5 mins",
+    "time_window_coverage": "85.7%",
+    "inference_latency_ms": "32 ms"
+  },
+  "feature_importances": [
+    {
+      "feature": "distance_from_high_risk_account",
+      "importance": 0.789
+    },
+    {
+      "feature": "distance_from_victim",
+      "importance": 0.07
+    },
+    {
+      "feature": "historical_cluster_risk",
+      "importance": 0.054
+    },
+    {
+      "feature": "historical_cluster_cashout_count",
+      "importance": 0.025
+    },
+    {
+      "feature": "atm_density",
+      "importance": 0.011
+    },
+    {
+      "feature": "historical_cluster_cashout_amount",
+      "importance": 0.008
+    },
+    {
+      "feature": "fraud_type_historical_cashout_delay",
+      "importance": 0.006
+    },
+    {
+      "feature": "complaint_delay_minutes",
+      "importance": 0.005
+    }
+  ],
+  "runtime_notice": "Trained XGBoost models operational for location candidate ranking and cash-out window estimation. Production deployment requires authorized NCRP complaint and banking stream calibration."
+}

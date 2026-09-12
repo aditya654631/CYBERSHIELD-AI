@@ -1,0 +1,42 @@
+{
+  "model_version": "cashout-location-xgb-v4",
+  "time_model_version": "cashout-time-xgb-v3",
+  "training_timestamp": "2026-09-11T16:44:51.925355",
+  "model_class_location": "xgboost.XGBClassifier",
+  "model_class_time": "xgboost.XGBRegressor",
+  "hyperparameters": {
+    "location": {"n_estimators": 100, "max_depth": 5, "learning_rate": 0.08, "reg_lambda": 2.5, "colsample_bytree": 0.75},
+    "time": {"n_estimators": 120, "max_depth": 3, "learning_rate": 0.05, "reg_lambda": 2.0}
+  },
+  "random_seed": 42,
+  "evaluation_metrics": {
+    "location_v3_1": {
+      "r1": 13.14,
+      "r3": 25.96,
+      "r5": 33.33,
+      "mrr": 0.2479,
+      "median_error_km": 8.81
+    },
+    "location_v4": {
+      "r1": 13.46,
+      "r3": 24.68,
+      "r5": 33.65,
+      "mrr": 0.2443,
+      "median_error_km": 8.91
+    },
+    "time_v2": {
+      "mae": 124.95361328125,
+      "med_ae": 133.33335876464844,
+      "rmse": 134.09719848632812
+    },
+    "time_v3": {
+      "mae": 11.083459854125977,
+      "med_ae": 11.11282730102539,
+      "rmse": 13.011004447937012
+    }
+  },
+  "promotion_status": {
+    "location_v4_accepted": true,
+    "time_v3_accepted": true
+  }
+}
