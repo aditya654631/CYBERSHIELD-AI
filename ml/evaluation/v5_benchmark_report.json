@@ -1,0 +1,342 @@
+{
+  "dataset_sha256": "42b7659ff7371425f71ec20459fb5e5a997c55fbad53f2e4919af6decf3ff61e",
+  "test_cases_count": 2250,
+  "candidate_recall_at_25": 72.84,
+  "location_comparison": {
+    "V5_challenger": {
+      "top1_pct": 11.29,
+      "top3_pct": 25.07,
+      "top5_pct": 34.8,
+      "mrr": 0.2306,
+      "median_spatial_error_km": 7.91,
+      "ece": 0.0004,
+      "brier": 0.0277
+    },
+    "V4_production_on_V5_test": {
+      "top1_pct": 8.93,
+      "top3_pct": 21.56,
+      "top5_pct": 31.38,
+      "mrr": 0.2025,
+      "median_spatial_error_km": 7.96,
+      "ece": 0.0101,
+      "brier": 0.0282
+    },
+    "nearest_origin_baseline": {
+      "top1_pct": 8.8,
+      "top3_pct": 16.71,
+      "top5_pct": 23.56,
+      "mrr": 0.1833,
+      "median_spatial_error_km": 8.14
+    },
+    "most_frequent_cluster_baseline": {
+      "top1_pct": 5.2,
+      "median_spatial_error_km": 9.0
+    },
+    "district_conditional_mode_baseline": {
+      "top1_pct": 9.02,
+      "median_spatial_error_km": 8.6
+    },
+    "candidate_heuristic_baseline": {
+      "top1_pct": 7.91,
+      "top3_pct": 19.56,
+      "top5_pct": 28.84,
+      "mrr": 0.1902,
+      "median_spatial_error_km": 8.25
+    }
+  },
+  "time_comparison": {
+    "Time_V4_challenger": {
+      "mae_minutes": 38.03,
+      "med_ae_minutes": 29.18,
+      "rmse_minutes": 50.99,
+      "within_30_pct": 51.42
+    },
+    "Time_V3_historical_reference": {
+      "mae_minutes": 11.08,
+      "med_ae_minutes": 11.11,
+      "rmse_minutes": 13.01
+    },
+    "global_median_baseline": {
+      "mae_minutes": 56.4,
+      "med_ae_minutes": 44.66,
+      "rmse_minutes": 75.51,
+      "within_30_pct": 34.71
+    },
+    "fraud_type_median_baseline": {
+      "mae_minutes": 41.71,
+      "med_ae_minutes": 33.25,
+      "rmse_minutes": 54.12,
+      "within_30_pct": 44.8
+    }
+  },
+  "bootstrap_95_ci": {
+    "top1": [
+      10.09,
+      12.58
+    ],
+    "top3": [
+      23.33,
+      26.8
+    ],
+    "top5": [
+      32.84,
+      36.71
+    ],
+    "mrr": [
+      0.2186,
+      0.2433
+    ],
+    "median_spatial_error_km": [
+      7.52,
+      8.36
+    ],
+    "time_mae_minutes": [
+      36.72,
+      39.55
+    ]
+  },
+  "subgroup_analysis": {
+    "district": {
+      "CENTRAL": {
+        "count": 219,
+        "top1_pct": 12.79,
+        "top3_pct": 29.22
+      },
+      "EAST": {
+        "count": 228,
+        "top1_pct": 13.6,
+        "top3_pct": 30.26
+      },
+      "NEW_DELHI": {
+        "count": 112,
+        "top1_pct": 6.25,
+        "top3_pct": 31.25
+      },
+      "NORTH": {
+        "count": 181,
+        "top1_pct": 12.71,
+        "top3_pct": 23.2
+      },
+      "NORTH_EAST": {
+        "count": 71,
+        "top1_pct": 21.13,
+        "top3_pct": 36.62
+      },
+      "NORTH_WEST": {
+        "count": 241,
+        "top1_pct": 10.37,
+        "top3_pct": 24.48
+      },
+      "SHAHDARA": {
+        "count": 136,
+        "top1_pct": 16.91,
+        "top3_pct": 31.62
+      },
+      "SOUTH": {
+        "count": 267,
+        "top1_pct": 8.24,
+        "top3_pct": 19.85
+      },
+      "SOUTH_EAST": {
+        "count": 241,
+        "top1_pct": 11.2,
+        "top3_pct": 23.65
+      },
+      "SOUTH_WEST": {
+        "count": 225,
+        "top1_pct": 11.11,
+        "top3_pct": 22.22
+      },
+      "WEST": {
+        "count": 329,
+        "top1_pct": 8.51,
+        "top3_pct": 20.06
+      }
+    },
+    "fraud_type": {
+      "digital payment fraud": {
+        "count": 233,
+        "top1_pct": 12.02,
+        "top3_pct": 26.18
+      },
+      "impersonation scam": {
+        "count": 248,
+        "top1_pct": 9.68,
+        "top3_pct": 22.58
+      },
+      "investment scam": {
+        "count": 231,
+        "top1_pct": 8.23,
+        "top3_pct": 23.38
+      },
+      "job scam": {
+        "count": 234,
+        "top1_pct": 11.11,
+        "top3_pct": 26.92
+      },
+      "loan app scam": {
+        "count": 257,
+        "top1_pct": 9.34,
+        "top3_pct": 22.18
+      },
+      "marketplace fraud": {
+        "count": 271,
+        "top1_pct": 14.76,
+        "top3_pct": 28.04
+      },
+      "phishing fraud": {
+        "count": 261,
+        "top1_pct": 14.56,
+        "top3_pct": 29.12
+      },
+      "remote access scam": {
+        "count": 253,
+        "top1_pct": 9.88,
+        "top3_pct": 20.95
+      },
+      "upi fraud": {
+        "count": 262,
+        "top1_pct": 11.45,
+        "top3_pct": 25.95
+      }
+    },
+    "amount_bucket": {
+      "HIGH": {
+        "count": 221,
+        "top1_pct": 8.6,
+        "top3_pct": 19.46
+      },
+      "LOW": {
+        "count": 1033,
+        "top1_pct": 11.23,
+        "top3_pct": 24.88
+      },
+      "MEDIUM": {
+        "count": 634,
+        "top1_pct": 11.67,
+        "top3_pct": 27.44
+      },
+      "MICRO": {
+        "count": 362,
+        "top1_pct": 12.43,
+        "top3_pct": 24.86
+      }
+    },
+    "is_cross_district": {
+      "0": {
+        "count": 624,
+        "top1_pct": 22.28,
+        "top3_pct": 48.24
+      },
+      "1": {
+        "count": 1626,
+        "top1_pct": 7.07,
+        "top3_pct": 16.17
+      }
+    },
+    "is_syndicate_hub": {
+      "0": {
+        "count": 1871,
+        "top1_pct": 13.2,
+        "top3_pct": 29.24
+      },
+      "1": {
+        "count": 379,
+        "top1_pct": 1.85,
+        "top3_pct": 4.49
+      }
+    }
+  },
+  "feature_importance_top15": [
+    {
+      "feature": "candidate_same_any_account_zone",
+      "gain": 388.27,
+      "gain_share_pct": 42.72
+    },
+    {
+      "feature": "candidate_same_terminal_zone",
+      "gain": 82.41,
+      "gain_share_pct": 9.07
+    },
+    {
+      "feature": "fraud_type_cluster_frequency",
+      "gain": 24.05,
+      "gain_share_pct": 2.65
+    },
+    {
+      "feature": "candidate_same_complaint_zone",
+      "gain": 22.47,
+      "gain_share_pct": 2.47
+    },
+    {
+      "feature": "distance_from_victim",
+      "gain": 18.0,
+      "gain_share_pct": 1.98
+    },
+    {
+      "feature": "atm_density",
+      "gain": 17.35,
+      "gain_share_pct": 1.91
+    },
+    {
+      "feature": "prior_30d_cluster_activity",
+      "gain": 14.34,
+      "gain_share_pct": 1.58
+    },
+    {
+      "feature": "dist_to_complaint_zone_km",
+      "gain": 14.14,
+      "gain_share_pct": 1.56
+    },
+    {
+      "feature": "historical_cluster_risk",
+      "gain": 13.85,
+      "gain_share_pct": 1.52
+    },
+    {
+      "feature": "dist_to_terminal_zone_km",
+      "gain": 13.76,
+      "gain_share_pct": 1.51
+    },
+    {
+      "feature": "max_transfer_amount",
+      "gain": 10.9,
+      "gain_share_pct": 1.2
+    },
+    {
+      "feature": "max_betweenness",
+      "gain": 10.7,
+      "gain_share_pct": 1.18
+    },
+    {
+      "feature": "terminal_mule_district_encoded",
+      "gain": 10.67,
+      "gain_share_pct": 1.17
+    },
+    {
+      "feature": "night_flag",
+      "gain": 8.98,
+      "gain_share_pct": 0.99
+    },
+    {
+      "feature": "time_since_first_transfer",
+      "gain": 8.96,
+      "gain_share_pct": 0.99
+    }
+  ],
+  "promotion_gates": {
+    "candidate_recall_gte_72": "PASS",
+    "top1_gte_14_5": "FAIL",
+    "top3_gte_27_0": "FAIL",
+    "top5_gte_36_0": "FAIL",
+    "mrr_gte_0_2600": "FAIL",
+    "median_spatial_error_lte_8_0": "PASS",
+    "ece_lte_0_045": "PASS",
+    "time_mae_lte_11_5": "FAIL",
+    "subgroup_collapse": "NO"
+  },
+  "verdict": {
+    "location_challenger": "DOES_NOT_QUALIFY",
+    "time_challenger": "DOES_NOT_QUALIFY"
+  }
+}

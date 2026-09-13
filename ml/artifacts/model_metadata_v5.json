@@ -1,0 +1,41 @@
+{
+  "model_version": "cashout-location-xgb-v5",
+  "time_model_version": "cashout-time-xgb-v4",
+  "model_type": "XGBClassifier (binary:logistic) + Platt LogisticRegression Calibrator",
+  "dataset_version": "v5",
+  "dataset_sha256": "42b7659ff7371425f71ec20459fb5e5a997c55fbad53f2e4919af6decf3ff61e",
+  "training_seed": 26184,
+  "feature_schema_sha256": "1c7a6c2b6f65243ccbebf868b98814c580b0e4db2ef389b8dccfc471dc92a342",
+  "training_timestamp": "2026-09-13T10:00:33Z",
+  "train_count": 10500,
+  "validation_tune_count": 1125,
+  "validation_calibration_count": 1125,
+  "test_count": 2250,
+  "location_metrics": {
+    "top1_overall_pct": 11.29,
+    "top3_overall_pct": 25.07,
+    "top5_overall_pct": 34.8,
+    "mrr": 0.2306,
+    "median_spatial_error_km": 7.91,
+    "ece": 0.0004,
+    "brier": 0.0277,
+    "candidate_recall_at_25": 72.84
+  },
+  "time_metrics": {
+    "mae_minutes": 38.03,
+    "median_ae_minutes": 29.18,
+    "rmse_minutes": 50.99,
+    "within_30_min_pct": 51.42
+  },
+  "promotion_gate_results": {
+    "location_qualifies": false,
+    "time_qualifies": false
+  },
+  "synthetic_data_disclosure": "Trained on controlled synthetic Delhi prototype data. Not trained on production NCRP or banking data.",
+  "artifact_hashes": {
+    "location_ranker_v5_sha256": "28c8d0dd696e1f9971ae3ec971c35f47a447a9c22de241c0d0b603bc909efd2f",
+    "location_calibrator_v5_sha256": "cd5e5229c6e4c3d0b83b662d560a4c622c387ca3e862bce864922988207a6d31",
+    "time_regressor_v4_sha256": "9cbf4b48b3adf64084e66ec2584d267143d131520a4909198fa5440c14c79dc0",
+    "feature_schema_v5_sha256": "1c7a6c2b6f65243ccbebf868b98814c580b0e4db2ef389b8dccfc471dc92a342"
+  }
+}
