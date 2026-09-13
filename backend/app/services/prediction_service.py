@@ -39,8 +39,44 @@ from backend.app.services.prediction_contract import as_utc, build_time_predicti
 
 logger = logging.getLogger("cybershield.prediction_service")
 
+def resolve_artifacts_dir() -> str:
+    """
+    Resolves the directory containing trained ML model artifacts.
+    Supports:
+    1. MODEL_ARTIFACTS_DIR environment variable (if set and valid directory)
+    2. Standard repository root layout: <repo_root>/ml/artifacts
+    3. Containerized/backend deployment layout: <backend_dir>/ml/artifacts (e.g. Railway /app/ml/artifacts)
+    4. Working-directory-relative layouts: ml/artifacts or backend/ml/artifacts
+    """
+    env_dir = os.environ.get("MODEL_ARTIFACTS_DIR")
+    if env_dir and os.path.isdir(env_dir):
+        return os.path.abspath(env_dir)
+
+    service_dir = os.path.dirname(os.path.abspath(__file__))
+    app_dir = os.path.dirname(service_dir)
+    backend_or_root = os.path.dirname(app_dir)
+
+    candidates = [
+        # Candidate 1: Standard repository root layout (<repo_root>/ml/artifacts)
+        os.path.abspath(os.path.join(backend_or_root, "..", "ml", "artifacts")),
+        # Candidate 2: Container/backend root layout (<backend_dir>/ml/artifacts or /app/ml/artifacts)
+        os.path.abspath(os.path.join(backend_or_root, "ml", "artifacts")),
+        # Candidate 3: Subdirectory under backend_or_root (<repo_root>/backend/ml/artifacts)
+        os.path.abspath(os.path.join(backend_or_root, "backend", "ml", "artifacts")),
+        # Candidate 4: Relative to current working directory
+        os.path.abspath(os.path.join(os.getcwd(), "ml", "artifacts")),
+        os.path.abspath(os.path.join(os.getcwd(), "backend", "ml", "artifacts")),
+    ]
+
+    for candidate in candidates:
+        if os.path.isdir(candidate) and os.path.exists(os.path.join(candidate, "location_ranker_v4.joblib")):
+            return candidate
+
+    return candidates[0]
+
+
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-ARTIFACTS_DIR = os.path.join(BASE_DIR, "ml", "artifacts")
+ARTIFACTS_DIR = resolve_artifacts_dir()
 
 # Step 8C & Step 16 Verified Hashes for Integrity Gate
 EXPECTED_HASHES = {
@@ -146,7 +182,7 @@ class MLPredictionProvider:
     Platt probability calibration, and Time Model V3 (or V2 fallback).
     """
     def __init__(self, artifacts_dir: Optional[str] = None):
-        self.artifacts_dir = artifacts_dir or ARTIFACTS_DIR
+        self.artifacts_dir = artifacts_dir or resolve_artifacts_dir()
         self.location_model = None
         self.calibrator = None
         self.time_model = None
