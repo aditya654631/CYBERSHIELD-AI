@@ -1,0 +1,417 @@
+{
+  "version": "v5",
+  "document_type": "FEATURE_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN",
+  "contract_hash_rule": "Deterministic SHA-256 validation before Phase A.4 training",
+  "location_features": {
+    "total_count": 48,
+    "breakdown": {
+      "v4_features_kept": 41,
+      "v4_features_modified": 2,
+      "v4_features_removed": 0,
+      "v5_new_features": 5
+    },
+    "feature_list": [
+      {
+        "name": "log_amount",
+        "type": "float",
+        "source": "case.amount",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Logarithm (log1p) of total disputed amount"
+      },
+      {
+        "name": "fraud_type_encoded",
+        "type": "integer",
+        "source": "case.fraud_type",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Ordinal categorical encoding of fraud archetype (1..9)"
+      },
+      {
+        "name": "payment_channel_encoded",
+        "type": "integer",
+        "source": "case.payment_channel",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Ordinal categorical encoding of payment rail (1..6)"
+      },
+      {
+        "name": "complaint_hour",
+        "type": "integer",
+        "source": "case.reported_at",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Hour of day (0..23) of complaint reporting"
+      },
+      {
+        "name": "day_of_week",
+        "type": "integer",
+        "source": "case.reported_at",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Day of week (0=Mon .. 6=Sun) of complaint reporting"
+      },
+      {
+        "name": "weekend_flag",
+        "type": "integer",
+        "source": "case.reported_at",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Binary flag indicating weekend event"
+      },
+      {
+        "name": "night_flag",
+        "type": "integer",
+        "source": "case.reported_at",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Binary flag indicating complaint occurred between 22:00 and 06:00"
+      },
+      {
+        "name": "complaint_delay_minutes",
+        "type": "float",
+        "source": "case.reporting_delay_minutes",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Elapsed minutes between event and reporting"
+      },
+      {
+        "name": "transaction_count",
+        "type": "integer",
+        "source": "case.transaction_count",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Total downstream transactions in mule graph"
+      },
+      {
+        "name": "hop_count",
+        "type": "integer",
+        "source": "case.transaction_hop_count",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Max hop depth in transaction trail"
+      },
+      {
+        "name": "unique_accounts",
+        "type": "integer",
+        "source": "case.mule_account_count + 1",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Total unique accounts involved in graph"
+      },
+      {
+        "name": "unique_banks",
+        "type": "integer",
+        "source": "case.distinct_bank_count",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Distinct banking institutions involved"
+      },
+      {
+        "name": "total_transferred",
+        "type": "float",
+        "source": "case.amount * 0.98",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Net estimated amount transferred across mule layers"
+      },
+      {
+        "name": "mean_transfer_amount",
+        "type": "float",
+        "source": "case.amount / case.transaction_count",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Average amount per transaction leg"
+      },
+      {
+        "name": "max_transfer_amount",
+        "type": "float",
+        "source": "case.amount * 0.75",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Maximum single transaction transfer amount"
+      },
+      {
+        "name": "transaction_velocity",
+        "type": "float",
+        "source": "case.transaction_velocity",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "INR per hour flow velocity"
+      },
+      {
+        "name": "chain_duration_minutes",
+        "type": "float",
+        "source": "case.amount / case.transaction_velocity * 60.0",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Elapsed duration of mule movement chain"
+      },
+      {
+        "name": "average_hop_interval",
+        "type": "float",
+        "source": "chain_duration_minutes / hop_count",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Mean minutes elapsed per hop"
+      },
+      {
+        "name": "branching_factor",
+        "type": "float",
+        "source": "case.graph_branching_factor",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Outward branching factor across graph layers"
+      },
+      {
+        "name": "max_degree",
+        "type": "integer",
+        "source": "case.graph_branching_factor * 2",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Maximum node degree in mule graph"
+      },
+      {
+        "name": "mean_degree",
+        "type": "float",
+        "source": "case.graph_branching_factor * 1.2",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Mean node degree in mule graph"
+      },
+      {
+        "name": "max_pagerank",
+        "type": "float",
+        "source": "1.0 / case.mule_account_count",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Maximum PageRank score in graph topology"
+      },
+      {
+        "name": "max_betweenness",
+        "type": "float",
+        "source": "case.graph_depth / 10.0",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Maximum betweenness centrality in mule network"
+      },
+      {
+        "name": "connected_component_size",
+        "type": "integer",
+        "source": "case.mule_account_count + 1",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Connected component size of mule graph"
+      },
+      {
+        "name": "fraud_neighbor_count",
+        "type": "integer",
+        "source": "case.beneficiary_account_count",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Number of flagged beneficiary accounts"
+      },
+      {
+        "name": "mule_connection_count",
+        "type": "integer",
+        "source": "case.mule_account_count",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Total mule connections identified"
+      },
+      {
+        "name": "historical_cluster_cashout_count",
+        "type": "float",
+        "source": "candidate.prior_cashouts",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Historical cash-out count observed at candidate cluster prior to event"
+      },
+      {
+        "name": "historical_cluster_cashout_amount",
+        "type": "float",
+        "source": "candidate.prior_amount",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Historical volume withdrawn at candidate cluster prior to event"
+      },
+      {
+        "name": "historical_cluster_risk",
+        "type": "float",
+        "source": "candidate.risk",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Baseline static risk of candidate cluster"
+      },
+      {
+        "name": "atm_density",
+        "type": "float",
+        "source": "candidate.atm_density",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "ATM density index of candidate cluster"
+      },
+      {
+        "name": "distance_from_victim",
+        "type": "float",
+        "source": "haversine_km(case.victim, candidate.center)",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Geodesic distance (km) between victim location and candidate cluster center"
+      },
+      {
+        "name": "recent_cluster_activity",
+        "type": "float",
+        "source": "candidate.prior_7d_count",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Rolling 7-day prior cashout frequency at candidate cluster"
+      },
+      {
+        "name": "fraud_type_cluster_frequency",
+        "type": "float",
+        "source": "candidate.fraud_type_prior_rate",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Historical frequency of this specific fraud type at candidate cluster"
+      },
+      {
+        "name": "transaction_hour",
+        "type": "integer",
+        "source": "case.event_timestamp.hour",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Hour of day of the fraudulent transfer"
+      },
+      {
+        "name": "time_since_first_transfer",
+        "type": "float",
+        "source": "case.reporting_delay_minutes",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Minutes elapsed since first transaction"
+      },
+      {
+        "name": "time_since_last_transfer",
+        "type": "float",
+        "source": "max(0.0, reporting_delay_minutes - chain_duration)",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Minutes elapsed since last transaction leg"
+      },
+      {
+        "name": "fraud_type_historical_cashout_delay",
+        "type": "float",
+        "source": "fraud_profile.base_cashout_minutes",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Prior expected cash-out delay for this fraud family"
+      },
+      {
+        "name": "account_historical_cashout_delay",
+        "type": "float",
+        "source": "mule_cohort.historical_delay",
+        "scope": "CASE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Prior delay expectation for terminal account profile"
+      },
+      {
+        "name": "candidate_same_complaint_zone",
+        "type": "integer",
+        "source": "case.victim_district == candidate.district",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "MODIFIED_FROM_V4",
+        "description": "Binary flag: candidate cluster is in victim's 11-revenue-district"
+      },
+      {
+        "name": "candidate_same_terminal_zone",
+        "type": "integer",
+        "source": "case.terminal_mule_district == candidate.district",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "MODIFIED_FROM_V4",
+        "description": "Binary flag: candidate cluster is in terminal mule's 11-revenue-district"
+      },
+      {
+        "name": "candidate_same_any_account_zone",
+        "type": "integer",
+        "source": "candidate.district in [case.victim_district, case.terminal_mule_district]",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Binary flag: candidate district touches victim or mule district"
+      },
+      {
+        "name": "dist_to_complaint_zone_km",
+        "type": "float",
+        "source": "haversine_km(district_centroid(case.victim_district), candidate.center)",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Distance in km to complainant district centroid"
+      },
+      {
+        "name": "dist_to_terminal_zone_km",
+        "type": "float",
+        "source": "haversine_km(district_centroid(case.terminal_mule_district), candidate.center)",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "KEPT_FROM_V4",
+        "description": "Distance in km to terminal mule district centroid"
+      },
+      {
+        "name": "transfer_burst_score",
+        "type": "float",
+        "source": "case.transfer_burst_score",
+        "scope": "CASE_SPECIFIC",
+        "category": "V5_NEW_FEATURE",
+        "description": "Burst intensity metric: instantaneous transaction count divided by chain duration"
+      },
+      {
+        "name": "night_activity_ratio",
+        "type": "float",
+        "source": "case.night_activity_ratio",
+        "scope": "CASE_SPECIFIC",
+        "category": "V5_NEW_FEATURE",
+        "description": "Ratio of transactions executed during nocturnal banking hours (22:00 - 06:00)"
+      },
+      {
+        "name": "terminal_mule_district_encoded",
+        "type": "integer",
+        "source": "case.terminal_mule_district",
+        "scope": "CASE_SPECIFIC",
+        "category": "V5_NEW_FEATURE",
+        "description": "Ordinal categorical encoding of terminal mule revenue district (1..11)"
+      },
+      {
+        "name": "prior_24h_cashout_count_near_candidate",
+        "type": "integer",
+        "source": "chronological_prior_24h_window",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "V5_NEW_FEATURE",
+        "description": "Number of realized cash-out events within 5km of candidate in preceding 24h (historical timestamp < case.event_timestamp)"
+      },
+      {
+        "name": "prior_30d_cluster_activity",
+        "type": "integer",
+        "source": "chronological_prior_30d_window",
+        "scope": "CANDIDATE_SPECIFIC",
+        "category": "V5_NEW_FEATURE",
+        "description": "Number of realized cash-out events at candidate cluster in preceding 30 days (historical timestamp < case.event_timestamp)"
+      }
+    ]
+  },
+  "leakage_safety_rules": {
+    "target_leakage_detected": false,
+    "strictly_forbidden_features": [
+      "realized_cashout_cluster_id",
+      "realized_cashout_cluster_name",
+      "realized_cashout_district",
+      "realized_cashout_lat",
+      "realized_cashout_lon",
+      "realized_cashout_minutes",
+      "distance_to_true_cluster",
+      "is_true_cluster",
+      "future_withdrawal_count"
+    ],
+    "chronological_cutoff": "All historical aggregations for case T must evaluate records strictly with timestamp < T.reported_at."
+  }
+}

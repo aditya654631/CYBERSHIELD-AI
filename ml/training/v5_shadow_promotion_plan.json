@@ -1,0 +1,45 @@
+{
+  "version": "v5",
+  "document_type": "SHADOW_PROMOTION_PLAN",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN",
+  "production_safeguards": {
+    "protected_baseline": "cashout-location-xgb-v4 + cashout-time-xgb-v3",
+    "zero_production_regression": true,
+    "feature_flags": {
+      "LOCATION_MODEL_V5_ENABLED": false,
+      "SHADOW_EVALUATION_MODE": true
+    }
+  },
+  "runtime_execution_flow": {
+    "stage_1_active_production_inference": {
+      "step": "New complaint submitted",
+      "active_model": "cashout-location-xgb-v4",
+      "persistence": "Generates exactly 1 Prediction and exactly 3 PredictionLocation records",
+      "downstream": "Alerts, Risk Map, and Case Intelligence rendered from V4 output"
+    },
+    "stage_2_shadow_inference": {
+      "step": "Asynchronous / detached evaluation of V5 challenger",
+      "active_model": "cashout-location-xgb-v5 (challenger)",
+      "persistence": "STRICTLY FORBIDDEN to overwrite active Prediction or PredictionLocation rows",
+      "storage": "Shadow telemetry logged into application audit/log stream or isolated metrics table with model_version='cashout-location-xgb-v5-shadow'",
+      "failure_isolation": "Any exception in V5 shadow inference is caught and suppressed; production response never fails or degrades"
+    }
+  },
+  "promotion_criteria": {
+    "all_must_pass": [
+      "Offline test benchmark strictly passes all 8 Promotion Gates",
+      "Platt probability calibration verified on validation split (ECE <= 0.045)",
+      "Live shadow evaluation logs minimum 100 complaints without error",
+      "P95 inference latency remains under 450ms",
+      "Golden test complaint (CMP-NEW-000054) reproduces identical business flow",
+      "Automated rollback switch validated in isolated test"
+    ]
+  },
+  "rollback_procedure": {
+    "trigger": "Any unexpected exception, calibration drift, or latency spike detected post-promotion",
+    "action": "Set LOCATION_MODEL_V5_ENABLED=false",
+    "impact": "Inference instantly reverts to cashout-location-xgb-v4 without database migrations, container redeployment, or downtime",
+    "data_integrity": "Historical predictions remain intact with explicit model_version provenance tags"
+  }
+}

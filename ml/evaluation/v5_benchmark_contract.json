@@ -1,0 +1,156 @@
+{
+  "version": "v5",
+  "document_type": "BENCHMARK_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN",
+  "evaluation_split": {
+    "name": "TEST",
+    "cases": 2250,
+    "chronological_era": "Latest (2026-03 to 2026-07)",
+    "family_leakage": 0
+  },
+  "baselines": {
+    "location": {
+      "baseline_A_production_v4": {
+        "name": "Current Production V4 (cashout-location-xgb-v4)",
+        "type": "Trained XGBoost V4 baseline",
+        "reference_performance": {
+          "top1_pct": 13.46,
+          "top3_pct": 24.68,
+          "top5_pct": 33.65,
+          "mrr": 0.2443,
+          "median_spatial_error_km": 8.91,
+          "ece": 0.0420
+        }
+      },
+      "baseline_B_nearest_origin": {
+        "name": "Nearest Origin Cluster Baseline",
+        "type": "Spatial heuristic",
+        "test_performance": {
+          "top1_pct": 8.80,
+          "median_spatial_error_km": 8.34
+        }
+      },
+      "baseline_C_global_mode": {
+        "name": "Most Frequent Cash-Out Cluster Baseline",
+        "type": "Static mode heuristic",
+        "test_performance": {
+          "top1_pct": 5.72
+        }
+      },
+      "baseline_D_district_conditional_mode": {
+        "name": "District-Conditional Frequency Baseline",
+        "type": "District conditioned empirical mode",
+        "test_performance": {
+          "top1_pct": 9.02
+        }
+      },
+      "baseline_E_heuristic_candidate_ranker": {
+        "name": "Non-ML Candidate Scorer Baseline",
+        "type": "Composite score based on static ATM density, risk, and transit proximity",
+        "test_performance": {
+          "top1_pct": 10.40,
+          "top3_pct": 19.80
+        }
+      }
+    },
+    "time": {
+      "baseline_A_production_v3": {
+        "name": "Current Production Time V3 (cashout-time-xgb-v3)",
+        "reference_performance": {
+          "mae_minutes": 11.08,
+          "median_ae_minutes": 11.11,
+          "rmse_minutes": 13.01
+        }
+      },
+      "baseline_B_global_median": {
+        "name": "Global Training Median Cash-Out Time",
+        "test_performance": {
+          "mae_minutes": 56.40,
+          "rmse_minutes": 75.51
+        }
+      },
+      "baseline_C_fraud_type_median": {
+        "name": "Fraud-Type Stratified Median",
+        "test_performance": {
+          "mae_minutes": 41.71,
+          "rmse_minutes": 54.12
+        }
+      }
+    }
+  },
+  "metrics": {
+    "location_primary": [
+      "Top-1 Accuracy (%)",
+      "Top-3 Accuracy (%)",
+      "Top-5 Accuracy (%)",
+      "Mean Reciprocal Rank (MRR)",
+      "Median Spatial Error (km)"
+    ],
+    "location_calibration": [
+      "Expected Calibration Error (ECE, 10 bins)",
+      "Brier Score Loss"
+    ],
+    "time_primary": [
+      "Mean Absolute Error (MAE, minutes)",
+      "Median Absolute Error (MedAE, minutes)",
+      "Root Mean Squared Error (RMSE, minutes)",
+      "Within ±30 minutes coverage (%)"
+    ],
+    "subgroups": [
+      "By Revenue District (11 districts)",
+      "By Fraud Type (9 archetypes)",
+      "By Amount Bracket (MICRO, LOW, MEDIUM, HIGH, CRITICAL)",
+      "Local vs Cross-District Cash-Out",
+      "Short (hop <= 2) vs Deep (hop >= 3) Mule Network",
+      "Syndicate Hub vs Non-Hub"
+    ]
+  },
+  "promotion_gates": {
+    "gate_1_candidate_coverage": {
+      "metric": "Candidate Recall @25",
+      "threshold": ">= 72.0%",
+      "status": "PASS (74.11% on V5 dataset)"
+    },
+    "gate_2_top3_accuracy": {
+      "metric": "Top-3 Accuracy (%)",
+      "threshold": ">= 27.0% (Beat V4 reference 24.68%)",
+      "required": true
+    },
+    "gate_3_top1_accuracy": {
+      "metric": "Top-1 Accuracy (%)",
+      "threshold": ">= 14.5% (Beat V4 reference 13.46%)",
+      "required": true
+    },
+    "gate_4_mrr": {
+      "metric": "Mean Reciprocal Rank (MRR)",
+      "threshold": ">= 0.2600 (Beat V4 reference 0.2443)",
+      "required": true
+    },
+    "gate_5_spatial_error": {
+      "metric": "Median Spatial Error (km)",
+      "threshold": "<= 8.0 km (No regression against V4 8.91 km)",
+      "required": true
+    },
+    "gate_6_calibration": {
+      "metric": "Expected Calibration Error (ECE)",
+      "threshold": "<= 0.0450",
+      "required": true
+    },
+    "gate_7_time_mae": {
+      "metric": "Time Model MAE",
+      "threshold": "<= 11.5 minutes",
+      "required": true
+    },
+    "gate_8_golden_e2e": {
+      "metric": "Production Golden E2E Verification",
+      "threshold": "1 Prediction, exactly 3 PredictionLocations, idempotent refresh",
+      "required": true
+    }
+  },
+  "statistical_significance": {
+    "method": "Case-level bootstrap resampling",
+    "bootstrap_iterations": 1000,
+    "confidence_interval": "95% two-sided empirical percentile interval"
+  }
+}

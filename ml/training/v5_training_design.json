@@ -1,0 +1,88 @@
+{
+  "version": "v5",
+  "document_type": "TRAINING_DESIGN",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN",
+  "frozen_at": "2026-09-13T10:00:00Z",
+  "base_production_commit": "b7fe4ac4aa31b4c76a6becc32ed4fd5fe011b97f",
+  "dataset": {
+    "version": "v5",
+    "dataset_type": "CONTROLLED SYNTHETIC DELHI CYBERCRIME DATA",
+    "real_ncrp_data": false,
+    "seed": 26184,
+    "total_cases": 15000,
+    "splits": {
+      "train": 10500,
+      "validation": 2250,
+      "test": 2250
+    },
+    "dataset_sha256": "42b7659ff7371425f71ec20459fb5e5a997c55fbad53f2e4919af6decf3ff61e"
+  },
+  "location_model_design": {
+    "architecture": "POINTWISE_CANDIDATE_RANKING",
+    "selection_rationale": "High runtime alignment with 60-cluster universe, seamless integration with candidate generator, robust Platt probability calibration, modular maintainability, and proven production compatibility without the latency overhead of pairwise LTR.",
+    "model_type": "XGBClassifier",
+    "loss_objective": "binary:logistic",
+    "eval_metric": "logloss",
+    "candidate_pool_size": 25,
+    "candidates_per_complaint": 25,
+    "total_training_candidate_rows": 262500,
+    "total_validation_candidate_rows": 56250,
+    "total_test_candidate_rows": 56250,
+    "candidate_coverage_recall": {
+      "recall_at_10": 49.50,
+      "recall_at_15": 60.27,
+      "recall_at_20": 67.36,
+      "recall_at_25": 74.11,
+      "recall_at_30": 79.84,
+      "recall_at_60": 100.00
+    },
+    "label_definition": {
+      "positive": 1,
+      "negative": 0,
+      "condition": "candidate_cluster_id == realized_cashout_cluster_id"
+    },
+    "class_imbalance": {
+      "positive_to_negative_ratio": "1 : 24 (4.0% positive rate when target is in candidate pool)",
+      "strategy": "Scale positive weight mildly (scale_pos_weight=1.0 to 2.5) or preserve native unweighted calibration to avoid probability sharpness distortion before Platt scaling."
+    },
+    "hyperparameters_search_space": {
+      "n_estimators": [100, 180, 250],
+      "max_depth": [4, 6, 8],
+      "learning_rate": [0.03, 0.05, 0.08],
+      "subsample": [0.8, 0.9],
+      "colsample_bytree": [0.75, 0.85],
+      "reg_alpha": [0.1, 1.0],
+      "reg_lambda": [1.0, 3.0]
+    }
+  },
+  "calibration_design": {
+    "method": "PLATT_SCALING",
+    "estimator": "LogisticRegression(C=1.0, solver='lbfgs', max_iter=1000)",
+    "calibration_split": "VALIDATION (2,250 cases, 56,250 candidate rows)",
+    "test_contamination": "ZERO — Held-out TEST split (2,250 cases) remains completely untouched until final locked evaluation.",
+    "probability_semantics": "Calibrated relative posterior probability of cash-out occurrence across candidate locations within the prototype candidate-ranking framework."
+  },
+  "time_model_design": {
+    "architecture": "LOG_TRANSFORMED_REGRESSION",
+    "model_type": "XGBRegressor",
+    "target": "realized_cashout_minutes",
+    "target_transform": "log1p(realized_cashout_minutes)",
+    "loss_objective": "reg:squarederror",
+    "eval_metric": "rmse",
+    "hyperparameters_search_space": {
+      "n_estimators": [120, 200],
+      "max_depth": [4, 6],
+      "learning_rate": [0.04, 0.08],
+      "subsample": [0.85],
+      "colsample_bytree": [0.80]
+    },
+    "uncertainty_strategy": "Central point prediction with empirical error-band bounds derived on validation split. No unsubstantiated calibrated confidence interval claims."
+  },
+  "reproducibility_contract": {
+    "fixed_seed": 26184,
+    "python_version": "3.13+",
+    "xgboost_version": "2.1+",
+    "scikit_learn_version": "1.6+"
+  }
+}
