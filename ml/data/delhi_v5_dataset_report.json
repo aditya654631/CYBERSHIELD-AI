@@ -1,0 +1,77 @@
+{
+  "dataset_name": "Delhi V5 Controlled Historical-Style Cybercrime Dataset",
+  "case_count": 15000,
+  "seed": 26184,
+  "district_coverage_count": 11,
+  "districts_represented": [
+    "CENTRAL",
+    "EAST",
+    "NEW_DELHI",
+    "NORTH",
+    "NORTH_EAST",
+    "NORTH_WEST",
+    "SHAHDARA",
+    "SOUTH",
+    "SOUTH_EAST",
+    "SOUTH_WEST",
+    "WEST"
+  ],
+  "cluster_coverage_count": 60,
+  "fraud_mix": {
+    "phishing fraud": 1738,
+    "marketplace fraud": 1707,
+    "digital payment fraud": 1670,
+    "loan app scam": 1666,
+    "job scam": 1650,
+    "impersonation scam": 1650,
+    "upi fraud": 1646,
+    "remote access scam": 1641,
+    "investment scam": 1632
+  },
+  "amount_percentiles": {
+    "p10": 6906.39,
+    "p25": 14827.32,
+    "p50_median": 35429.94,
+    "p75": 74263.57,
+    "p90": 148055.77,
+    "p99": 376281.3,
+    "mean": 61195.02
+  },
+  "cash_out_time_percentiles": {
+    "p10": 70.63,
+    "p50_median": 141.88,
+    "p90": 252.0,
+    "mean": 154.33
+  },
+  "reporting_delay_percentiles": {
+    "p10": 111.72,
+    "p50_median": 484.14,
+    "p90": 2109.51,
+    "mean": 853.33
+  },
+  "transaction_hop_distribution": {
+    "2": 5784,
+    "3": 5020,
+    "1": 2521,
+    "4": 1675
+  },
+  "mule_count_distribution": {
+    "mean": 6.61,
+    "min": 1,
+    "max": 16
+  },
+  "cross_district_rate_pct": 70.61,
+  "nearest_origin_target_rate_pct": 9.49,
+  "within_5km_rate_pct": 31.99,
+  "within_10km_rate_pct": 58.72,
+  "syndicate_hub_rate_pct": 16.21,
+  "target_cluster_entropy": 5.7413,
+  "split_counts": {
+    "train": 10500,
+    "validation": 2250,
+    "test": 2250
+  },
+  "family_leakage_count": 0,
+  "invalid_row_count": 0,
+  "duplicate_case_id_count": 0
+}

@@ -1,0 +1,252 @@
+{
+  "version": "v5",
+  "description": "Schema definition for Delhi V5 Controlled Historical-Style Dataset",
+  "total_fields": 35,
+  "fields": [
+    {
+      "name": "case_id",
+      "type": "string",
+      "nullable": false,
+      "role": "IDENTIFIER",
+      "description": "Unique historical case identifier (CMP-V5-xxxxxx)"
+    },
+    {
+      "name": "event_timestamp",
+      "type": "timestamp",
+      "nullable": false,
+      "role": "CONTEXT_FEATURE",
+      "description": "Timestamp of the fraudulent transaction"
+    },
+    {
+      "name": "reported_at",
+      "type": "timestamp",
+      "nullable": false,
+      "role": "CONTEXT_FEATURE",
+      "description": "Complaint registration cutoff timestamp"
+    },
+    {
+      "name": "reporting_delay_minutes",
+      "type": "float",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Elapsed minutes between event and reporting"
+    },
+    {
+      "name": "victim_district",
+      "type": "string",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Origin revenue district of victim"
+    },
+    {
+      "name": "victim_lat",
+      "type": "float",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Latitude of victim origin (bounded Delhi region)"
+    },
+    {
+      "name": "victim_lon",
+      "type": "float",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Longitude of victim origin (bounded Delhi region)"
+    },
+    {
+      "name": "fraud_type",
+      "type": "string",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Categorical fraud archetype"
+    },
+    {
+      "name": "payment_channel",
+      "type": "string",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Payment rail used (UPI, IMPS, NEFT, RTGS, etc.)"
+    },
+    {
+      "name": "amount",
+      "type": "float",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Total disputed fraud amount in INR"
+    },
+    {
+      "name": "amount_bucket",
+      "type": "string",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Discretized amount bracket (MICRO, LOW, MEDIUM, HIGH, CRITICAL)"
+    },
+    {
+      "name": "victim_bank_group",
+      "type": "string",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Banking conglomerate of complainant account"
+    },
+    {
+      "name": "beneficiary_account_count",
+      "type": "integer",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Identified direct beneficiary accounts in graph"
+    },
+    {
+      "name": "transaction_count",
+      "type": "integer",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Total downstream transactions traced before cutoff"
+    },
+    {
+      "name": "transaction_hop_count",
+      "type": "integer",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Graph hop distance from victim to terminal layer"
+    },
+    {
+      "name": "mule_account_count",
+      "type": "integer",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Total intermediary mule accounts engaged"
+    },
+    {
+      "name": "distinct_bank_count",
+      "type": "integer",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Number of unique institutional banking rails touched"
+    },
+    {
+      "name": "terminal_mule_district",
+      "type": "string",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Geographic district associated with terminal mule account"
+    },
+    {
+      "name": "transaction_velocity",
+      "type": "float",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "INR per hour transfer pace across mule graph"
+    },
+    {
+      "name": "transfer_burst_score",
+      "type": "float",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Ratio measuring instantaneous burst intensity"
+    },
+    {
+      "name": "graph_depth",
+      "type": "integer",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Topological graph depth"
+    },
+    {
+      "name": "graph_branching_factor",
+      "type": "float",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Average outward node branching across mule trail"
+    },
+    {
+      "name": "night_activity_ratio",
+      "type": "float",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Proportion of transactions occurring in nocturnal hours"
+    },
+    {
+      "name": "weekend_flag",
+      "type": "integer",
+      "nullable": false,
+      "role": "PRE_EVENT_FEATURE",
+      "description": "Binary flag indicating complaint occurred on weekend"
+    },
+    {
+      "name": "pattern_type",
+      "type": "string",
+      "nullable": false,
+      "role": "GENERATION_METADATA",
+      "description": "Synthetic generation corridor pattern (LOCAL, ADJACENT, MULE, etc.)"
+    },
+    {
+      "name": "syndicate_family_id",
+      "type": "string",
+      "nullable": false,
+      "role": "GENERATION_METADATA",
+      "description": "Latent synthetic syndicate family cohort identifier"
+    },
+    {
+      "name": "mule_family_id",
+      "type": "string",
+      "nullable": false,
+      "role": "GENERATION_METADATA",
+      "description": "Latent synthetic mule ring family cohort identifier"
+    },
+    {
+      "name": "split",
+      "type": "string",
+      "nullable": false,
+      "role": "SPLIT_METADATA",
+      "description": "Chronological split assignment (train, validation, test)"
+    },
+    {
+      "name": "realized_cashout_cluster_id",
+      "type": "integer",
+      "nullable": false,
+      "role": "TARGET",
+      "description": "PRIMARY TARGET: True realized cash-out cluster ID (7..66)"
+    },
+    {
+      "name": "realized_cashout_cluster_name",
+      "type": "string",
+      "nullable": false,
+      "role": "TARGET",
+      "description": "TARGET: Name of realized cash-out cluster"
+    },
+    {
+      "name": "realized_cashout_district",
+      "type": "string",
+      "nullable": false,
+      "role": "TARGET",
+      "description": "TARGET: District of realized cash-out cluster"
+    },
+    {
+      "name": "realized_cashout_lat",
+      "type": "float",
+      "nullable": false,
+      "role": "TARGET",
+      "description": "TARGET: Center latitude of realized cash-out cluster"
+    },
+    {
+      "name": "realized_cashout_lon",
+      "type": "float",
+      "nullable": false,
+      "role": "TARGET",
+      "description": "TARGET: Center longitude of realized cash-out cluster"
+    },
+    {
+      "name": "realized_cashout_minutes",
+      "type": "float",
+      "nullable": false,
+      "role": "TARGET",
+      "description": "SECONDARY TARGET: Realized elapsed minutes to cash-out"
+    },
+    {
+      "name": "generation_seed",
+      "type": "integer",
+      "nullable": false,
+      "role": "GENERATION_METADATA",
+      "description": "Random seed used for deterministic generation"
+    }
+  ]
+}
