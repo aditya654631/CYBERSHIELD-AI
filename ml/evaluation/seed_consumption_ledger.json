@@ -1,0 +1,175 @@
+{
+  "document_type": "SEED_CONSUMPTION_LEDGER",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4O-MASTER",
+  "updated_at": "2026-09-13T20:35:00Z",
+  "summary": "Authoritative ledger tracking all experimental, validation, and holdout seeds across the project lifecycle.",
+  "seed_ledger": [
+    {
+      "seed": 26184,
+      "family": "V5",
+      "purpose": "Primary V5 dataset generation and model training",
+      "generated": true,
+      "consumed": true,
+      "used_for_training": true,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "CONSUMED_EXPERIMENTAL"
+    },
+    {
+      "seed": 26185,
+      "family": "V5",
+      "purpose": "Independent validation holdout for V5.1 challenger",
+      "generated": true,
+      "consumed": true,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": true,
+      "status": "CONSUMED_HOLDOUT"
+    },
+    {
+      "seed": 26186,
+      "family": "V5",
+      "purpose": "Final protected holdout for V5 production promotion",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    },
+    {
+      "seed": 36184,
+      "family": "V6",
+      "purpose": "Initial V6 synthetic learnability dataset",
+      "generated": true,
+      "consumed": true,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "CONSUMED_EXPERIMENTAL"
+    },
+    {
+      "seed": 36185,
+      "family": "V6",
+      "purpose": "V6 independent validation holdout",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    },
+    {
+      "seed": 36186,
+      "family": "V6",
+      "purpose": "V6 final protected holdout",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    },
+    {
+      "seed": 37184,
+      "family": "V6.1",
+      "purpose": "V6.1 two-stage hierarchical target generation",
+      "generated": true,
+      "consumed": true,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "CONSUMED_EXPERIMENTAL"
+    },
+    {
+      "seed": 37185,
+      "family": "V6.1",
+      "purpose": "V6.1 independent validation holdout",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    },
+    {
+      "seed": 37186,
+      "family": "V6.1",
+      "purpose": "V6.1 final protected holdout",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    },
+    {
+      "seed": 38184,
+      "family": "V6.2",
+      "purpose": "V6.2 conditional geography & cluster diversity dataset",
+      "generated": true,
+      "consumed": true,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "CONSUMED_EXPERIMENTAL"
+    },
+    {
+      "seed": 38185,
+      "family": "V6.2",
+      "purpose": "V6.2 independent validation holdout",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    },
+    {
+      "seed": 38186,
+      "family": "V6.2",
+      "purpose": "V6.2 final protected holdout",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    },
+    {
+      "seed": 39184,
+      "family": "V6.3",
+      "purpose": "V6.3 balanced signal & primary portfolio rotation dataset",
+      "generated": true,
+      "consumed": true,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "CONSUMED_EXPERIMENTAL"
+    },
+    {
+      "seed": 39185,
+      "family": "V6.3",
+      "purpose": "V6.3 independent validation holdout",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    },
+    {
+      "seed": 39186,
+      "family": "V6.3",
+      "purpose": "V6.3 final protected holdout",
+      "generated": false,
+      "consumed": false,
+      "used_for_training": false,
+      "used_for_tuning": false,
+      "used_for_holdout": false,
+      "status": "UNTOUCHED_PROTECTED"
+    }
+  ],
+  "governance_rule": "No untouched seed was generated, inspected, or leaked during the audit. Consumed seeds are permanently frozen as immutable evidence."
+}

@@ -1,0 +1,35 @@
+{
+  "document_type": "FINAL_ML_PRODUCTION_FREEZE",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4O-MASTER",
+  "frozen_at": "2026-09-13T20:35:00Z",
+  "active_production_models": {
+    "location_model": {
+      "name": "cashout-location-xgb-v4",
+      "artifact_file": "ml/artifacts/location_ranker_v4.joblib",
+      "artifact_sha256": "9ed5792ced4f8a6e79dc91e587e3c130d2fbadb5af6a73640397dc506dd9cdc9",
+      "calibrator_file": "ml/artifacts/location_calibrator_v4.joblib",
+      "calibrator_sha256": "65ceb736838d14cb865111aac6eddfad3838704ddf2fffc63a6b2bdd998a3664",
+      "status": "ACTIVE_PRODUCTION_BASELINE"
+    },
+    "time_model": {
+      "name": "cashout-time-xgb-v3",
+      "artifact_file": "ml/artifacts/time_regressor_v3.joblib",
+      "artifact_sha256": "41183f4579df70372102e98999967a5e63a9a2dad80f63668b45a5a66a2ed5e1",
+      "status": "ACTIVE_PRODUCTION_BASELINE"
+    },
+    "feature_schema": {
+      "version": "v4",
+      "schema_file": "ml/artifacts/feature_schema_v4.json",
+      "schema_sha256": "572a1cadaea080c4ed013dcf07e2d1fca0720ba6c3d194bca7fc7d8e16d03c6e",
+      "location_features_count": 43,
+      "time_features_count": 20
+    }
+  },
+  "runtime_prediction_mode": "trained_ml",
+  "experimental_challengers_status": "ALL_CHALLENGERS_ARCHIVED_NOT_PROMOTED",
+  "active_experimental_challenger": "NONE",
+  "retraining_status": "DEFERRED",
+  "production_change_required": false,
+  "re_certification_verdict": "PASS_100_PERCENT"
+}

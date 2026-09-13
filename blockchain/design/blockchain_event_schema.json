@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CyberShield_Blockchain_Event_Schema",
+  "description": "Defines canonical event structures for Hyperledger Fabric multi-organization intelligence signals.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "organization_id",
+    "opaque_subject_ref",
+    "cluster_id",
+    "district",
+    "event_timestamp",
+    "submitted_at",
+    "confidence",
+    "verification_status",
+    "source_reference_hash"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique UUIDv4 identifying this ledger event. Idempotency key."
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "ATM_WITHDRAWAL_CONFIRMED",
+        "ATM_WITHDRAWAL_ATTEMPT",
+        "BRANCH_CASHOUT_CONFIRMED",
+        "MULE_ACCOUNT_ACTIVITY",
+        "LEA_CONFIRMED_CLUSTER",
+        "SIGNAL_CORRECTION",
+        "SIGNAL_REVOKED"
+      ],
+      "description": "Verified signal type emitted by a participating consortium member."
+    },
+    "organization_id": {
+      "type": "string",
+      "enum": ["BankA", "BankB", "BankC", "I4C", "LEA"],
+      "description": "MSP Identifier of the publishing consortium organization."
+    },
+    "opaque_subject_ref": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "HMAC-SHA256 pseudonymized token representing the underlying account or mule entity. Zero raw PII."
+    },
+    "cluster_id": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 40,
+      "description": "Target Delhi spatial cluster ID (0 through 40)."
+    },
+    "district": {
+      "type": "string",
+      "enum": [
+        "New Delhi",
+        "North Delhi",
+        "North West Delhi",
+        "West Delhi",
+        "South West Delhi",
+        "South Delhi",
+        "South East Delhi",
+        "Central Delhi",
+        "North East Delhi",
+        "Shahdara",
+        "East Delhi"
+      ],
+      "description": "Delhi administrative police district corresponding to cluster."
+    },
+    "event_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Physical timestamp when the event actually occurred at the ATM, branch, or field."
+    },
+    "submitted_at": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Timestamp when the transaction was submitted to the Fabric network."
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0.0,
+      "maximum": 1.0,
+      "description": "Normalized confidence score of the submitting organization."
+    },
+    "verification_status": {
+      "type": "string",
+      "enum": ["UNVERIFIED", "BANK_VERIFIED", "LEA_CONFIRMED", "REVOKED"],
+      "description": "Current verification state of the intelligence signal."
+    },
+    "source_reference_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$",
+      "description": "SHA-256 hash of internal bank transaction log or LEA case diary entry for off-chain audit."
+    },
+    "previous_event_ref": {
+      "type": ["string", "null"],
+      "description": "References previous event_id if this is a SIGNAL_CORRECTION or SIGNAL_REVOKED transaction."
+    },
+    "metadata": {
+      "type": "object",
+      "description": "Optional non-sensitive operational tags (e.g. withdrawal amount tier, terminal brand code)."
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,48 @@
+{
+  "document_type": "MODEL_GOVERNANCE_SUMMARY",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4O-MASTER",
+  "updated_at": "2026-09-13T20:35:00Z",
+  "governance_framework": {
+    "active_production_models": {
+      "location_model": "cashout-location-xgb-v4",
+      "time_model": "cashout-time-xgb-v3",
+      "calibrator": "cashout_location_calibrator_v4"
+    },
+    "promotion_policy": {
+      "rule": "Challenger models may only replace production baselines if they pass 100% of pre-frozen qualification gates, independent validation, and fresh holdout tests.",
+      "hard_gates": {
+        "candidate_recall_at_25": ">= 76.0%",
+        "top1_accuracy": ">= 15.0%",
+        "top3_accuracy": ">= 28.0%",
+        "mrr": ">= 0.2700",
+        "median_spatial_error": "<= 8.00 km"
+      }
+    },
+    "seed_governance": {
+      "one_shot_rule": "Every research seed is one-shot. If any gate fails, the seed is consumed as immutable evidence. No tuning against the same seed is permitted.",
+      "holdout_protection": "Holdout seeds (e.g. 26186, 36186, 37186, 38186, 39186) remain ungenerated and untouched during development."
+    },
+    "anti_leakage_policy": {
+      "target_safety": "Zero target-derived, future-derived, or latent variables exposed to feature extraction or inference pipelines.",
+      "cohort_isolation": "Strict chronological splits and family isolation ensuring zero syndicate or mule overlap between train and test cohorts."
+    },
+    "reproducibility_policy": {
+      "deterministic_guarantee": "All dataset generators and training scripts must produce byte-for-byte identical artifacts when run with fixed seeds and deterministic gzip configuration."
+    },
+    "fallback_and_truthfulness_policy": {
+      "provenance_transparency": "Predictions produced by trained models are labeled 'trained_ml'. Demo cases are labeled 'deterministic_demo'. Out-of-scope complaints receive 'OUTSIDE_OPERATIONAL_SCOPE' with zero dummy scores.",
+      "human_in_the_loop": "Model outputs represent decision support intelligence for law enforcement and nodal banking officers. They are NOT autonomous execution, account freezing, or legal culpability determinations."
+    },
+    "challenger_audit_summary": {
+      "v5_series": "Closed due to feature ambiguity in synthetic scenario generation.",
+      "v6_series": "Closed due to the mathematical tension between conditional concentration and marginal diversity.",
+      "future_retraining_prerequisites": [
+        "Availability of real anonymized NCRP outcome records.",
+        "Verified banking cash-out outcome corroboration signals.",
+        "Verified law enforcement agency recovery telemetry.",
+        "Consortium blockchain verified signal layer (Phase B)."
+      ]
+    }
+  }
+}

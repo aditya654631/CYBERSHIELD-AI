@@ -1,0 +1,157 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CyberShield_Blockchain_Feature_Contract",
+  "description": "Specifications for features derived from Hyperledger Fabric ledger events for future second-stage candidate re-ranking.",
+  "type": "object",
+  "required": [
+    "feature_version",
+    "temporal_safety_rule",
+    "features"
+  ],
+  "properties": {
+    "feature_version": {
+      "type": "string",
+      "const": "blockchain-features-v1"
+    },
+    "temporal_safety_rule": {
+      "type": "string",
+      "const": "event_timestamp <= prediction_reference_time",
+      "description": "Strict causal invariant. No events occurring after the complaint or prediction trigger time may be incorporated."
+    },
+    "features": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type", "description", "default_value", "aggregation_window"],
+        "properties": {
+          "name": { "type": "string" },
+          "type": { "type": "string", "enum": ["integer", "float"] },
+          "description": { "type": "string" },
+          "default_value": { "type": ["integer", "float"] },
+          "aggregation_window": { "type": "string" }
+        }
+      }
+    }
+  },
+  "features": [
+    {
+      "name": "verified_cashouts_1h",
+      "type": "integer",
+      "description": "Count of confirmed ATM/branch cash-outs in candidate cluster within past 1 hour.",
+      "default_value": 0,
+      "aggregation_window": "T - 1 hour to T"
+    },
+    {
+      "name": "verified_cashouts_6h",
+      "type": "integer",
+      "description": "Count of confirmed ATM/branch cash-outs in candidate cluster within past 6 hours.",
+      "default_value": 0,
+      "aggregation_window": "T - 6 hours to T"
+    },
+    {
+      "name": "verified_cashouts_24h",
+      "type": "integer",
+      "description": "Count of confirmed ATM/branch cash-outs in candidate cluster within past 24 hours.",
+      "default_value": 0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "verified_attempts_1h",
+      "type": "integer",
+      "description": "Count of attempted/failed withdrawals in candidate cluster within past 1 hour.",
+      "default_value": 0,
+      "aggregation_window": "T - 1 hour to T"
+    },
+    {
+      "name": "verified_attempts_6h",
+      "type": "integer",
+      "description": "Count of attempted/failed withdrawals in candidate cluster within past 6 hours.",
+      "default_value": 0,
+      "aggregation_window": "T - 6 hours to T"
+    },
+    {
+      "name": "verified_attempts_24h",
+      "type": "integer",
+      "description": "Count of attempted/failed withdrawals in candidate cluster within past 24 hours.",
+      "default_value": 0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "distinct_verifying_banks",
+      "type": "integer",
+      "description": "Number of unique banking organizations verifying activity in this cluster (e.g. BankA, BankB, BankC).",
+      "default_value": 0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "distinct_verifying_orgs",
+      "type": "integer",
+      "description": "Total unique consortium organizations (banks + I4C + LEA) submitting signals for this cluster.",
+      "default_value": 0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "linked_mule_activity_count",
+      "type": "integer",
+      "description": "Number of mule activity signals connected to the opaque subject reference within 24 hours.",
+      "default_value": 0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "confirmed_cluster_recurrence",
+      "type": "integer",
+      "description": "Count of LEA-confirmed cyber fraud incidents in this cluster over the past 7 days.",
+      "default_value": 0,
+      "aggregation_window": "T - 7 days to T"
+    },
+    {
+      "name": "recent_cluster_velocity",
+      "type": "float",
+      "description": "Ratio of (verified cashouts in last 1 hour) / (average hourly rate in last 24 hours).",
+      "default_value": 0.0,
+      "aggregation_window": "Dynamic ratio"
+    },
+    {
+      "name": "source_diversity_score",
+      "type": "float",
+      "description": "Entropy of signal sources across reporting consortium members (0.0 = single org, 1.0 = highly diversified).",
+      "default_value": 0.0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "multi_org_attestation_count",
+      "type": "integer",
+      "description": "Count of signals co-endorsed by two or more independent organizations.",
+      "default_value": 0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "latest_verified_signal_age_minutes",
+      "type": "float",
+      "description": "Elapsed minutes since the most recent verified event in this cluster. Defaults to 9999.0 if none.",
+      "default_value": 9999.0,
+      "aggregation_window": "Instantaneous point in time"
+    },
+    {
+      "name": "revoked_signal_count",
+      "type": "integer",
+      "description": "Count of previously submitted signals subsequently revoked in this cluster.",
+      "default_value": 0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "corrected_signal_count",
+      "type": "integer",
+      "description": "Count of signals amended with corrected spatial or financial parameters.",
+      "default_value": 0,
+      "aggregation_window": "T - 24 hours to T"
+    },
+    {
+      "name": "candidate_verified_signal_score",
+      "type": "float",
+      "description": "Normalized signal density score based on weighted confidence of active events.",
+      "default_value": 0.0,
+      "aggregation_window": "T - 24 hours to T"
+    }
+  ]
+}
