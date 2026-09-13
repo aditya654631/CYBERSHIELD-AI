@@ -1,0 +1,50 @@
+{
+  "phase": "A.4E",
+  "document_type": "MULTICLASS_FEATURE_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN_DEVELOPMENT_CONTRACT",
+  "total_case_level_features": 25,
+  "features": [
+    "log_amount",
+    "fraud_type_encoded",
+    "payment_channel_encoded",
+    "complaint_hour",
+    "day_of_week",
+    "weekend_flag",
+    "night_flag",
+    "complaint_delay_minutes",
+    "transaction_count",
+    "hop_count",
+    "mule_account_count",
+    "distinct_bank_count",
+    "victim_lat",
+    "victim_lon",
+    "victim_district_encoded",
+    "terminal_mule_district_encoded",
+    "transaction_velocity",
+    "transfer_burst_score",
+    "graph_depth",
+    "graph_branching_factor",
+    "night_activity_ratio",
+    "chain_duration_minutes",
+    "average_hop_interval",
+    "dist_origin_to_terminal_mule_district_km",
+    "prior_7d_similar_fraud_count"
+  ],
+  "leakage_isolation": {
+    "candidate_features_included": false,
+    "target_features_included": false,
+    "future_history_included": false,
+    "strictly_pre_event": true
+  },
+  "experimental_evaluation_on_validation_tune": {
+    "full_60_top1_pct": 9.24,
+    "full_60_top3_pct": 20.98,
+    "full_60_top5_pct": 30.31,
+    "full_60_mrr": 0.2116,
+    "top25_restricted_top1_pct": 9.33,
+    "top25_restricted_top3_pct": 21.69,
+    "top25_restricted_top5_pct": 31.47,
+    "top25_restricted_mrr": 0.2101
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "phase": "A.4E",
+  "document_type": "ARCHITECTURE_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN_DEVELOPMENT_CONTRACT",
+  "pipeline_module": "ml/features/v5_2_pipeline.py",
+  "candidate_retrieval": {
+    "name": "Multi-Source Partitioned Quota Retrieval",
+    "k": 25,
+    "universe_clusters_count": 60,
+    "channels": [
+      "Terminal mule district clusters",
+      "Historical fraud affinity (top 4)",
+      "Local origin clusters (closest 4)",
+      "Commercial hubs (top 6)",
+      "Adjacent corridor clusters (closest 6)",
+      "Fallback commercial hubs & distance nearest"
+    ],
+    "deduplication": "Deterministic channel priority order",
+    "rescue_slot_policy": "NO_RESCUE — Empirical analysis proved 1-slot multiclass rescue only rescued 0.42% of missed cases and caused top-3 dilution (24.62% vs 25.16%). Kept at 0 rescue slots."
+  },
+  "ranking_architecture": {
+    "primary_model": "XGBRanker",
+    "objective": "rank:pairwise",
+    "eval_metric": "ndcg@5",
+    "max_depth": 5,
+    "learning_rate": 0.05,
+    "n_estimators": 180,
+    "subsample": 0.85,
+    "colsample_bytree": 0.80,
+    "random_state": 26184,
+    "group_size": 25
+  },
+  "multiclass_architecture": {
+    "status": "AUXILIARY_DIAGNOSTIC_ONLY",
+    "model": "XGBClassifier",
+    "objective": "multi:softprob",
+    "num_class": 60,
+    "case_level_features_count": 25,
+    "hybrid_selection": "NOT_RECOMMENDED_FOR_PRIMARY — Multiclass full 60 alone achieves 9.24% Top-1, and hybrid blending dilutes Top-3 accuracy without clearing headroom."
+  },
+  "development_headroom_verdict": "V5.2 DEVELOPMENT STILL BELOW HEADROOM — DO NOT CONSUME SEED 26186"
+}

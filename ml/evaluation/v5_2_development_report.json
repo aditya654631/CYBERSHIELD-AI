@@ -1,0 +1,273 @@
+{
+  "phase": "A.4E",
+  "title": "V5.2 Development Ranking Breakthrough & Canonical Pipeline Report",
+  "evaluated_at": "2026-09-13T10:41:55Z",
+  "canonical_pipeline": {
+    "single_candidate_implementation": true,
+    "single_feature_implementation": true,
+    "canonical_ranking_feature_count": 54,
+    "canonical_multiclass_feature_count": 25,
+    "canonical_recalls": {
+      "train_recall_25": 78.57,
+      "val_tune_recall_25": 78.84,
+      "val_cal_recall_25": 76.53,
+      "val_overall_recall_25": 77.96,
+      "val_tune_recalls": {
+        "10": 50.04,
+        "15": 63.02,
+        "20": 70.58,
+        "25": 78.84,
+        "30": 84.8,
+        "60": 100.0
+      }
+    },
+    "duplicate_evaluator_logic_remaining": false
+  },
+  "benchmarks": {
+    "pairwise_baseline": {
+      "top1": 12.0,
+      "top3": 25.16,
+      "top5": 38.49,
+      "mrr": 0.2439,
+      "median_spatial_error": 8.12,
+      "mean_spatial_error": 9.02
+    },
+    "multiclass_full_60": {
+      "top1": 9.24,
+      "top3": 20.98,
+      "top5": 30.31,
+      "mrr": 0.2116,
+      "median_spatial_error": 8.71,
+      "mean_spatial_error": 9.15
+    },
+    "multiclass_top25_only": {
+      "top1": 9.33,
+      "top3": 21.69,
+      "top5": 31.47,
+      "mrr": 0.2101,
+      "median_spatial_error": 8.6,
+      "mean_spatial_error": 9.05
+    },
+    "candidate_rescue_analysis": {
+      "cand_miss_cases": 238,
+      "rescue_at1": 1,
+      "rescue_at3": 4,
+      "rescue_at5": 12,
+      "rescue_slots_used": 1
+    },
+    "hybrid_grid": {
+      "alpha_0.00": {
+        "top1": 9.33,
+        "top3": 21.69,
+        "top5": 31.47,
+        "mrr": 0.2101,
+        "median_spatial_error": 8.6,
+        "mean_spatial_error": 9.05
+      },
+      "alpha_0.20": {
+        "top1": 11.2,
+        "top3": 23.73,
+        "top5": 34.67,
+        "mrr": 0.2296,
+        "median_spatial_error": 8.13,
+        "mean_spatial_error": 8.81
+      },
+      "alpha_0.40": {
+        "top1": 12.71,
+        "top3": 24.71,
+        "top5": 35.38,
+        "mrr": 0.2415,
+        "median_spatial_error": 7.81,
+        "mean_spatial_error": 8.76
+      },
+      "alpha_0.60": {
+        "top1": 12.09,
+        "top3": 24.8,
+        "top5": 37.24,
+        "mrr": 0.2425,
+        "median_spatial_error": 7.91,
+        "mean_spatial_error": 8.95
+      },
+      "alpha_0.80": {
+        "top1": 12.18,
+        "top3": 25.33,
+        "top5": 37.78,
+        "mrr": 0.2445,
+        "median_spatial_error": 8.05,
+        "mean_spatial_error": 8.98
+      },
+      "alpha_1.00": {
+        "top1": 12.0,
+        "top3": 25.16,
+        "top5": 38.49,
+        "mrr": 0.2439,
+        "median_spatial_error": 8.12,
+        "mean_spatial_error": 9.02
+      }
+    },
+    "selected_architecture": {
+      "name": "HYBRID_RESCUE",
+      "alpha": 0.4,
+      "metrics": {
+        "top1": 12.71,
+        "top3": 24.62,
+        "top5": 35.29,
+        "mrr": 0.241,
+        "median_spatial_error": 7.82,
+        "mean_spatial_error": 8.77
+      }
+    }
+  },
+  "validation_stability": {
+    "first_half": {
+      "top1": 13.17,
+      "top3": 24.73,
+      "top5": 35.94,
+      "mrr": 0.2419,
+      "median_spatial_error": 7.84,
+      "mean_spatial_error": 8.83
+    },
+    "second_half": {
+      "top1": 12.26,
+      "top3": 24.51,
+      "top5": 34.64,
+      "mrr": 0.2401,
+      "median_spatial_error": 7.81,
+      "mean_spatial_error": 8.7
+    },
+    "severe_temporal_collapse": false
+  },
+  "bootstrap_95_ci": {
+    "top1": [
+      10.84,
+      14.58
+    ],
+    "top3": [
+      22.31,
+      27.02
+    ],
+    "mrr": [
+      0.2242,
+      0.2592
+    ]
+  },
+  "hub_bias": {
+    "top1_predicted_share_pct": 11.11,
+    "top5_predicted_share_pct": 33.07,
+    "mode_collapse_detected": false
+  },
+  "subgroups": {
+    "districts": {
+      "CENTRAL": {
+        "N": 121,
+        "top1": 11.57,
+        "top3": 24.79
+      },
+      "EAST": {
+        "N": 97,
+        "top1": 12.37,
+        "top3": 29.9
+      },
+      "NEW_DELHI": {
+        "N": 56,
+        "top1": 10.71,
+        "top3": 25.0
+      },
+      "NORTH": {
+        "N": 98,
+        "top1": 11.22,
+        "top3": 21.43
+      },
+      "NORTH_EAST": {
+        "N": 38,
+        "top1": 47.37,
+        "top3": 55.26
+      },
+      "NORTH_WEST": {
+        "N": 114,
+        "top1": 8.77,
+        "top3": 17.54
+      },
+      "SHAHDARA": {
+        "N": 64,
+        "top1": 10.94,
+        "top3": 29.69
+      },
+      "SOUTH": {
+        "N": 128,
+        "top1": 11.72,
+        "top3": 22.66
+      },
+      "SOUTH_EAST": {
+        "N": 115,
+        "top1": 11.3,
+        "top3": 25.22
+      },
+      "SOUTH_WEST": {
+        "N": 118,
+        "top1": 8.47,
+        "top3": 20.34
+      },
+      "WEST": {
+        "N": 176,
+        "top1": 15.34,
+        "top3": 23.3
+      }
+    },
+    "fraud_types": {
+      "digital payment fraud": {
+        "N": 140,
+        "top1": 13.57,
+        "top3": 28.57
+      },
+      "impersonation scam": {
+        "N": 111,
+        "top1": 12.61,
+        "top3": 24.32
+      },
+      "investment scam": {
+        "N": 114,
+        "top1": 11.4,
+        "top3": 22.81
+      },
+      "job scam": {
+        "N": 117,
+        "top1": 15.38,
+        "top3": 25.64
+      },
+      "loan app scam": {
+        "N": 121,
+        "top1": 12.4,
+        "top3": 20.66
+      },
+      "marketplace fraud": {
+        "N": 131,
+        "top1": 9.16,
+        "top3": 21.37
+      },
+      "phishing fraud": {
+        "N": 139,
+        "top1": 10.07,
+        "top3": 18.71
+      },
+      "remote access scam": {
+        "N": 120,
+        "top1": 12.5,
+        "top3": 28.33
+      },
+      "upi fraud": {
+        "N": 132,
+        "top1": 17.42,
+        "top3": 31.06
+      }
+    }
+  },
+  "development_headroom_check": {
+    "top1_gte_15": false,
+    "top3_gte_28": false,
+    "mrr_gte_0_270": false,
+    "median_spatial_error_lte_8": true,
+    "candidate_recall_gte_76": true,
+    "ready_for_seed_26186": false
+  }
+}
