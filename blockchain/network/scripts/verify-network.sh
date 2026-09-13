@@ -11,8 +11,13 @@ NETWORK_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${NETWORK_DIR}"
 
+if ! grep -q "orderer.cybershield.net" /etc/hosts 2>/dev/null; then
+    echo "127.0.0.1 orderer.cybershield.net peer0.banka.cybershield.net peer0.bankb.cybershield.net peer0.bankc.cybershield.net peer0.i4c.cybershield.net peer0.lea.cybershield.net" >> /etc/hosts || true
+fi
+
 echo "=================================================="
 echo "Verifying CyberShield AI Fabric Network Health"
+
 echo "=================================================="
 
 # 1. Check Docker

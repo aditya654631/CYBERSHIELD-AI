@@ -12,8 +12,15 @@ NETWORK_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${NETWORK_DIR}"
 
+# Ensure consortium hostnames resolve to 127.0.0.1 in WSL environment
+if ! grep -q "orderer.cybershield.net" /etc/hosts 2>/dev/null; then
+    echo "127.0.0.1 orderer.cybershield.net peer0.banka.cybershield.net peer0.bankb.cybershield.net peer0.bankc.cybershield.net peer0.i4c.cybershield.net peer0.lea.cybershield.net" | sudo tee -a /etc/hosts >/dev/null || true
+fi
+sudo chmod 666 /var/run/docker.sock /run/docker.sock 2>/dev/null || true
+
 echo "=================================================="
 echo "Starting CyberShield AI Hyperledger Fabric Network"
+
 echo "=================================================="
 
 # 1. Generate Crypto Material if not present
