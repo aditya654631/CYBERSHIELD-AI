@@ -80,7 +80,12 @@ ARTIFACTS_DIR = resolve_artifacts_dir()
 
 # Step 8C & Step 16 Verified Hashes for Integrity Gate
 EXPECTED_HASHES = {
-    # Active Production Models: Location V4 & Time V3
+    # Promoted Qualified Model: Location V7-compat
+    "location_ranker_v7_compat.joblib": "89057bce1000cb82e10f29077b9e168bc0cbd254e979106998e1d623e072c2a6",
+    "location_calibrator_v7_compat.joblib": "1c14d5aba1b0556a47519ea435804a86b34173c76743a77bcf52cea43d3a2c6d",
+    "feature_schema_v7_compat.json": "6a22835ec817aec969f40ecc778182738318efd613e05e822c09b229407f6335",
+    "model_metadata_v7_compat.json": "0f57ab7c3e852472d67a996253d090d767d1d84446486037dd889d9c7259a48f",
+    # Active Production Models / Base Dependency: Location V4 & Time V3
     "location_ranker_v4.joblib": "9ed5792ced4f8a6e79dc91e587e3c130d2fbadb5af6a73640397dc506dd9cdc9",
     "location_calibrator_v4.joblib": "65ceb736838d14cb865111aac6eddfad3838704ddf2fffc63a6b2bdd998a3664",
     "time_regressor_v3.joblib": "41183f4579df70372102e98999967a5e63a9a2dad80f63668b45a5a66a2ed5e1",
@@ -92,6 +97,14 @@ EXPECTED_HASHES = {
     "feature_schema_v3_1.json": "44c2186687f5aec3ba0c7520058f7a3df5fd5702c88265b9488ee675a2c57abd",
     "model_metadata_v3_1.json": "9dea3176148f8621438e9acb26e013801a03645899e22e404c6929131e71f80b"
 }
+
+V4_COMPAT_FEATURES = [
+    "v4_candidate_score",
+    "v4_candidate_rank_normalized",
+    "v4_candidate_percentile",
+    "v4_score_gap_from_candidate1"
+]
+FEATURE_COLUMNS_LOCATION_V7_COMPAT = FEATURE_COLUMNS_LOCATION_V3_1 + V4_COMPAT_FEATURES
 
 
 def compute_file_sha256(filepath: str) -> str:
@@ -203,72 +216,118 @@ class MLPredictionProvider:
         self._load_models()
 
     def _load_models(self):
-        """Loads and verifies V4 location ranker & Time V3 model, with V3.1/V2 fallback."""
-        loc_v4_path = os.path.join(self.artifacts_dir, "location_ranker_v4.joblib")
-        use_v4 = os.path.exists(loc_v4_path)
+        """
+        Loads and verifies V7-compat location ranker (stacked over V4) & Time V3 model,
+        with strict fallback to V4 if V7-compat is unavailable or integrity fails.
+        """
+        self.v4_model = None
+        self.v4_calibrator = None
+        self.v4_location_hash = None
+        self.v4_calibrator_hash = None
 
-        if use_v4:
-            self.model_version = "cashout-location-xgb-v4"
-            self.time_model_version = "cashout-time-xgb-v3"
-            loc_filename = "location_ranker_v4.joblib"
-            cal_filename = "location_calibrator_v4.joblib"
-            schema_filename = "feature_schema_v4.json"
-            meta_filename = "model_metadata_v4.json"
-            time_filename = "time_regressor_v3.joblib"
-        else:
-            self.model_version = "cashout-location-xgb-v3.1"
-            self.time_model_version = "cashout-time-xgb-v2"
-            loc_filename = "location_ranker_v3_1.joblib"
-            cal_filename = "location_calibrator_v3_1.joblib"
-            schema_filename = "feature_schema_v3_1.json"
-            meta_filename = "model_metadata_v3_1.json"
-            time_filename = "time_regressor_v2.joblib"
+        # 1. Always verify and load V4 dependency first
+        loc_v4_filename = "location_ranker_v4.joblib"
+        cal_v4_filename = "location_calibrator_v4.joblib"
+        loc_v4_path = os.path.join(self.artifacts_dir, loc_v4_filename)
+        cal_v4_path = os.path.join(self.artifacts_dir, cal_v4_filename)
 
-        loc_path = os.path.join(self.artifacts_dir, loc_filename)
-        cal_path = os.path.join(self.artifacts_dir, cal_filename)
-        schema_path = os.path.join(self.artifacts_dir, schema_filename)
-        meta_path = os.path.join(self.artifacts_dir, meta_filename)
+        time_filename = "time_regressor_v3.joblib"
         time_path = os.path.join(self.artifacts_dir, time_filename)
 
-        # Verify hashes
-        actual_loc_hash = compute_file_sha256(loc_path)
-        actual_cal_hash = compute_file_sha256(cal_path)
-        actual_schema_hash = compute_file_sha256(schema_path)
-        actual_meta_hash = compute_file_sha256(meta_path)
-
-        self.location_hash = actual_loc_hash
-        self.calibrator_hash = actual_cal_hash
-
-        if actual_loc_hash != EXPECTED_HASHES.get(loc_filename):
-            self.load_error = f"Location ranker hash mismatch: expected {EXPECTED_HASHES.get(loc_filename)}, got {actual_loc_hash}"
+        if not os.path.exists(loc_v4_path):
+            self.load_error = "Required base model V4 not found on disk."
             logger.error(self.load_error)
             return
 
-        if actual_cal_hash != EXPECTED_HASHES.get(cal_filename):
-            self.load_error = f"Location calibrator hash mismatch: expected {EXPECTED_HASHES.get(cal_filename)}, got {actual_cal_hash}"
+        v4_loc_hash = compute_file_sha256(loc_v4_path)
+        v4_cal_hash = compute_file_sha256(cal_v4_path)
+        if v4_loc_hash != EXPECTED_HASHES.get(loc_v4_filename) or v4_cal_hash != EXPECTED_HASHES.get(cal_v4_filename):
+            self.load_error = f"Base V4 integrity check failed (loc={v4_loc_hash}, cal={v4_cal_hash})"
             logger.error(self.load_error)
             return
 
-        for filename in (time_filename,):
-            expected = EXPECTED_HASHES.get(filename)
-            if expected and compute_file_sha256(os.path.join(self.artifacts_dir, filename)) != expected:
-                self.load_error = f"Model artifact integrity check failed: {filename}"
-                logger.error(self.load_error)
-                return
+        time_hash = compute_file_sha256(time_path)
+        if time_hash != EXPECTED_HASHES.get(time_filename):
+            self.load_error = f"Time V3 integrity check failed ({time_hash})"
+            logger.error(self.load_error)
+            return
 
         try:
-            self.location_model = joblib.load(loc_path)
-            self.calibrator = joblib.load(cal_path)
+            self.v4_model = joblib.load(loc_v4_path)
+            self.v4_calibrator = joblib.load(cal_v4_path)
+            self.v4_location_hash = v4_loc_hash
+            self.v4_calibrator_hash = v4_cal_hash
             self.time_model = joblib.load(time_path)
-            with open(schema_path, "r") as f:
-                self.feature_schema = json.load(f)
-            with open(meta_path, "r") as f:
-                self.metadata = json.load(f)
-            if self.feature_schema.get("location_features") != FEATURE_COLUMNS_LOCATION_V3_1 or self.feature_schema.get("time_features") != FEATURE_COLUMNS_TIME:
-                raise ValueError("Artifact feature schema does not match the inference feature order")
+        except Exception as e:
+            self.load_error = f"Failed to load V4 base artifacts: {e}"
+            logger.error(self.load_error)
+            return
 
+        # 2. Check for V7-compat candidate
+        loc_v7_filename = "location_ranker_v7_compat.joblib"
+        cal_v7_filename = "location_calibrator_v7_compat.joblib"
+        schema_v7_filename = "feature_schema_v7_compat.json"
+        meta_v7_filename = "model_metadata_v7_compat.json"
+
+        loc_v7_path = os.path.join(self.artifacts_dir, loc_v7_filename)
+        cal_v7_path = os.path.join(self.artifacts_dir, cal_v7_filename)
+        schema_v7_path = os.path.join(self.artifacts_dir, schema_v7_filename)
+        meta_v7_path = os.path.join(self.artifacts_dir, meta_v7_filename)
+
+        v7_available = os.path.exists(loc_v7_path) and os.path.exists(cal_v7_path)
+
+        if v7_available:
+            v7_loc_hash = compute_file_sha256(loc_v7_path)
+            v7_cal_hash = compute_file_sha256(cal_v7_path)
+            v7_schema_hash = compute_file_sha256(schema_v7_path)
+            v7_meta_hash = compute_file_sha256(meta_v7_path)
+
+            if (v7_loc_hash == EXPECTED_HASHES.get(loc_v7_filename) and
+                v7_cal_hash == EXPECTED_HASHES.get(cal_v7_filename)):
+                try:
+                    self.location_model = joblib.load(loc_v7_path)
+                    self.calibrator = joblib.load(cal_v7_path)
+                    with open(schema_v7_path, "r") as f:
+                        self.feature_schema = json.load(f)
+                    with open(meta_v7_path, "r") as f:
+                        self.metadata = json.load(f)
+
+                    if self.feature_schema.get("location_features") != FEATURE_COLUMNS_LOCATION_V7_COMPAT:
+                        raise ValueError("V7-compat feature schema does not match expected 47 features")
+
+                    self.model_version = "cashout-location-xgb-v7-compat"
+                    self.time_model_version = "cashout-time-xgb-v3"
+                    self.location_feature_version = "v7_compat"
+                    self.location_hash = v7_loc_hash
+                    self.calibrator_hash = v7_cal_hash
+                    self.is_loaded = True
+                    logger.info("Successfully loaded and verified cashout-location-xgb-v7-compat (with V4 base dependency)")
+                    return
+                except Exception as e:
+                    logger.warning(f"V7-compat load failed, falling back to V4: {e}")
+            else:
+                logger.warning(f"V7-compat hash mismatch, falling back to V4: loc={v7_loc_hash}, cal={v7_cal_hash}")
+
+        # 3. Fallback to V4
+        schema_v4_path = os.path.join(self.artifacts_dir, "feature_schema_v4.json")
+        meta_v4_path = os.path.join(self.artifacts_dir, "model_metadata_v4.json")
+        try:
+            self.location_model = self.v4_model
+            self.calibrator = self.v4_calibrator
+            self.location_hash = self.v4_location_hash
+            self.calibrator_hash = self.v4_calibrator_hash
+            self.model_version = "cashout-location-xgb-v4"
+            self.time_model_version = "cashout-time-xgb-v3"
+            self.location_feature_version = "v3.1"
+            with open(schema_v4_path, "r") as f:
+                self.feature_schema = json.load(f)
+            with open(meta_v4_path, "r") as f:
+                self.metadata = json.load(f)
             self.is_loaded = True
-            logger.info(f"Successfully loaded and verified {self.model_version} and {self.time_model_version}")
+            logger.info("Operating safely on cashout-location-xgb-v4 baseline")
+        except Exception as e:
+            self.load_error = f"Failed to initialize V4 baseline: {e}"
+            logger.error(self.load_error)
         except Exception as e:
             self.load_error = f"Failed to load model artifacts: {str(e)}"
             logger.error(self.load_error)
@@ -360,11 +419,37 @@ class MLPredictionProvider:
         X_time = time_res["values"]         # Shape: (20,)
 
         # 4. Actual Model Inference
-        # Positive-class location probabilities
-        raw_probs = self.location_model.predict_proba(X_loc)[:, 1]
+        # Location model inference (V7-compat stacked or V4 direct)
+        if self.model_version == "cashout-location-xgb-v7-compat":
+            # 1. Base V4 inference
+            v4_raw = self.v4_model.predict_proba(X_loc)[:, 1]
+            v4_scores = self.v4_calibrator.predict_proba(v4_raw.reshape(-1, 1))[:, 1]
+            n_cands = len(candidates)
+            ranks = np.argsort(-v4_scores)
+            rank_positions = np.empty_like(ranks)
+            rank_positions[ranks] = np.arange(n_cands)
+            v4_ranks_norm = rank_positions / max(1.0, float(n_cands - 1))
+            v4_percentiles = (n_cands - 1 - rank_positions) / max(1.0, float(n_cands - 1))
+            best_v4_score = float(np.max(v4_scores))
+            v4_gaps = best_v4_score - v4_scores
 
-        # Apply Platt calibration (Logistic Regression on raw validation probabilities)
-        cal_probs = self.calibrator.predict_proba(raw_probs.reshape(-1, 1))[:, 1]
+            v4_feats = np.column_stack([
+                v4_scores,
+                v4_ranks_norm,
+                v4_percentiles,
+                v4_gaps
+            ])
+            X_loc_compat = np.hstack([X_loc, v4_feats])
+
+            # 2. V7-compat pairwise ranker inference
+            raw_scores = self.location_model.predict(X_loc_compat)
+            # Calibrate using Platt logistic calibrator
+            cal_probs = self.calibrator.predict_proba(raw_scores.reshape(-1, 1))[:, 1]
+        else:
+            # Positive-class location probabilities via V4
+            raw_probs = self.location_model.predict_proba(X_loc)[:, 1]
+            cal_probs = self.calibrator.predict_proba(raw_probs.reshape(-1, 1))[:, 1]
+
         if len(candidates) < 3 or not np.all(np.isfinite(cal_probs)) or np.any((cal_probs < 0) | (cal_probs > 1)):
             raise ValueError("Location model did not return three valid scored candidates")
 
@@ -458,7 +543,12 @@ class MLPredictionProvider:
 
             # Clean officer-facing intervention reasoning without raw percentage display
             if rank == 1:
-                loc_ver_name = "Location V4" if "v4" in self.model_version else "Location V3.1"
+                if "v7-compat" in self.model_version:
+                    loc_ver_name = "Location V7-compat"
+                elif "v4" in self.model_version:
+                    loc_ver_name = "Location V4"
+                else:
+                    loc_ver_name = "Location V3.1"
                 reasoning = f"Ranked #1 by {loc_ver_name} for the current complaint context."
             elif rank == 2:
                 reasoning = "Ranked #2 candidate zone for the current complaint context."
@@ -513,7 +603,7 @@ class MLPredictionProvider:
             "Time is measured from complaint reporting. The displayed error margin is a heuristic, not a calibrated confidence interval.",
         ]
         metrics = (self.metadata or {}).get("evaluation_metrics", {}).get(
-            "location_v4" if "v4" in self.model_version else "location_v3_1", {}
+            "location_v7_compat" if "v7-compat" in self.model_version else ("location_v4" if "v4" in self.model_version else "location_v3_1"), {}
         )
         if metrics.get("r3") is not None:
             limitations.append(f"Synthetic held-out Top-3 recall: {float(metrics['r3']):.2f}%; performance on real complaints is unknown.")
@@ -565,7 +655,7 @@ class MLPredictionProvider:
                 "transaction_context_type": loc_res["provenance"].get("context_type"),
                 "graph_nodes": loc_res["provenance"].get("graph_node_count"),
                 "graph_edges": loc_res["provenance"].get("graph_edge_count"),
-                "features_used": 43,
+                "features_used": 47 if "v7-compat" in self.model_version else 43,
                 "time_features_used": 20,
                 "transaction_count": len(transactions),
                 "source_scenario": ctx.get("source_scenario"),
