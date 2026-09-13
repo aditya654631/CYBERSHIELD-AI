@@ -85,6 +85,8 @@
   "constraints": {
     "latent_generation_only_forbidden_in_model": true,
     "target_columns_forbidden_in_inference_features": true,
+    "geographic_consistency_rule": "realized_cashout_district MUST match the district of realized_cashout_cluster_id for 100% of cases",
+    "probability_normalization_tolerance": 1e-9,
     "total_columns": 53
   }
 }

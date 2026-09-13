@@ -22,8 +22,12 @@
     "chronological_ordering": "Strict event_timestamp order"
   },
   "two_stage_target_generation": {
-    "architecture": "Explicit Two-Stage Hierarchical Sampling",
+    "architecture": "Explicit Two-Stage Hierarchical Sampling with Strict Geographic Consistency",
     "flowchart": "PRE-EVENT OBSERVABLES -> Stage 1 Probabilistic District Transition -> REALIZED CASHOUT DISTRICT -> Stage 2 Conditional Intra-District Cluster Selection -> REALIZED CASHOUT CLUSTER",
+    "geographic_consistency_invariant": {
+      "rule": "cluster_district(realized_cashout_cluster_id) == realized_cashout_district for 100% of generated cases",
+      "enforcement": "Strict rejection of cross-district cluster assignments in Stage 2. All adjacent corridor probability is resolved in Stage 1."
+    },
     "stage_1_district_transition": {
       "objective": "Derive P(cashout_district | observables) over 11 revenue districts",
       "observable_inputs": [
@@ -41,6 +45,12 @@
         "fraud_type",
         "transaction_velocity"
       ],
+      "normalization_protocol": {
+        "step_1": "Construct non-negative raw weights for all 11 districts",
+        "step_2": "Apply archetype-specific and money-flow multipliers",
+        "step_3": "Normalize: p_i = weight_i / sum(weights)",
+        "invariants": "sum(p_i) == 1.0 within 1e-9 tolerance; all p_i >= 0; no NaN/Inf"
+      },
       "probability_distribution_ranges": {
         "preferred_district_mass": "0.40 - 0.65",
         "secondary_adjacent_district_mass": "0.20 - 0.35",
@@ -49,14 +59,21 @@
       }
     },
     "stage_2_cluster_selection": {
-      "objective": "Derive P(cashout_cluster | realized_district, archetype, observables)",
+      "objective": "Derive P(cashout_cluster | realized_district, archetype, observables) restricted strictly to clusters within realized_cashout_district",
+      "cluster_candidate_pool": "Clusters where c['district'] == realized_cashout_district",
+      "normalization_protocol": {
+        "step_1": "Construct non-negative raw weights for clusters in realized district",
+        "step_2": "Apply functional role multipliers (commercial, transit, ATM density, local branch)",
+        "step_3": "Normalize: p_c = weight_c / sum(weights)",
+        "invariants": "sum(p_c) == 1.0 within 1e-9 tolerance; all clusters outside realized district have p = 0.0"
+      },
       "intra_district_cluster_roles": {
         "commercial_hubs": "Preferred by NEARBY_COMMERCIAL_CORRIDOR, MULTI_BANK_DISPERSAL",
         "transit_nodes": "Preferred by TRANSPORT_HUB_MOVEMENT, CROSS_DISTRICT_MULE_CHAIN",
         "high_density_atm_kiosks": "Preferred by HIGH_VALUE_DELAYED_CASHOUT, NIGHTTIME_ATM_CASHOUT",
         "local_branch_clusters": "Preferred by LOCAL_RAPID_CASHOUT, TERMINAL_MULE_DISTRICT"
       },
-      "cross_district_long_tail_allowance": "0.08 - 0.12 probability mass reserved for adjacent corridor clusters to reflect realistic physical boundary crossing."
+      "intra_district_long_tail": "Unselected clusters within the realized district retain a small baseline weight to prevent intra-district determinism."
     }
   },
   "behavioral_archetypes_and_sub_prototypes": {

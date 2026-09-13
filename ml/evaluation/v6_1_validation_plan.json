@@ -19,6 +19,17 @@
         "Zero cross-split syndicate or mule family leakage"
       ]
     },
+    "step_2b_geographic_and_probability_consistency_audit": {
+      "floating_point_tolerance": 1e-9,
+      "checks": [
+        "district_cluster_mismatch_count == 0 (cluster_district(realized_cashout_cluster_id) == realized_cashout_district for 100% of rows evaluated against canonical cluster table)",
+        "invalid_district_probability_rows == 0 (all Stage 1 district probabilities in [0.0, 1.0])",
+        "invalid_cluster_probability_rows == 0 (all Stage 2 cluster probabilities in [0.0, 1.0])",
+        "district_probability_sum_error <= 1e-9 (abs(sum(P(district)) - 1.0) <= 1e-9 for all cases)",
+        "cluster_probability_sum_error <= 1e-9 (abs(sum(P(cluster | district)) - 1.0) <= 1e-9 for all cases)",
+        "clusters outside realized district have strictly zero assigned probability"
+      ]
+    },
     "step_3_anti_triviality_verification": {
       "contract": "ml/evaluation/v6_1_anti_triviality_contract.json",
       "hard_caps": {
