@@ -1,0 +1,82 @@
+{
+  "version": "V6.3",
+  "created_at": "2026-09-13T17:45:00Z",
+  "status": "FROZEN_DESIGN",
+  "purpose": "Define strict mathematical contribution budgets for Stage 1 district scoring and Stage 2 cluster selection to prevent single-signal dominance and cluster mode collapse.",
+  "stage_1_district_signal_budget": {
+    "description": "Deterministic evidence channels for Stage 1 district probability scoring before stochastic/context softening.",
+    "maximum_single_channel_contribution_cap": 0.35,
+    "recommended_channel_caps": {
+      "channel_A_terminal_mule_geography": {
+        "max_contribution_share": 0.30,
+        "base_weight_multiplier": 1.6,
+        "rationale": "Reduced from V6.2 unconstrained multiplier (2.4) which pushed terminal mule district match to 63.53% (exceeding <=48% hard gate). Caps terminal mule direct influence at 30%."
+      },
+      "channel_B_dominant_downstream_account_geography": {
+        "max_contribution_share": 0.30,
+        "base_weight_multiplier": 1.8,
+        "rationale": "Reduced from V6.2 multiplier (2.6) which drove dominant account match to 64.32% (exceeding <=55% hard gate). Caps dominant account influence at 30%."
+      },
+      "channel_C_route_trajectory_and_flow": {
+        "max_contribution_share": 0.25,
+        "base_weight_multiplier": 1.4,
+        "rationale": "Encourages distributed path dynamics (direction strength, majority downstream share, alignment) rather than direct district identity shortcuts."
+      },
+      "channel_D_behavioral_and_origin_context": {
+        "max_contribution_share": 0.10,
+        "base_weight_multiplier": 1.0,
+        "rationale": "Origin district proximity, transaction velocity, amount bracket, and complaint severity context."
+      },
+      "channel_E_leakage_safe_history": {
+        "max_contribution_share": 0.05,
+        "base_weight_multiplier": 0.5,
+        "rationale": "Strictly chronological cross-district flow frequencies with log1p dampening, capped at 5% to prevent feedback loops."
+      }
+    },
+    "consensus_and_conflict_mechanisms": {
+      "consensus_multipliers": {
+        "full_agreement_3_channels": 1.40,
+        "partial_agreement_2_channels": 1.15,
+        "single_channel_isolated": 1.00
+      },
+      "conflict_handling": {
+        "condition": "terminal_mule_district != dominant_account_district != dominant_flow_district",
+        "action": "Increase distribution entropy by injecting a flat Dirichlet/uniform softening prior (+0.25 base smoothing across adjacent districts). Prevent winner-take-all dominance."
+      }
+    },
+    "target_district_outcomes": {
+      "overall_district_top1_preferred_range": [0.50, 0.60],
+      "cross_district_top1_preferred_range": [0.40, 0.50],
+      "terminal_mule_target_match_preferred_range": [0.32, 0.44],
+      "dominant_account_target_match_preferred_range": [0.38, 0.50],
+      "hard_terminal_match_ceiling": 0.48,
+      "hard_dominant_match_ceiling": 0.55
+    }
+  },
+  "stage_2_cluster_signal_budget": {
+    "description": "Probabilistic cluster selection within the realized cashout district to guarantee marginal and conditional cluster diversity.",
+    "role_and_portfolio_weighting": {
+      "functional_role_preference_share": 0.45,
+      "primary_cluster_portfolio_share": 0.35,
+      "long_tail_and_spatial_noise_share": 0.14,
+      "historical_cluster_popularity_share": 0.06
+    },
+    "historical_popularity_controls": {
+      "global_popularity_ceiling": 0.06,
+      "saturation_formula": "min(0.06, 0.02 * log1p(prior_cluster_events))",
+      "prior_floor": 0.01,
+      "prior_ceiling": 0.06,
+      "rationale": "V6.2 allowed 12% global popularity feedback, resulting in Connaught Place reaching 7.27% (>5% gate). V6.3 enforces a strict 6% log-saturated ceiling."
+    },
+    "portfolio_rotation_controls": {
+      "primary_cluster_rotation": "Within each district, primary cluster eligibility rotates across role-matched clusters based on deterministic hash of case index and sub-prototype id, ensuring no single cluster is perpetually the primary.",
+      "minimum_effective_portfolio_size": 3,
+      "fraud_to_role_only_invariant": "Fraud types map strictly to functional role distribution weights, NEVER directly to cluster IDs. Marketplace fraud maps across retail, commercial, and cyber cafe roles distributed across all 11 districts."
+    }
+  },
+  "audit_compliance": {
+    "single_channel_dominance_detected": false,
+    "hidden_contribution_mechanisms": false,
+    "deterministic_target_leakage": false
+  }
+}

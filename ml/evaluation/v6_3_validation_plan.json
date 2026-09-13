@@ -1,0 +1,74 @@
+{
+  "version": "V6.3",
+  "created_at": "2026-09-13T17:45:00Z",
+  "status": "FROZEN_DESIGN",
+  "purpose": "Define the strict phased validation protocol for V6.3 synthetic dataset generation, anti-triviality auditing, and learnability verification.",
+  "execution_rules": {
+    "current_phase": "PHASE_A.4M_DESIGN_ONLY",
+    "generation_permitted_now": false,
+    "model_training_permitted_now": false,
+    "production_modification_permitted": false
+  },
+  "seed_sequence_protocol": {
+    "phase_1_primary": {
+      "seed": 39184,
+      "purpose": "One-shot dataset generation and contract verification.",
+      "conditions": "May only be generated in Phase A.4N after frozen contract approval. If any hard gate fails, seed is consumed and execution HALTS."
+    },
+    "phase_2_independent_validation": {
+      "seed": 39185,
+      "purpose": "Independent validation across second distribution sample.",
+      "conditions": "Generated ONLY IF seed 39184 passes 100% of hard learnability and anti-triviality gates. Never generated if 39184 fails."
+    },
+    "phase_3_final_holdout": {
+      "seed": 39186,
+      "purpose": "Frozen external test holdout for model evaluation.",
+      "conditions": "Generated ONLY after model training architecture is frozen and both 39184 and 39185 have confirmed stability. Untouched during development."
+    },
+    "consumed_seeds": [36184, 37184, 38184],
+    "untouched_seeds": [37185, 37186, 38185, 38186]
+  },
+  "validation_gates": {
+    "hard_learnability_gates": {
+      "signature_recurrence_rate": { "min": 0.35, "target": 0.95 },
+      "neighbor_top1_accuracy": { "min": 0.08, "target": 0.15 },
+      "neighbor_top3_accuracy": { "min": 0.22, "target": 0.40 },
+      "recurring_dominant_cluster_share": { "min": 0.35, "max": 0.50, "target": 0.40 },
+      "recurring_top3_cluster_share": { "min": 0.70, "max": 0.85, "target": 0.75 },
+      "district_top1_accuracy": { "min": 0.45, "target": 0.55 },
+      "cross_district_top1_accuracy": { "min": 0.30, "target": 0.45 }
+    },
+    "hard_anti_triviality_gates": {
+      "nearest_origin_district_match": { "max": 0.22 },
+      "terminal_mule_district_match": { "max": 0.48 },
+      "dominant_account_district_match": { "max": 0.55 },
+      "max_single_cluster_share": { "max": 0.05 },
+      "fraud_type_single_cluster_share": { "max": 0.15 },
+      "sub_prototype_single_cluster_share": { "max": 0.20 },
+      "deterministic_target_presence": false
+    },
+    "leakage_and_integrity_gates": {
+      "target_derived_input_columns": 0,
+      "future_derived_input_columns": 0,
+      "latent_variable_exposure": 0,
+      "post_generation_row_balancing": false,
+      "reproducibility_hash_verification": "PASS",
+      "probability_normalization_tolerance": 1e-9
+    }
+  },
+  "diagnostic_and_entropy_monitoring": {
+    "conditional_entropies": {
+      "H_cluster_total": ">= 3.8 bits",
+      "H_cluster_given_signature": ">= 0.8 bits",
+      "H_cluster_given_fraud": ">= 3.0 bits",
+      "H_district_given_terminal_mule": ">= 1.2 bits",
+      "H_district_given_dominant_account": ">= 1.1 bits",
+      "H_district_given_route_consensus": ">= 0.7 bits"
+    },
+    "direct_signal_diagnostics": {
+      "terminal_mule_alone_top1": "<= 48%",
+      "dominant_account_alone_top1": "<= 55%",
+      "route_consensus_alone_top1": "<= 58%"
+    }
+  }
+}

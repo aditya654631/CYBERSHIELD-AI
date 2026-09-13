@@ -1,0 +1,155 @@
+{
+  "version": "v6.3",
+  "document_type": "DATASET_GENERATOR_DESIGN",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4M",
+  "status": "FROZEN_DESIGN_ONLY",
+  "core_principle": {
+    "principle": "SIGNAL REDISTRIBUTION & ANTI-SHORTCUT CONDITIONAL GEOGRAPHY",
+    "description": "Preserve high conditional learnability (signatures, neighbors, intra-district candidate structure) while preventing direct single-variable geography shortcuts and global/fraud cluster mode collapse.",
+    "formal_representation": "Balanced Stage-1 evidence channels with max 30-35% contribution cap per channel + Stage-2 district-size normalized role-cluster rotation with 6% historical popularity cap."
+  },
+  "seed_universe": {
+    "primary_implementation_seed": 39184,
+    "independent_validation_seed": 39185,
+    "final_external_holdout_seed": 39186,
+    "retired_consumed_seeds": [26184, 26185, 26186, 36184, 37184, 38184],
+    "unconsumed_protection": "Seeds 39184, 39185, 39186 are strictly UNGENERATED in this design phase. Previous seeds 36185, 36186, 37185, 37186, 38185, 38186 remain ungenerated and retired."
+  },
+  "dataset_specifications": {
+    "target_cases": 15000,
+    "splits": {
+      "train": 10500,
+      "validation": 2250,
+      "test": 2250
+    },
+    "districts_count": 11,
+    "clusters_count": 60,
+    "chronological_ordering": "Strict chronological ordering by event_timestamp with no pre-split shuffling"
+  },
+  "two_stage_hierarchical_architecture": {
+    "flow": "PRE-EVENT OBSERVABLES -> Stage 1 Budget-Capped Multi-Channel District Scoring -> REALIZED CASHOUT DISTRICT -> Stage 2 Rotated District-Local Portfolio Cluster Selection -> REALIZED CASHOUT CLUSTER",
+    "hard_geographic_invariant": {
+      "rule": "canonical_cluster_district(realized_cashout_cluster_id) == realized_cashout_district for 100% of cases",
+      "target_mismatch_count": 0,
+      "enforcement": "Stage 2 candidate clusters are strictly restricted to the subset belonging to the sampled realized district."
+    },
+    "normalization_contract": {
+      "internal_float64_tolerance": 1e-9,
+      "rules": "District distribution sum == 1.0 within 1e-9; Cluster distribution sum == 1.0 within 1e-9; Sampling must execute on full-precision float64 vectors before any serialization formatting.",
+      "serialization_policy": "Serialized 4-decimal JSON strings remain reporting/diagnostic fields only and do not alter generation probabilities."
+    }
+  },
+  "stage_1_district_transition_redesign": {
+    "objective": "Derive P(cashout_district | observables) across 11 revenue districts with distributed evidence channels and anti-shortcut bounds",
+    "evidence_channels": {
+      "channel_a_terminal_mule_geography": {
+        "features": ["terminal_mule_district", "terminal_flow_alignment_score", "terminal_displacement_from_origin_km"],
+        "deterministic_contribution_cap_pct": 30.0,
+        "base_weight_multiplier": 1.6
+      },
+      "channel_b_dominant_account_geography": {
+        "features": ["dominant_account_district", "dominant_account_district_share", "beneficiary_geo_consistency", "majority_downstream_district"],
+        "deterministic_contribution_cap_pct": 30.0,
+        "base_weight_multiplier": 1.8
+      },
+      "channel_c_route_trajectory_and_flow": {
+        "features": ["dominant_flow_district", "money_flow_net_displacement_km", "downstream_route_consistency", "downstream_direction_strength", "cross_district_hop_ratio"],
+        "deterministic_contribution_cap_pct": 25.0,
+        "base_weight_multiplier": 1.4
+      },
+      "channel_d_behavioral_and_origin_context": {
+        "features": ["victim_district", "fraud_type", "transaction_velocity", "transfer_burst_score", "amount_bucket", "night_activity_ratio"],
+        "deterministic_contribution_cap_pct": 10.0,
+        "base_weight_multiplier": 1.0
+      },
+      "channel_e_leakage_safe_history": {
+        "features": ["recent_hop_district", "recent_two_hop_consistency", "prior_chronological_corridor_recurrence"],
+        "deterministic_contribution_cap_pct": 5.0,
+        "base_weight_multiplier": 0.5
+      }
+    },
+    "evidence_consensus_and_conflict_handling": {
+      "consensus_rule": "High preferred district mass (0.45 - 0.58) requires agreement across at least 3 independent channels (e.g. terminal mule == dominant account == majority downstream).",
+      "conflict_rule": "When terminal mule district != dominant account district != dominant flow district, increase dispersion across adjacent corridors (0.22 - 0.35) and long-tail mass (0.15 - 0.25).",
+      "consensus_scaling": "Consensus multiplier bounded to [1.0, 1.4] rather than V6.2's overpowered [1.0, 2.2]."
+    },
+    "anti_shortcut_design_targets": {
+      "terminal_mule_target_match_pct": {
+        "design_range": "32.0% - 44.0%",
+        "hard_ceiling": "<= 48.0%"
+      },
+      "dominant_account_target_match_pct": {
+        "design_range": "38.0% - 50.0%",
+        "hard_ceiling": "<= 55.0%"
+      },
+      "nearest_origin_target_rate_pct": {
+        "design_range": "8.0% - 18.0%",
+        "hard_ceiling": "<= 22.0%"
+      },
+      "preferred_district_top1_accuracy": "50.0% - 60.0% (hard gate >= 45.0%)",
+      "preferred_cross_district_top1_accuracy": "40.0% - 50.0% (hard gate >= 30.0%)"
+    }
+  },
+  "stage_2_cluster_selection_redesign": {
+    "objective": "Derive P(cashout_cluster | realized_district, archetype, observables) within realized district with primary portfolio rotation and anti-mode-collapse controls",
+    "district_local_functional_role_system": {
+      "roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "TRANSPORT_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "LOCAL_BRANCH_NETWORK",
+        "MIXED_RETAIL_CORRIDOR",
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_portfolio_rotation": "Within each district, primary cluster eligibility rotates across available role-compatible clusters using case modulo hashing. No single commercial or retail cluster is perpetually the primary option.",
+      "district_size_normalization": "For districts with limited cluster counts (e.g. NORTH_EAST with 1 cluster, NEW_DELHI with 3 clusters), role bonuses are normalized against cluster inventory to prevent per-cluster case accumulation."
+    },
+    "sub_prototype_portfolio_mapping": {
+      "total_sub_prototypes": 54,
+      "role_mapping_policy": "Each sub-prototype maps to 2-3 functional roles. Cluster selection chooses from rotated local portfolios.",
+      "minimum_effective_portfolio_size": 3,
+      "intra_district_distribution": {
+        "primary_candidates_share": "0.38 - 0.48",
+        "secondary_candidates_share": "0.30 - 0.40",
+        "long_tail_local_share": "0.18 - 0.28"
+      }
+    },
+    "fraud_cluster_decoupling": {
+      "rule": "Strictly NO fraud-specific cluster ID mapping. Fraud types map exclusively to functional role preferences (Retail, ATM, Branch) distributed across all 11 districts.",
+      "marketplace_fraud_distribution": "Marketplace fraud role weight is smoothed across MIXED_RETAIL_CORRIDOR, SECONDARY_COMMERCIAL_CORRIDOR, and LOCAL_BRANCH_NETWORK, dispersing across 25+ clusters and strictly preventing Seelampur from exceeding 15.0%."
+    },
+    "global_popularity_and_history_saturation": {
+      "global_popularity_weight_cap": 0.06,
+      "saturation_function": "log1p(prior_cluster_events) normalized to [0.0, 0.06] bound",
+      "historical_prior_bounds": {
+        "floor": 0.0,
+        "ceiling": 0.06
+      }
+    }
+  },
+  "conditional_entropy_and_diversity_targets": {
+    "cluster_diversity_gates": {
+      "max_single_cluster_share": "<= 5.0% (target design: 3.2% - 4.5%)",
+      "max_fraud_cluster_concentration": "<= 15.0% (target design: 9.0% - 13.0%)",
+      "max_archetype_cluster_concentration": "<= 20.0% (target design: 12.0% - 17.0%)"
+    },
+    "conditional_concentration_targets": {
+      "recurring_signature_dominant_cluster_share": "35.0% - 50.0% (target design: 38.0% - 45.0%)",
+      "recurring_signature_top3_concentration": "70.0% - 85.0% (target design: 73.0% - 80.0%)"
+    },
+    "entropy_monitoring": [
+      "H(cluster) >= 5.5 bits (global diversity)",
+      "H(cluster | recurring_signature) in [2.0, 3.2] bits (meaningful conditional focus without mode collapse)",
+      "H(cluster | fraud_type) >= 4.8 bits (strong multi-cluster fraud dispersal)",
+      "H(district) >= 3.3 bits (balanced district distribution)",
+      "H(district | route_consensus) < H(district) (verifiable predictive information without determinism)"
+    ]
+  },
+  "anti_gaming_rules": {
+    "rule_1": "No post-generation cluster quota enforcement or row deletion.",
+    "rule_2": "No target reassignment after seeing validation metrics.",
+    "rule_3": "No benchmark-driven rejection sampling.",
+    "rule_4": "All distributions must arise organically from the frozen probabilistic mathematical formulation."
+  }
+}

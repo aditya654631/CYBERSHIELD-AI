@@ -1,0 +1,139 @@
+{
+  "document_type": "FAILURE_ANALYSIS_REPORT",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4M",
+  "target_version": "v6.2",
+  "seed": 38184,
+  "consumed": true,
+  "commit_baseline": "c594b07bc8951876fd171e39109b9e348dda47a8",
+  "dataset_sha256": "5fd8bf18efd18f52cfcc0b8fa6870415cc3f092c0133e8d1b8f11e3522558235",
+  "summary_verdict": "V6.2 SEED 38184 FAILS — DO NOT GENERATE 38185",
+  "evaluation_classifications": {
+    "LEARNABILITY": "PASS",
+    "CONDITIONAL_CLUSTER_STRUCTURE": "PASS",
+    "DISTRICT_SIGNAL": "OVERPOWERED",
+    "DIRECT_GEOGRAPHY_SHORTCUT": "FAIL",
+    "GLOBAL_CLUSTER_DIVERSITY": "FAIL",
+    "FRAUD_CLUSTER_DIVERSITY": "FAIL",
+    "ANTI_LEAKAGE": "PASS",
+    "REPRODUCIBILITY": "PASS"
+  },
+  "verified_metrics": {
+    "signature_recurrence_pct": 96.99,
+    "neighbor_top1_pct": 18.76,
+    "neighbor_top3_pct": 45.11,
+    "district_top1_pct": 66.71,
+    "district_top2_pct": 81.51,
+    "district_top3_pct": 87.16,
+    "cross_district_top1_pct": 62.75,
+    "local_district_top1_pct": 76.29,
+    "cross_district_target_rate_pct": 69.31,
+    "recurring_dominant_cluster_pct": 38.29,
+    "recurring_top3_concentration_pct": 74.66,
+    "nearest_origin_pct": 7.83,
+    "terminal_mule_district_match_pct": 63.53,
+    "dominant_account_district_match_pct": 64.32,
+    "route_consensus_target_match_pct": 66.48,
+    "max_single_cluster_share_pct": 7.27,
+    "max_single_cluster_details": {
+      "cluster_id": 7,
+      "name": "Connaught Place, Delhi",
+      "district": "NEW_DELHI",
+      "count": 1091,
+      "share_pct": 7.27
+    },
+    "worst_fraud_cluster_concentration_pct": 26.07,
+    "worst_fraud_details": {
+      "fraud_type": "marketplace fraud",
+      "cluster_id": 66,
+      "cluster_name": "Seelampur, Delhi",
+      "count": 443,
+      "total_fraud_cases": 1699,
+      "concentration_pct": 26.07
+    },
+    "worst_archetype_cluster_concentration_pct": 15.38,
+    "worst_archetype_details": {
+      "archetype": "NIGHTTIME_ATM_CASHOUT",
+      "cluster_id": 66,
+      "cluster_name": "Seelampur, Delhi",
+      "concentration_pct": 15.38
+    }
+  },
+  "gate_comparison": {
+    "signature_recurrence": {
+      "measured": 96.99,
+      "gate": ">= 35.0%",
+      "status": "PASS"
+    },
+    "neighbor_top1": {
+      "measured": 18.76,
+      "gate": ">= 8.0%",
+      "status": "PASS"
+    },
+    "neighbor_top3": {
+      "measured": 45.11,
+      "gate": ">= 22.0%",
+      "status": "PASS"
+    },
+    "recurring_dominant_cluster": {
+      "measured": 38.29,
+      "target_range": "35.0% - 50.0%",
+      "status": "PASS"
+    },
+    "recurring_top3_concentration": {
+      "measured": 74.66,
+      "target_range": "70.0% - 85.0%",
+      "status": "PASS"
+    },
+    "district_top1": {
+      "measured": 66.71,
+      "gate": ">= 45.0%",
+      "status": "PASS"
+    },
+    "cross_district_top1": {
+      "measured": 62.75,
+      "gate": ">= 30.0%",
+      "status": "PASS"
+    },
+    "nearest_origin": {
+      "measured": 7.83,
+      "gate": "<= 22.0%",
+      "status": "PASS"
+    },
+    "terminal_mule_match": {
+      "measured": 63.53,
+      "gate": "<= 48.0%",
+      "status": "FAIL"
+    },
+    "dominant_account_match": {
+      "measured": 64.32,
+      "gate": "<= 55.0%",
+      "status": "FAIL"
+    },
+    "max_single_cluster_share": {
+      "measured": 7.27,
+      "gate": "<= 5.0%",
+      "status": "FAIL"
+    },
+    "max_fraud_cluster_concentration": {
+      "measured": 26.07,
+      "gate": "<= 15.0%",
+      "status": "FAIL"
+    },
+    "max_archetype_cluster_concentration": {
+      "measured": 15.38,
+      "gate": "<= 20.0%",
+      "status": "PASS"
+    }
+  },
+  "root_cause_analysis": {
+    "diagnosis": "V6.2 successfully unlocked high learnability, recurring signature purity, and cross-district prediction, but overcorrected in two key areas: (1) Stage-1 evidence multipliers for dominant account and terminal mule districts were too large (amplified by consensus score), making the target district match terminal mule (63.53% > 48%) and dominant account (64.32% > 55%) too frequently; (2) In Stage 2, districts with very few clusters (e.g. NORTH_EAST with only 1 cluster, NEW_DELHI with 3) caused mode collapse whenever archetypes or fraud types selected role preferences present in those small districts.",
+    "remedy": "V6.3 will introduce a strict Stage-1 evidence contribution budget (capping any single channel at 30-35% of deterministic weight), reduce standalone multipliers for terminal and dominant districts, implement primary portfolio rotation across role-compatible clusters within each district, and normalize role selection against district cluster inventory."
+  },
+  "policy_conclusions": {
+    "seed_38184_policy": "Seed 38184 is consumed. It must never be reused for parameter tuning or benchmark re-runs.",
+    "seed_38185_policy": "Seed 38185 remains untouched and ungenerated.",
+    "seed_38186_policy": "Seed 38186 remains untouched and ungenerated.",
+    "v6_3_seed_family": "Advance to independent seed family: 39184 (implementation), 39185 (validation), 39186 (holdout)."
+  }
+}
