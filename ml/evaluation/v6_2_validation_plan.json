@@ -1,0 +1,145 @@
+{
+  "version": "v6.2",
+  "document_type": "VALIDATION_PLAN",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4K",
+  "status": "FROZEN_PLAN",
+  "validation_sequence": {
+    "step_1_primary_implementation": {
+      "seed": 38184,
+      "policy": "ONE-SHOT implementation validation seed. If it fails any major gate, DO NOT iteratively tune generator on 38184. Stop, report failure, and require redesign.",
+      "status": "PENDING_IMPLEMENTATION_PHASE"
+    },
+    "step_2_independent_generator_validation": {
+      "seed": 38185,
+      "policy": "Executed ONLY if seed 38184 passes all major hard gates without code modifications.",
+      "status": "LOCKED_UNTIL_38184_PASSES"
+    },
+    "step_3_final_external_holdout": {
+      "seed": 38186,
+      "policy": "Strictly reserved for final post-training evaluation. Never used for feature selection, hyperparameter tuning, or candidate generation.",
+      "status": "LOCKED_UNTIL_MODEL_FREEZE"
+    }
+  },
+  "verification_suite": {
+    "check_1_data_quality": {
+      "case_count": 15000,
+      "duplicate_case_ids": 0,
+      "missing_targets": 0,
+      "nan_inf_numerics": 0,
+      "unknown_districts": 0,
+      "unknown_clusters": 0,
+      "all_11_districts_represented": true,
+      "all_60_clusters_represented": true
+    },
+    "check_2_geographic_and_probability_invariants": {
+      "district_cluster_mismatches": 0,
+      "internal_float64_district_sum_error": "<= 1e-9",
+      "internal_float64_cluster_sum_error": "<= 1e-9",
+      "invalid_district_prob_rows": 0,
+      "invalid_cluster_prob_rows": 0,
+      "serialized_4dec_rounding_diagnostic": "<= 1e-3"
+    },
+    "check_3_observable_signature_recurrence": {
+      "definition": "12-tuple observable signature across fraud_type, districts, channels, amounts, hops, mules, delay, night ratio, banks, geo consistency",
+      "hard_gate": ">= 35.0%",
+      "preferred_headroom": ">= 45.0%"
+    },
+    "check_4_nearest_neighbor_learnability": {
+      "feature_scope": "29 standardized pre-event observables only; zero target/future/latent data",
+      "train_pool_size": 10500,
+      "val_query_size": 2250,
+      "neighbor_1nn_top1_acc": ">= 8.0% (preferred >= 10.0%)",
+      "neighbor_10nn_top3_acc": ">= 22.0% (preferred >= 25.0%)"
+    },
+    "check_5_district_predictability_diagnostic": {
+      "classifier": "Temporary XGBoost diagnostic fit strictly on TRAIN (10,500) and evaluated on VALIDATION (2,250)",
+      "target": "realized_cashout_district",
+      "overall_district_top1": ">= 45.0% (preferred >= 48.0%)",
+      "cross_district_top1": ">= 30.0% (preferred >= 37.0%)",
+      "district_top2_recall": ">= 68.0% (diagnostic preference)",
+      "district_top3_recall": ">= 80.0% (diagnostic preference)"
+    },
+    "check_6_recurring_signature_cluster_structure": {
+      "dominant_cluster_share": "35.0% - 50.0% (preferred 38.0% - 45.0%)",
+      "top3_concentration": "70.0% - 85.0% (preferred 73.0% - 80.0%)"
+    },
+    "check_7_anti_triviality_bounds": {
+      "nearest_origin_target_rate": "<= 22.0%",
+      "terminal_mule_district_match": "<= 48.0%",
+      "dominant_account_district_match": "<= 55.0%",
+      "maximum_single_cluster_share": "<= 5.0%",
+      "maximum_fraud_cluster_concentration": "<= 15.0%",
+      "maximum_archetype_cluster_concentration": "<= 20.0%",
+      "target_deterministic": false
+    },
+    "check_8_leakage_and_latent_safety": {
+      "target_derived_features": 0,
+      "future_derived_features": 0,
+      "latent_generation_fields_in_model_allowlist": 0,
+      "direct_family_leakage": 0
+    },
+    "check_9_coverage_and_entropy": {
+      "cluster_entropy_bits": ">= 5.5 bits",
+      "district_entropy_bits": ">= 3.3 bits",
+      "conditional_cluster_entropy": "meaningfully lower than global entropy while remaining strictly positive"
+    },
+    "check_10_deterministic_reproducibility": {
+      "method": "Generate seed 38184 twice in temporary directory",
+      "criteria": "Byte-for-byte SHA256 match on compressed csv.gz; identical logical rows, manifest, and diagnostic outputs"
+    }
+  },
+  "signal_budget_taxonomy": {
+    "strong_observable": [
+      { "name": "dominant_account_district", "stage": "DISTRICT" },
+      { "name": "terminal_mule_district", "stage": "DISTRICT" },
+      { "name": "majority_downstream_district", "stage": "DISTRICT" },
+      { "name": "district_evidence_consensus_score", "stage": "DISTRICT" },
+      { "name": "downstream_route_consistency", "stage": "DISTRICT" },
+      { "name": "downstream_direction_strength", "stage": "DISTRICT" },
+      { "name": "functional_cluster_role", "stage": "CLUSTER" },
+      { "name": "victim_coordinates", "stage": "BOTH" }
+    ],
+    "moderate_observable": [
+      { "name": "fraud_type", "stage": "BOTH" },
+      { "name": "payment_channel", "stage": "CLUSTER" },
+      { "name": "reporting_delay_minutes", "stage": "BOTH" },
+      { "name": "transaction_hop_count", "stage": "BOTH" },
+      { "name": "mule_account_count", "stage": "BOTH" },
+      { "name": "distinct_bank_count", "stage": "BOTH" },
+      { "name": "money_flow_net_displacement_km", "stage": "DISTRICT" },
+      { "name": "money_flow_total_path_km", "stage": "DISTRICT" },
+      { "name": "night_activity_ratio", "stage": "CLUSTER" },
+      { "name": "commercial_hub_proximity_km", "stage": "CLUSTER" }
+    ],
+    "weak_observable": [
+      { "name": "amount_bucket", "stage": "BOTH" },
+      { "name": "weekend_flag", "stage": "BOTH" },
+      { "name": "victim_bank_group", "stage": "BOTH" },
+      { "name": "historical_district_crime_density", "stage": "DISTRICT" }
+    ],
+    "latent_causal_generation_only": [
+      { "name": "latent_archetype", "stage": "BOTH" },
+      { "name": "sub_prototype_id", "stage": "BOTH" },
+      { "name": "syndicate_family_id", "stage": "CLUSTER" },
+      { "name": "mule_family_id", "stage": "CLUSTER" }
+    ],
+    "historical_observable": [
+      { "name": "recent_hop_district", "stage": "DISTRICT" },
+      { "name": "recent_two_hop_consistency", "stage": "DISTRICT" },
+      { "name": "prior_chronological_corridor_recurrence", "stage": "BOTH" }
+    ],
+    "noise_injection": [
+      { "name": "stochastic_long_tail_district_mass", "stage": "DISTRICT", "magnitude": "10% - 20%" },
+      { "name": "stochastic_long_tail_cluster_mass", "stage": "CLUSTER", "magnitude": "10% - 20%" }
+    ],
+    "target_only": [
+      { "name": "realized_cashout_district", "stage": "TARGET" },
+      { "name": "realized_cashout_cluster_id", "stage": "TARGET" },
+      { "name": "realized_cashout_cluster_name", "stage": "TARGET" },
+      { "name": "realized_cashout_lat", "stage": "TARGET" },
+      { "name": "realized_cashout_lon", "stage": "TARGET" },
+      { "name": "realized_cashout_minutes", "stage": "TARGET" }
+    ]
+  }
+}

@@ -1,0 +1,103 @@
+{
+  "version": "v6.2",
+  "document_type": "DATASET_SCHEMA_SPECIFICATION",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4K",
+  "description": "Column definitions, statistical datatypes, and field access boundaries for Delhi V6.2 synthetic cybercrime dataset",
+  "field_categories": {
+    "IDENTIFIER": [
+      {
+        "name": "case_id",
+        "type": "string",
+        "description": "Unique complaint reference ID (e.g., CMP-V62-000001)",
+        "model_input": false
+      }
+    ],
+    "PRE_EVENT_FEATURE": [
+      { "name": "amount", "type": "float32", "description": "Defrauded amount in INR", "model_input": true },
+      { "name": "log_amount", "type": "float32", "description": "Log-transformed fraud amount log1p(amount)", "model_input": true },
+      { "name": "amount_bucket", "type": "string", "description": "Binned amount: micro, low, medium, high, severe", "model_input": true },
+      { "name": "fraud_type", "type": "string", "description": "Modus operandi (9 categories)", "model_input": true },
+      { "name": "payment_channel", "type": "string", "description": "Primary channel: upi, imps, neft, rtgs, card_p2p, crypto_p2p", "model_input": true },
+      { "name": "event_timestamp", "type": "string", "description": "Timestamp of fraud initiation", "model_input": true },
+      { "name": "reported_at", "type": "string", "description": "Timestamp when formal complaint was lodged", "model_input": true },
+      { "name": "reporting_delay_minutes", "type": "float32", "description": "Elapsed duration until complaint filing", "model_input": true },
+      { "name": "victim_district", "type": "string", "description": "Victim's revenue district", "model_input": true },
+      { "name": "victim_lat", "type": "float32", "description": "Victim latitude coordinate", "model_input": true },
+      { "name": "victim_lon", "type": "float32", "description": "Victim longitude coordinate", "model_input": true },
+      { "name": "victim_bank_group", "type": "string", "description": "Victim banking entity group", "model_input": true },
+      { "name": "transaction_count", "type": "int32", "description": "Total transfer events in laundering chain", "model_input": true },
+      { "name": "transaction_hop_count", "type": "int32", "description": "Graph hop distance from victim to terminal mule", "model_input": true },
+      { "name": "beneficiary_account_count", "type": "int32", "description": "Number of unique layer-1 beneficiary accounts", "model_input": true },
+      { "name": "mule_account_count", "type": "int32", "description": "Total intermediate and terminal mule accounts", "model_input": true },
+      { "name": "distinct_bank_count", "type": "int32", "description": "Number of distinct banking institutions involved", "model_input": true },
+      { "name": "terminal_mule_district", "type": "string", "description": "Revenue district of terminal mule account branch", "model_input": true },
+      { "name": "account_district_count", "type": "int32", "description": "Number of distinct districts across laundering accounts", "model_input": true },
+      { "name": "dominant_account_district", "type": "string", "description": "District with highest share of accounts in chain", "model_input": true },
+      { "name": "dominant_account_district_share", "type": "float32", "description": "Proportion of accounts belonging to dominant district", "model_input": true },
+      { "name": "beneficiary_geo_consistency", "type": "float32", "description": "Spatial coherence between layer-1 accounts and flow endpoints", "model_input": true },
+      { "name": "terminal_vs_majority_account_distance_km", "type": "float32", "description": "Distance between terminal account and chain centroid", "model_input": true },
+      { "name": "cross_district_transfer_count", "type": "int32", "description": "Number of transfers spanning district boundaries", "model_input": true },
+      { "name": "geographic_dispersion_score", "type": "float32", "description": "Standard geographic dispersion radius of laundering chain", "model_input": true },
+      { "name": "transaction_velocity", "type": "float32", "description": "Transfers executed per hour", "model_input": true },
+      { "name": "transfer_burst_score", "type": "float32", "description": "Transfer concentration in short 15-minute bursts", "model_input": true },
+      { "name": "graph_depth", "type": "int32", "description": "Longest directed branch length in laundering DAG", "model_input": true },
+      { "name": "graph_branching_factor", "type": "float32", "description": "Average out-degree of laundering nodes", "model_input": true },
+      { "name": "night_activity_ratio", "type": "float32", "description": "Proportion of activity between 22:00 and 06:00", "model_input": true },
+      { "name": "weekend_flag", "type": "int32", "description": "Binary flag for weekend activity", "model_input": true },
+      { "name": "money_flow_net_displacement_km", "type": "float32", "description": "Net straight-line distance from victim origin to terminal mule branch", "model_input": true },
+      { "name": "money_flow_total_path_km", "type": "float32", "description": "Cumulative geographic distance across all hops", "model_input": true },
+      { "name": "money_flow_backtrack_ratio", "type": "float32", "description": "Ratio of net displacement to total path length", "model_input": true },
+      { "name": "dominant_flow_district", "type": "string", "description": "District with highest traversal frequency in money flow", "model_input": true },
+      { "name": "terminal_flow_alignment_score", "type": "float32", "description": "Directional cosine alignment of money flow vector towards terminal district", "model_input": true },
+      { "name": "downstream_geo_concentration", "type": "float32", "description": "Herfindahl concentration index of downstream accounts", "model_input": true },
+      { "name": "cross_district_hop_ratio", "type": "float32", "description": "Ratio of cross-district hops to total hops", "model_input": true },
+      { "name": "terminal_displacement_from_origin_km", "type": "float32", "description": "Centroid distance of terminal mule branch from victim origin", "model_input": true },
+      { "name": "downstream_route_consistency", "type": "float32", "description": "Spatial continuity index across successive mule account transfers", "model_input": true },
+      { "name": "downstream_direction_strength", "type": "float32", "description": "Magnitude of directional vector towards downstream cash-out corridor", "model_input": true },
+      { "name": "terminal_path_share", "type": "float32", "description": "Fraction of overall chain traversal occurring in final two hops", "model_input": true },
+      { "name": "majority_downstream_district", "type": "string", "description": "Modal district among the downstream half of laundering hops", "model_input": true },
+      { "name": "majority_downstream_share", "type": "float32", "description": "Proportion of downstream transfers residing in majority downstream district", "model_input": true },
+      { "name": "recent_hop_district", "type": "string", "description": "District associated with the penultimate account in laundering sequence", "model_input": true },
+      { "name": "recent_two_hop_consistency", "type": "float32", "description": "Spatial proximity of the final two accounts in laundering chain", "model_input": true },
+      { "name": "route_entropy", "type": "float32", "description": "Shannon entropy of district transitions in transfer chain", "model_input": true },
+      { "name": "route_turnaround_count", "type": "int32", "description": "Number of reversals or backtracking events across hops", "model_input": true },
+      { "name": "terminal_alignment_with_flow", "type": "float32", "description": "Cosine agreement between net flow trajectory and terminal account", "model_input": true },
+      { "name": "district_evidence_consensus_score", "type": "float32", "description": "Composite consensus index between dominant account, terminal mule, and flow direction", "model_input": true }
+    ],
+    "CONTEXT_FEATURE": [
+      { "name": "historical_district_crime_density", "type": "float32", "description": "Prior 90d normalized cybercrime density for victim district", "model_input": true },
+      { "name": "commercial_hub_proximity_km", "type": "float32", "description": "Distance from victim to nearest major commercial cluster", "model_input": true }
+    ],
+    "LATENT_GENERATION_ONLY": [
+      { "name": "latent_archetype", "type": "string", "description": "Primary behavioral archetype (9 categories)", "model_input": false, "leakage_risk": "CRITICAL_NEVER_ENTER_MODEL" },
+      { "name": "sub_prototype_id", "type": "string", "description": "Operational sub-prototype (1..54)", "model_input": false, "leakage_risk": "CRITICAL_NEVER_ENTER_MODEL" },
+      { "name": "syndicate_family_id", "type": "string", "description": "Synthetic syndicate cohort ID", "model_input": false, "leakage_risk": "STRICTLY_FORBIDDEN_IN_MODEL" },
+      { "name": "mule_family_id", "type": "string", "description": "Synthetic mule ring cohort ID", "model_input": false, "leakage_risk": "STRICTLY_FORBIDDEN_IN_MODEL" },
+      { "name": "generator_district_distribution", "type": "string", "description": "Internal multinomial probability vector over 11 districts", "model_input": false, "leakage_risk": "GENERATOR_STATE_ONLY" },
+      { "name": "generator_cluster_distribution", "type": "string", "description": "Internal multinomial probability vector over 60 clusters", "model_input": false, "leakage_risk": "GENERATOR_STATE_ONLY" }
+    ],
+    "TARGET": [
+      { "name": "realized_cashout_district", "type": "string", "description": "Revenue district where cash-out materialized (11 districts)", "model_input": false },
+      { "name": "realized_cashout_cluster_id", "type": "int32", "description": "Operational cluster ID of cash-out event (1..60)", "model_input": false },
+      { "name": "realized_cashout_cluster_name", "type": "string", "description": "Operational name of cash-out location", "model_input": false },
+      { "name": "realized_cashout_lat", "type": "float32", "description": "Latitude coordinate of cash-out event", "model_input": false },
+      { "name": "realized_cashout_lon", "type": "float32", "description": "Longitude coordinate of cash-out event", "model_input": false },
+      { "name": "realized_cashout_minutes", "type": "float32", "description": "Elapsed duration in minutes from fraud event to cash-out", "model_input": false }
+    ],
+    "SPLIT_METADATA": [
+      { "name": "split", "type": "string", "description": "Chronological partition: train, validation, test", "model_input": false }
+    ],
+    "GENERATION_METADATA": [
+      { "name": "generation_seed", "type": "int32", "description": "RNG seed used for generation (e.g. 38184)", "model_input": false },
+      { "name": "generator_version", "type": "string", "description": "Generator version tag (v6.2)", "model_input": false }
+    ]
+  },
+  "constraints": {
+    "latent_generation_only_forbidden_in_model": true,
+    "target_columns_forbidden_in_inference_features": true,
+    "geographic_consistency_rule": "realized_cashout_district MUST match the canonical district of realized_cashout_cluster_id for 100% of cases",
+    "probability_normalization_tolerance": 1e-9,
+    "total_columns": 64
+  }
+}

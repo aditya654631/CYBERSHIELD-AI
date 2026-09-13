@@ -1,0 +1,92 @@
+{
+  "version": "v6.2",
+  "document_type": "DATASET_LEARNABILITY_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4K",
+  "status": "FROZEN_BEFORE_GENERATION",
+  "purpose": "Strict mathematical learnability criteria that the V6.2 primary dataset (seed 38184) must satisfy before generator validation passes.",
+  "frozen_mandatory_gates": {
+    "observable_signature_recurrence": {
+      "metric": "percentage_of_cases_in_signatures_repeating_ge_3_times",
+      "frozen_minimum": ">= 35.0%",
+      "preferred_headroom": ">= 45.0%",
+      "v6_1_achieved": "97.13%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "recurring_signature_dominant_cluster_share": {
+      "metric": "mean_dominant_cluster_percentage_within_recurring_signatures",
+      "frozen_target_range": "35.0% - 50.0%",
+      "preferred_headroom": "38.0% - 45.0%",
+      "v6_1_achieved": "27.70%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "recurring_signature_top3_concentration": {
+      "metric": "mean_top3_cluster_concentration_within_recurring_signatures",
+      "frozen_target_range": "70.0% - 85.0%",
+      "preferred_headroom": "73.0% - 80.0%",
+      "v6_1_achieved": "61.80%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "neighbor_1nn_top1_cluster_purity": {
+      "metric": "1_nearest_neighbor_cluster_agreement_on_validation_from_train_pct",
+      "frozen_minimum": ">= 8.0%",
+      "preferred_headroom": ">= 10.0%",
+      "v6_1_achieved": "8.67%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "neighbor_10nn_top3_cluster_purity": {
+      "metric": "10_nearest_neighbors_top3_cluster_agreement_on_validation_pct",
+      "frozen_minimum": ">= 22.0%",
+      "preferred_headroom": ">= 25.0%",
+      "v6_1_achieved": "24.40%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "district_predictability_top1": {
+      "metric": "pre_event_observable_district_top1_accuracy_pct",
+      "frozen_minimum": ">= 45.0%",
+      "preferred_headroom": ">= 48.0%",
+      "v6_1_achieved": "40.71%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "cross_district_predictability_top1": {
+      "metric": "pre_event_observable_cross_district_top1_accuracy_pct",
+      "frozen_minimum": ">= 30.0%",
+      "preferred_headroom": ">= 37.0%",
+      "v6_1_achieved": "30.54%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "district_cluster_mismatches": {
+      "metric": "count_of_cases_where_cluster_district_ne_realized_district",
+      "frozen_limit": "== 0",
+      "v6_1_achieved": 0,
+      "status": "FROZEN_UNCHANGED"
+    },
+    "internal_probability_normalization": {
+      "metric": "maximum_floating_point_sum_error_on_internal_probabilities",
+      "frozen_tolerance": "<= 1e-9",
+      "v6_1_achieved": "6.66e-16 (district) / 2.22e-16 (cluster)",
+      "status": "FROZEN_UNCHANGED"
+    }
+  },
+  "preferred_development_headroom_diagnostics": {
+    "district_predictability_top2": {
+      "metric": "pre_event_observable_district_top2_recall_pct",
+      "preferred_headroom": ">= 68.0%",
+      "v6_1_achieved": "58.04%"
+    },
+    "district_predictability_top3": {
+      "metric": "pre_event_observable_district_top3_recall_pct",
+      "preferred_headroom": ">= 80.0%",
+      "v6_1_achieved": "70.04%"
+    },
+    "local_district_top1": {
+      "metric": "pre_event_observable_local_district_top1_accuracy_pct",
+      "diagnostic_expectation": ">= 65.0%",
+      "v6_1_achieved": "64.96%"
+    }
+  },
+  "contract_interpretation_policy": {
+    "mandatory_vs_preferred": "Only frozen mandatory gates determine PASS/FAIL. Preferred headroom targets serve as development diagnostics ensuring robust margin.",
+    "gate_relaxation_prohibition": "No minimum threshold may be lowered after viewing seed 38184 results."
+  }
+}

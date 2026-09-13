@@ -1,0 +1,64 @@
+{
+  "version": "v6.2",
+  "document_type": "DATASET_ANTI_TRIVIALITY_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4K",
+  "status": "FROZEN_BEFORE_GENERATION",
+  "purpose": "Strict anti-triviality, anti-mode-collapse, and shortcut prevention boundaries for the V6.2 dataset.",
+  "frozen_mandatory_bounds": {
+    "nearest_origin_target_rate": {
+      "metric": "percentage_of_cases_where_cashout_cluster_equals_nearest_origin_cluster",
+      "hard_ceiling": "<= 22.0%",
+      "preferred_design_range": "8.0% - 18.0%",
+      "v6_1_achieved": "6.71%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "terminal_mule_district_match_rate": {
+      "metric": "percentage_of_cases_where_realized_district_equals_terminal_mule_district",
+      "hard_ceiling": "<= 48.0%",
+      "preferred_design_range": "28.0% - 42.0%",
+      "v6_1_achieved": "39.23%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "dominant_account_district_match_rate": {
+      "metric": "percentage_of_cases_where_realized_district_equals_dominant_account_district",
+      "hard_ceiling": "<= 55.0%",
+      "preferred_design_range": "32.0% - 48.0%",
+      "v6_1_achieved": "40.72%",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "maximum_single_cluster_share": {
+      "metric": "maximum_proportion_of_total_cases_assigned_to_any_one_cluster",
+      "hard_ceiling": "<= 5.0%",
+      "v6_1_achieved": "7.28% (FAIL)",
+      "v6_2_mechanism": "Eliminated global commercial/transit hub lists in favor of district-local role portfolios; Cluster 7 Connaught Place localized to NEW_DELHI only.",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "maximum_fraud_cluster_concentration": {
+      "metric": "maximum_proportion_of_cases_within_any_single_fraud_type_assigned_to_one_cluster",
+      "hard_ceiling": "<= 15.0%",
+      "v6_1_achieved": "19.11% (FAIL)",
+      "v6_2_mechanism": "Decoupled fraud types from specific cluster IDs; fraud types map to functional role preferences dispersed across all 11 districts.",
+      "status": "FROZEN_UNCHANGED"
+    },
+    "maximum_archetype_cluster_concentration": {
+      "metric": "maximum_proportion_of_cases_within_any_single_archetype_assigned_to_one_cluster",
+      "hard_ceiling": "<= 20.0%",
+      "v6_1_achieved": "16.16%",
+      "status": "FROZEN_UNCHANGED"
+    }
+  },
+  "determinism_prohibition": {
+    "rule": "No deterministic mappings allowed.",
+    "conditions": [
+      "No single cluster probability may equal 1.0",
+      "No single district probability may equal 1.0",
+      "Every candidate cluster in realized district retains positive probability support"
+    ]
+  },
+  "anti_gaming_rules": {
+    "no_post_generation_quotas": "The generator must NOT enforce hard artificial caps by pruning or reassigning rows post-generation.",
+    "no_benchmark_rejection_sampling": "The generator must NOT reject generated cases based on whether they improve learnability or anti-triviality metrics.",
+    "organic_probability_generation": "All pass/fail metrics must be the natural outcome of the generative probabilistic distribution."
+  }
+}

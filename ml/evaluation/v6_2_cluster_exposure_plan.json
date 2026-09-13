@@ -1,0 +1,1007 @@
+{
+  "version": "v6.2",
+  "document_type": "CLUSTER_EXPOSURE_PLAN",
+  "project": "CyberShield AI \u2014 SIH 26184",
+  "phase": "A.4K",
+  "status": "FROZEN_BEFORE_GENERATION",
+  "summary": {
+    "total_clusters_audited": 60,
+    "balanced_count": 60,
+    "underexposed_count": 0,
+    "overexposed_count": 0,
+    "universal_global_hub_allowed": false,
+    "global_popularity_cap": 0.12
+  },
+  "cluster_exposure_audit": [
+    {
+      "cluster_id": 7,
+      "cluster_name": "Connaught Place, Delhi",
+      "district": "NEW_DELHI",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 8,
+      "cluster_name": "Karol Bagh, Delhi",
+      "district": "CENTRAL",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 9,
+      "cluster_name": "Paharganj, Delhi",
+      "district": "CENTRAL",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 10,
+      "cluster_name": "Patel Nagar, Delhi",
+      "district": "CENTRAL",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 11,
+      "cluster_name": "Rajendra Place, Delhi",
+      "district": "CENTRAL",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 12,
+      "cluster_name": "Mandi House, Delhi",
+      "district": "NEW_DELHI",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 13,
+      "cluster_name": "Chanakyapuri, Delhi",
+      "district": "NEW_DELHI",
+      "functional_roles": [
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 14,
+      "cluster_name": "Hauz Khas, Delhi",
+      "district": "SOUTH",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 15,
+      "cluster_name": "Green Park, Delhi",
+      "district": "SOUTH",
+      "functional_roles": [
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 16,
+      "cluster_name": "Saket District Centre, Delhi",
+      "district": "SOUTH",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 17,
+      "cluster_name": "Greater Kailash, Delhi",
+      "district": "SOUTH",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 18,
+      "cluster_name": "Malviya Nagar, Delhi",
+      "district": "SOUTH",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 19,
+      "cluster_name": "Vasant Kunj, Delhi",
+      "district": "SOUTH",
+      "functional_roles": [
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 20,
+      "cluster_name": "Defence Colony, Delhi",
+      "district": "SOUTH",
+      "functional_roles": [
+        "LOCAL_BRANCH_NETWORK"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 21,
+      "cluster_name": "Mehrauli, Delhi",
+      "district": "SOUTH",
+      "functional_roles": [
+        "LOCAL_BRANCH_NETWORK"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 22,
+      "cluster_name": "Nehru Place, Delhi",
+      "district": "SOUTH_EAST",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 23,
+      "cluster_name": "Kalkaji, Delhi",
+      "district": "SOUTH_EAST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 24,
+      "cluster_name": "Lajpat Nagar, Delhi",
+      "district": "SOUTH_EAST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 25,
+      "cluster_name": "Okhla Industrial Area, Delhi",
+      "district": "SOUTH_EAST",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 26,
+      "cluster_name": "CR Park, Delhi",
+      "district": "SOUTH_EAST",
+      "functional_roles": [
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 27,
+      "cluster_name": "Govindpuri, Delhi",
+      "district": "SOUTH_EAST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 28,
+      "cluster_name": "Sarita Vihar, Delhi",
+      "district": "SOUTH_EAST",
+      "functional_roles": [
+        "LOCAL_BRANCH_NETWORK"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 29,
+      "cluster_name": "Rajouri Garden, Delhi",
+      "district": "WEST",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 30,
+      "cluster_name": "Janakpuri, Delhi",
+      "district": "WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 31,
+      "cluster_name": "Tilak Nagar, Delhi",
+      "district": "WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 32,
+      "cluster_name": "Punjabi Bagh, Delhi",
+      "district": "WEST",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 33,
+      "cluster_name": "Paschim Vihar, Delhi",
+      "district": "WEST",
+      "functional_roles": [
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 34,
+      "cluster_name": "Uttam Nagar, Delhi",
+      "district": "WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 35,
+      "cluster_name": "Vikaspuri, Delhi",
+      "district": "WEST",
+      "functional_roles": [
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 36,
+      "cluster_name": "Kirti Nagar, Delhi",
+      "district": "WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "LOCAL_BRANCH_NETWORK"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 37,
+      "cluster_name": "Dwarka Sector 6, Delhi",
+      "district": "SOUTH_WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 38,
+      "cluster_name": "Dwarka Sector 10, Delhi",
+      "district": "SOUTH_WEST",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 39,
+      "cluster_name": "Dwarka Sector 12, Delhi",
+      "district": "SOUTH_WEST",
+      "functional_roles": [
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 40,
+      "cluster_name": "Dwarka Sector 21, Delhi",
+      "district": "SOUTH_WEST",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 41,
+      "cluster_name": "Palam, Delhi",
+      "district": "SOUTH_WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 42,
+      "cluster_name": "Mahipalpur, Delhi",
+      "district": "SOUTH_WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 43,
+      "cluster_name": "Civil Lines, Delhi",
+      "district": "NORTH",
+      "functional_roles": [
+        "LOCAL_BRANCH_NETWORK"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 44,
+      "cluster_name": "Model Town, Delhi",
+      "district": "NORTH",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 45,
+      "cluster_name": "Mukherjee Nagar, Delhi",
+      "district": "NORTH",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 46,
+      "cluster_name": "Kamla Nagar, Delhi",
+      "district": "NORTH",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 47,
+      "cluster_name": "Kashmere Gate, Delhi",
+      "district": "NORTH",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 48,
+      "cluster_name": "Burari, Delhi",
+      "district": "NORTH",
+      "functional_roles": [
+        "LOCAL_BRANCH_NETWORK"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 49,
+      "cluster_name": "Rohini Sector 3, Delhi",
+      "district": "NORTH_WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 50,
+      "cluster_name": "Rohini Sector 10, Delhi",
+      "district": "NORTH_WEST",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 51,
+      "cluster_name": "Rohini Sector 15, Delhi",
+      "district": "NORTH_WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 52,
+      "cluster_name": "Pitampura, Delhi",
+      "district": "NORTH_WEST",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 53,
+      "cluster_name": "Shalimar Bagh, Delhi",
+      "district": "NORTH_WEST",
+      "functional_roles": [
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 54,
+      "cluster_name": "Ashok Vihar, Delhi",
+      "district": "NORTH_WEST",
+      "functional_roles": [
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 55,
+      "cluster_name": "Wazirpur Industrial Area, Delhi",
+      "district": "NORTH_WEST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 56,
+      "cluster_name": "Narela, Delhi",
+      "district": "NORTH_WEST",
+      "functional_roles": [
+        "LOCAL_BRANCH_NETWORK"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 57,
+      "cluster_name": "Laxmi Nagar, Delhi",
+      "district": "EAST",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 58,
+      "cluster_name": "Preet Vihar, Delhi",
+      "district": "EAST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 59,
+      "cluster_name": "Mayur Vihar Phase 1, Delhi",
+      "district": "EAST",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 60,
+      "cluster_name": "Mayur Vihar Phase 2, Delhi",
+      "district": "EAST",
+      "functional_roles": [
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 61,
+      "cluster_name": "Patparganj Industrial Area, Delhi",
+      "district": "EAST",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR",
+        "SECONDARY_COMMERCIAL_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 62,
+      "cluster_name": "Shahdara, Delhi",
+      "district": "SHAHDARA",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 63,
+      "cluster_name": "Dilshad Garden, Delhi",
+      "district": "SHAHDARA",
+      "functional_roles": [
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 64,
+      "cluster_name": "Anand Vihar, Delhi",
+      "district": "SHAHDARA",
+      "functional_roles": [
+        "TRANSPORT_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 65,
+      "cluster_name": "Vivek Vihar, Delhi",
+      "district": "SHAHDARA",
+      "functional_roles": [
+        "MIXED_RETAIL_CORRIDOR"
+      ],
+      "primary_exposure_count": 4,
+      "secondary_exposure_count": 11,
+      "long_tail_exposure_count": 39,
+      "archetype_coverage_count": 4,
+      "sub_prototype_coverage_count": 14,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.5,
+      "exposure_classification": "BALANCED"
+    },
+    {
+      "cluster_id": 66,
+      "cluster_name": "Seelampur, Delhi",
+      "district": "NORTH_EAST",
+      "functional_roles": [
+        "COMMERCIAL_HUB_LOCAL",
+        "HIGH_DENSITY_ATM_CORRIDOR"
+      ],
+      "primary_exposure_count": 8,
+      "secondary_exposure_count": 16,
+      "long_tail_exposure_count": 30,
+      "archetype_coverage_count": 6,
+      "sub_prototype_coverage_count": 22,
+      "planned_global_popularity_weight_cap": 0.12,
+      "expected_marginal_share_pct": 1.92,
+      "exposure_classification": "BALANCED"
+    }
+  ]
+}

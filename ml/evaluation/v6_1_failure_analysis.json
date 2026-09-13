@@ -1,0 +1,133 @@
+{
+  "document_type": "FAILURE_ANALYSIS_REPORT",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4K",
+  "target_version": "v6.1",
+  "seed": 37184,
+  "consumed": true,
+  "commit_baseline": "2763a3a941ee7ef96ab213a8008d9710f35a98ba",
+  "dataset_sha256": "09c92c05cfd5bc5d56786dc37300939b5d18c4b266ee3ac18a209aa4483a4c3a",
+  "summary_verdict": "V6.1 SEED 37184 FAILS — DO NOT GENERATE 37185",
+  "evaluation_classifications": {
+    "GENERATOR_INTEGRITY": "PASS",
+    "BASIC_NEIGHBOR_LEARNABILITY": "PASS",
+    "DISTRICT_LEARNABILITY": "FAIL",
+    "CONDITIONAL_CLUSTER_LEARNABILITY": "FAIL",
+    "GLOBAL_CLUSTER_DIVERSITY": "FAIL",
+    "FRAUD_CLUSTER_DIVERSITY": "FAIL",
+    "ANTI_LEAKAGE": "PASS"
+  },
+  "verified_metrics": {
+    "signature_recurrence_pct": 97.13,
+    "neighbor_top1_pct": 8.67,
+    "neighbor_top3_pct": 24.40,
+    "district_top1_pct": 40.71,
+    "district_top2_pct": 58.04,
+    "district_top3_pct": 70.04,
+    "cross_district_top1_pct": 30.54,
+    "local_district_top1_pct": 64.96,
+    "cross_district_target_rate_pct": 71.07,
+    "recurring_dominant_cluster_pct": 27.70,
+    "recurring_top3_concentration_pct": 61.80,
+    "nearest_origin_pct": 6.71,
+    "terminal_mule_district_match_pct": 39.23,
+    "dominant_account_district_match_pct": 40.72,
+    "max_single_cluster_share_pct": 7.28,
+    "max_single_cluster_details": {
+      "cluster_id": 7,
+      "name": "Connaught Place, Delhi",
+      "district": "NEW_DELHI",
+      "count": 1092,
+      "share_pct": 7.28
+    },
+    "worst_fraud_cluster_concentration_pct": 19.11,
+    "worst_fraud_details": {
+      "fraud_type": "marketplace fraud",
+      "cluster_id": 66,
+      "cluster_name": "Seelampur, Delhi",
+      "numerator": 328,
+      "denominator": 1716,
+      "concentration_pct": 19.11
+    }
+  },
+  "gate_comparison": {
+    "district_top1": {
+      "measured": 40.71,
+      "gate": ">= 45.0%",
+      "status": "FAIL"
+    },
+    "recurring_dominant_cluster": {
+      "measured": 27.70,
+      "target_range": "35.0% - 50.0%",
+      "status": "FAIL"
+    },
+    "recurring_top3_concentration": {
+      "measured": 61.80,
+      "target_range": "70.0% - 85.0%",
+      "status": "FAIL"
+    },
+    "max_single_cluster_share": {
+      "measured": 7.28,
+      "gate": "<= 5.0%",
+      "status": "FAIL"
+    },
+    "max_fraud_cluster_concentration": {
+      "measured": 19.11,
+      "gate": "<= 15.0%",
+      "status": "FAIL"
+    },
+    "signature_recurrence": {
+      "measured": 97.13,
+      "gate": ">= 35.0%",
+      "status": "PASS"
+    },
+    "neighbor_top1": {
+      "measured": 8.67,
+      "gate": ">= 8.0%",
+      "status": "PASS"
+    },
+    "neighbor_top3": {
+      "measured": 24.40,
+      "gate": ">= 22.0%",
+      "status": "PASS"
+    },
+    "cross_district_top1": {
+      "measured": 30.54,
+      "gate": ">= 30.0%",
+      "status": "PASS"
+    },
+    "nearest_origin": {
+      "measured": 6.71,
+      "gate": "<= 22.0%",
+      "status": "PASS"
+    },
+    "terminal_mule_match": {
+      "measured": 39.23,
+      "gate": "<= 48.0%",
+      "status": "PASS"
+    },
+    "dominant_account_match": {
+      "measured": 40.72,
+      "gate": "<= 55.0%",
+      "status": "PASS"
+    }
+  },
+  "root_cause_analysis": {
+    "issue_1_cross_district_routing_deficit": {
+      "diagnosis": "In V6.1, 71.07% of cases cross district boundaries. In these cross-district cases, district Top-1 accuracy was 30.54% (just barely passing the 30% gate). While local cases achieved 64.96% accuracy, the high volume of cross-district cases pulled overall district Top-1 down to 40.71% (below the 45% gate).",
+      "mechanism": "District transition weights in Stage 1 were formed by independent additive terms for dominant_account_district, terminal_mule_district, and victim_district, without cross-district route coherence. When intermediate and terminal districts diverge, the model assigns scattered probability masses without directional consensus.",
+      "redesign_requirement": "Implement cross-district route coherence and multi-channel evidence consensus in Stage 1, giving cross-district routing a design headroom of >= 37% without artificially collapsing cross-district case frequency."
+    },
+    "issue_2_conditional_vs_marginal_divergence": {
+      "diagnosis": "V6.1 exhibited a sharp contradiction between conditional dispersion and marginal concentration: conditional cluster choices were too diffuse (dominant cluster within recurring signatures was only 27.70% vs target 35-50%), while global cluster choices experienced mode collapse (Connaught Place captured 7.28% globally vs cap 5.0%, and marketplace fraud concentrated 19.11% into Seelampur vs cap 15.0%).",
+      "mechanism": "Global hub attractiveness (such as COMMERCIAL_HUB_CLUSTER_IDS and TRANSPORT_HUB_CLUSTER_IDS) was defined across the entire city rather than per district. Whenever an archetype preferred a commercial or transit role, it overwhelmingly chose the same 1-2 famous hubs (Cluster 7 Connaught Place, Cluster 66 Seelampur) regardless of the local context.",
+      "redesign_requirement": "Replace global hub lists with district-local cluster portfolios. Every district must possess its own commercial, transport, ATM-heavy, and branch clusters. Sub-prototypes and fraud types will map to functional roles rather than specific global cluster IDs."
+    }
+  },
+  "policy_conclusions": {
+    "seed_37184_policy": "Seed 37184 is consumed. It must never be reused for parameter tuning or benchmark re-runs.",
+    "seed_37185_policy": "Seed 37185 remains untouched and ungenerated.",
+    "seed_37186_policy": "Seed 37186 remains untouched and ungenerated.",
+    "v6_2_seed_family": "Advance to independent seed family: 38184 (implementation), 38185 (validation), 38186 (holdout)."
+  }
+}
