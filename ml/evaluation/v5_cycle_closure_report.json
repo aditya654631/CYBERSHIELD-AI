@@ -1,0 +1,123 @@
+{
+  "phase": "A.4G",
+  "document_type": "V5_CYCLE_CLOSURE_REPORT",
+  "project": "CyberShield AI — SIH 26184",
+  "closure_timestamp": "2026-09-13T16:35:00Z",
+  "v5_final_status": "NOT_PROMOTED",
+  "production_impact": "NONE",
+  "active_production_models": {
+    "location": "cashout-location-xgb-v4",
+    "time": "cashout-time-xgb-v3",
+    "calibrator": "location_calibrator_v4.joblib",
+    "status": "STABLE_AND_ACTIVE"
+  },
+  "holdout_protection": {
+    "seed_26186_status": "UNCONSUMED",
+    "generated": false,
+    "inspected": false,
+    "used": false
+  },
+  "research_cycle_summary": {
+    "A.2_dataset": {
+      "version": "v5",
+      "cases": 15000,
+      "train": 10500,
+      "validation": 2250,
+      "test": 2250,
+      "districts": 11,
+      "clusters": 60,
+      "generation_seed": 26184,
+      "dataset_sha256": "42b7659ff7371425f71ec20459fb5e5a997c55fbad53f2e4919af6decf3ff61e",
+      "generator_sha256": "d9277dc4e5ecad66a26bf207fdb9a9c5f1689e3ce0fff5780571bbb6bba25dc5"
+    },
+    "A.3_design": {
+      "candidate_retrieval": "Proximity + heuristic top_k=25",
+      "ranking_model": "XGBRanker (rank:pairwise) and XGBClassifier pointwise",
+      "feature_count": 49
+    },
+    "A.4_initial_evaluation": {
+      "top1_overall": 11.29,
+      "top3_overall": 25.07,
+      "top5_overall": 34.80,
+      "mrr": 0.2306,
+      "candidate_recall_at_25": 72.84,
+      "median_spatial_error_km": 7.91,
+      "verdict": "DOES_NOT_QUALIFY"
+    },
+    "A.4B_bottleneck_diagnosis": {
+      "primary_bottleneck": "BOTH candidate generation (72.84% recall) and ranker conditional quality (15.50% conditional Top-1)",
+      "intervention": "Multi-Source Partitioned Quota Candidate Retrieval with increased diversity"
+    },
+    "A.4C_fresh_holdout_v5_1": {
+      "external_holdout_seed": 26185,
+      "cases": 3000,
+      "candidate_recall_at_25": 79.13,
+      "top1_overall": 12.33,
+      "top3_overall": 26.93,
+      "top5_overall": 38.03,
+      "mrr": 0.2501,
+      "median_spatial_error_km": 7.75,
+      "verdict": "FAILED_FRESH_HOLDOUT",
+      "status": "SEED_26185_CONSUMED_AND_FROZEN"
+    },
+    "A.4D_v5_2_ranker_redesign": {
+      "objective": "Address pointwise score compression and calibrate ranking",
+      "canonical_pairwise_formulation": "NDCG@5 evaluated directly on intra-complaint query groups"
+    },
+    "A.4E_canonical_pipeline": {
+      "canonical_candidate_recall_at_25": 78.84,
+      "best_pairwise_validation": {
+        "top1": 12.53,
+        "top3": 26.84,
+        "mrr": 0.2494
+      },
+      "headroom_requirement": "Top-1 >= 15.0%, Top-3 >= 28.0%, MRR >= 0.270",
+      "verdict": "BELOW_HEADROOM_DO_NOT_CONSUME_SEED_26186"
+    },
+    "A.4F_learnability_and_ambiguity_audit": {
+      "train_cases": 10500,
+      "unique_observable_signatures": 10137,
+      "recurring_signatures_ge_3": 25,
+      "mean_dominant_cluster_concentration": 43.33,
+      "knn_1_top1_cluster_purity": 3.02,
+      "knn_10_top3_cluster_purity": 10.84,
+      "oracle_district_routing": {
+        "oracle_top1": 30.58,
+        "oracle_top3": 54.84,
+        "oracle_mrr": 0.4560
+      },
+      "legitimate_district_classifier": {
+        "top1_accuracy": 33.33,
+        "top2_recall": 52.44,
+        "top3_recall": 64.89,
+        "local_district_accuracy": 65.88,
+        "cross_district_accuracy": 19.24
+      },
+      "hierarchical_ranker": {
+        "top1": 12.00,
+        "top3": 26.13,
+        "top5": 37.51,
+        "mrr": 0.2449,
+        "median_spatial_error_km": 8.05
+      },
+      "classification": "DATASET_HIGH_AMBIGUITY",
+      "root_cause": "The V5 synthetic data generation process introduced near-complete combinatorial explosion in pre-event observables with high stochastic dispersion into 60 target clusters. With 10,137 unique observable signatures in 10,500 training cases and 3.02% 1-NN cluster purity, pre-event complaint information does not contain sufficient learnable mathematical signal to surpass the 15% Top-1 / 28% Top-3 headroom gates without leakage."
+    }
+  },
+  "preserved_artifacts": [
+    "ml/artifacts/location_ranker_v5.joblib",
+    "ml/artifacts/location_calibrator_v5.joblib",
+    "ml/artifacts/location_ranker_v5_1.joblib",
+    "ml/artifacts/location_calibrator_v5_1.joblib",
+    "ml/artifacts/time_regressor_v4.joblib",
+    "ml/artifacts/feature_schema_v5.json",
+    "ml/artifacts/feature_schema_v5_1.json",
+    "ml/artifacts/model_metadata_v5.json",
+    "ml/artifacts/model_metadata_v5_1.json"
+  ],
+  "closure_decision": {
+    "action": "FORMALLY_CLOSE_V5_CYCLE",
+    "retire_model_generation": "V5",
+    "next_phase": "V6_SYNTHETIC_DATASET_GENERATION_AND_LEARNABILITY_REBUILD"
+  }
+}

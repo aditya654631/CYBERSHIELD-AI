@@ -1,0 +1,75 @@
+{
+  "version": "v6.0",
+  "document_type": "BENCHMARK_AND_EVALUATION_PLAN",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4G",
+  "status": "PROVISIONALLY_RETAINED",
+  "evaluation_stages": {
+    "stage_1_candidate_generation": {
+      "metric": "Candidate Recall @25",
+      "target": ">= 78.0%",
+      "evaluation_split": "validation_tune and test"
+    },
+    "stage_2_location_ranking_gates": {
+      "top1_accuracy": {
+        "target": ">= 14.5%",
+        "status": "PROVISIONALLY_RETAINED"
+      },
+      "top3_accuracy": {
+        "target": ">= 27.0%",
+        "status": "PROVISIONALLY_RETAINED"
+      },
+      "top5_accuracy": {
+        "target": ">= 36.0%",
+        "status": "PROVISIONALLY_RETAINED"
+      },
+      "mrr": {
+        "target": ">= 0.2600",
+        "status": "PROVISIONALLY_RETAINED"
+      },
+      "median_spatial_error_km": {
+        "target": "<= 8.00 km",
+        "status": "PROVISIONALLY_RETAINED"
+      }
+    },
+    "stage_3_calibration_and_probability_quality": {
+      "ece": {
+        "target": "<= 0.045",
+        "method": "Platt / Isotonic on validation_calibration"
+      },
+      "brier_score": {
+        "target": "<= 0.035"
+      }
+    },
+    "stage_4_district_routing_diagnostics": {
+      "district_top1_accuracy": ">= 45.0%",
+      "district_top2_recall": ">= 65.0%",
+      "district_top3_recall": ">= 75.0%",
+      "cross_district_accuracy": ">= 30.0%"
+    },
+    "stage_5_subgroup_safety": {
+      "subgroups_evaluated": [
+        "11 Delhi revenue districts",
+        "9 categorical fraud types",
+        "local vs cross-district cases",
+        "short (<=2) vs deep (>2) hop chains",
+        "low vs high reporting delay (median split)"
+      ],
+      "criterion": "Zero catastrophic subgroup failure (no major subgroup Top-3 < 12.0%)"
+    },
+    "stage_6_statistical_significance": {
+      "method": "1000 bootstrap resamples on test split",
+      "reporting": "95% bootstrap confidence intervals for Top-1, Top-3, MRR"
+    },
+    "stage_7_external_holdout_protocol": {
+      "universe_seed": 36186,
+      "cases_count": 3000,
+      "protocol": "Strictly one-shot evaluation after all architectures, hyperparameters, and thresholds are frozen on development split (seed 36184 / 36185). Zero prior tuning on seed 36186."
+    }
+  },
+  "governance_rules": {
+    "no_threshold_weakening_after_holdout": true,
+    "separate_benchmark_contract_frozen_before_generation": true,
+    "production_safety_enforced": true
+  }
+}

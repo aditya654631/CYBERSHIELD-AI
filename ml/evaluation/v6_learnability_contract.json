@@ -1,0 +1,66 @@
+{
+  "version": "v6.0",
+  "document_type": "DATASET_LEARNABILITY_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4G",
+  "purpose": "Mandatory pre-training validation gates that any candidate V6 dataset must pass BEFORE any model training is permitted.",
+  "pre_training_gates": {
+    "observable_signature_recurrence": {
+      "metric": "percentage_of_cases_in_signatures_repeating_ge_3_times",
+      "target_range": ">= 35.0%",
+      "v5_baseline": "0.75%",
+      "rationale": "Prevents combinatorial signature explosion and ensures meaningful historical behavioral neighborhoods exist."
+    },
+    "observable_dominant_cluster_concentration": {
+      "metric": "mean_dominant_cluster_share_in_recurring_signatures",
+      "target_range": "45.0% - 65.0%",
+      "v5_baseline": "43.33%",
+      "rationale": "Ensures that similar cases have a clear probabilistic preference while avoiding deterministic over-concentration."
+    },
+    "neighbor_top1_cluster_purity": {
+      "metric": "1_nearest_neighbor_cluster_agreement_pct",
+      "target_range": ">= 8.0%",
+      "v5_baseline": "3.02%",
+      "rationale": "Ensures pre-event observables possess non-random spatial locality signal."
+    },
+    "neighbor_top3_cluster_purity": {
+      "metric": "10_nearest_neighbors_top3_cluster_agreement_pct",
+      "target_range": ">= 22.0%",
+      "v5_baseline": "10.84%",
+      "rationale": "Confirms observable feature neighborhoods reliably span the true cash-out cluster."
+    },
+    "district_predictability_top1": {
+      "metric": "pre_event_observable_district_top1_accuracy_pct",
+      "target_range": ">= 45.0%",
+      "v5_baseline": "33.33%",
+      "rationale": "Verifies that multi-account and money flow trajectories provide learnable district routing signal."
+    },
+    "cross_district_predictability": {
+      "metric": "cross_district_cases_district_top1_accuracy_pct",
+      "target_range": ">= 30.0%",
+      "v5_baseline": "19.24%",
+      "rationale": "Directly targets the primary failure mode identified in V5 where cross-district cases collapsed to 19%."
+    },
+    "target_cluster_entropy": {
+      "metric": "marginal_shannon_entropy_over_60_clusters_bits",
+      "target_range": ">= 5.20 bits",
+      "v5_baseline": "5.71 bits",
+      "rationale": "Ensures all 60 operational clusters are actively utilized and prevents mode collapse into trivial hubs."
+    },
+    "anti_dominance_checks": {
+      "max_nearest_origin_rate_pct": {
+        "ceiling": "<= 22.0%",
+        "rationale": "Guarantees distance baseline does not trivially win."
+      },
+      "max_terminal_mule_match_rate_pct": {
+        "ceiling": "<= 48.0%",
+        "rationale": "Ensures terminal mule account location does not deterministically encode target."
+      },
+      "max_fraud_type_target_dominance_pct": {
+        "ceiling": "<= 15.0%",
+        "rationale": "Prevents single fraud category from collapsing into a fixed cluster."
+      }
+    }
+  },
+  "enforcement_action": "If any pre-training gate fails on candidate V6 dataset, training must NOT commence. Generator logic must be revised and re-audited."
+}

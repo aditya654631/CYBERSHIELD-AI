@@ -1,0 +1,180 @@
+{
+  "version": "v6.0",
+  "document_type": "DATASET_GENERATOR_DESIGN",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4G",
+  "seed_universe": {
+    "training_seed": 36184,
+    "development_seed": 36185,
+    "final_holdout_seed": 36186,
+    "separation_rule": "Seeds 26184, 26185, 26186 are strictly retired and frozen as V5 historical records."
+  },
+  "dataset_specifications": {
+    "target_cases": 15000,
+    "splits": {
+      "train": 10500,
+      "validation": 2250,
+      "test": 2250
+    },
+    "districts_count": 11,
+    "clusters_count": 60,
+    "geographic_universe": "National Capital Territory of Delhi"
+  },
+  "behavioral_archetypes": [
+    {
+      "archetype": "LOCAL_RAPID_CASHOUT",
+      "prevalence_pct": 18.0,
+      "description": "Swift ATM/branch withdrawal in victim's immediate locality within 1-2 hops and < 45 minutes.",
+      "observable_signals": {
+        "hop_count": [1, 2],
+        "reporting_delay_min": [10, 60],
+        "velocity": "HIGH",
+        "account_district_count": 1,
+        "beneficiary_geo_consistency": 0.95
+      },
+      "target_distribution": {
+        "victim_district": 0.70,
+        "adjacent_districts": 0.20,
+        "stochastic_long_tail": 0.10
+      }
+    },
+    {
+      "archetype": "NEARBY_COMMERCIAL_CORRIDOR",
+      "prevalence_pct": 16.0,
+      "description": "Funds channeled to regional commercial financial clusters (e.g., Connaught Place, Nehru Place, Karol Bagh) for immediate liquidity.",
+      "observable_signals": {
+        "hop_count": [2, 3],
+        "reporting_delay_min": [30, 120],
+        "commercial_proximity_km": [2.0, 8.0],
+        "transfer_burst_score": "HIGH"
+      },
+      "target_distribution": {
+        "designated_commercial_hub": 0.60,
+        "adjacent_transit_nodes": 0.25,
+        "stochastic_long_tail": 0.15
+      }
+    },
+    {
+      "archetype": "TERMINAL_MULE_DISTRICT",
+      "prevalence_pct": 15.0,
+      "description": "Cash-out executed within the geographic footprint of the terminal mule account branch.",
+      "observable_signals": {
+        "terminal_mule_district_distinct": true,
+        "dominant_account_district_match": true,
+        "hop_count": [2, 4]
+      },
+      "target_distribution": {
+        "terminal_mule_district": 0.52,
+        "adjacent_commercial_corridor": 0.30,
+        "stochastic_long_tail": 0.18
+      }
+    },
+    {
+      "archetype": "TRANSPORT_HUB_MOVEMENT",
+      "prevalence_pct": 12.0,
+      "description": "Rapid physical transit towards major Delhi transport junctions (railway stations, ISBTs, metro interchanges) prior to withdrawal.",
+      "observable_signals": {
+        "high_velocity": true,
+        "cross_district_transfer_count": [2, 4],
+        "geographic_dispersion_score": "MEDIUM_HIGH"
+      },
+      "target_distribution": {
+        "transport_hub_clusters": 0.58,
+        "connecting_corridors": 0.28,
+        "stochastic_long_tail": 0.14
+      }
+    },
+    {
+      "archetype": "CROSS_DISTRICT_MULE_CHAIN",
+      "prevalence_pct": 12.0,
+      "description": "Deep layering across multiple disparate districts to deliberately obscure money flow.",
+      "observable_signals": {
+        "hop_count": [3, 5],
+        "account_district_count": [3, 5],
+        "cross_district_transfer_count": [3, 5],
+        "distinct_bank_count": [3, 5]
+      },
+      "target_distribution": {
+        "terminal_district_corridor": 0.45,
+        "intermediate_node_district": 0.35,
+        "stochastic_long_tail": 0.20
+      }
+    },
+    {
+      "archetype": "RECURRING_SYNDICATE_CORRIDOR",
+      "prevalence_pct": 10.0,
+      "description": "Organized cyber syndicate channeling operations through established, recurrent cash-out infrastructure.",
+      "observable_signals": {
+        "fraud_type_specific": true,
+        "distinct_bank_pattern": true,
+        "prior_30d_corridor_recurrence": "HIGH"
+      },
+      "target_distribution": {
+        "syndicate_preferred_clusters": 0.65,
+        "secondary_failover_clusters": 0.25,
+        "stochastic_long_tail": 0.10
+      }
+    },
+    {
+      "archetype": "HIGH_VALUE_DELAYED_CASHOUT",
+      "prevalence_pct": 7.0,
+      "description": "Substantial monetary fraud requiring structured, multi-ATM withdrawals over 3-8 hours.",
+      "observable_signals": {
+        "amount": "> 200000",
+        "amount_bucket": "severe",
+        "reporting_delay_min": [180, 480],
+        "transaction_count": [4, 8]
+      },
+      "target_distribution": {
+        "high_atm_density_clusters": 0.60,
+        "peripheral_high_limit_branches": 0.25,
+        "stochastic_long_tail": 0.15
+      }
+    },
+    {
+      "archetype": "MULTI_BANK_DISPERSAL",
+      "prevalence_pct": 6.0,
+      "description": "Branching transfers dispersed simultaneously to multiple bank networks before convergent cash-out.",
+      "observable_signals": {
+        "distinct_bank_count": [4, 6],
+        "graph_branching_factor": "> 2.0",
+        "transfer_burst_score": "VERY_HIGH"
+      },
+      "target_distribution": {
+        "convergent_commercial_clusters": 0.55,
+        "adjacent_banking_strips": 0.30,
+        "stochastic_long_tail": 0.15
+      }
+    },
+    {
+      "archetype": "NIGHTTIME_ATM_CASHOUT",
+      "prevalence_pct": 4.0,
+      "description": "Exploitation of off-peak nighttime banking windows for ATM withdrawal runs.",
+      "observable_signals": {
+        "night_activity_ratio": "> 0.70",
+        "night_flag": 1,
+        "complaint_hour": [23, 5]
+      },
+      "target_distribution": {
+        "24h_kiosk_clusters": 0.62,
+        "isolated_transit_atms": 0.25,
+        "stochastic_long_tail": 0.13
+      }
+    }
+  ],
+  "anti_triviality_constraints": {
+    "max_nearest_origin_cluster_rate_pct": 22.0,
+    "max_terminal_mule_district_match_rate_pct": 48.0,
+    "max_single_cluster_target_share_pct": 5.0,
+    "max_single_feature_target_mutual_information": 0.35,
+    "enforcement": "Automated rejection sampling during generation if any constraint is violated."
+  },
+  "anti_leakage_safeguards": {
+    "latent_archetype_exposure": "STRICTLY_FORBIDDEN (Internal generator state only)",
+    "syndicate_family_id_exposure": "STRICTLY_FORBIDDEN (Must not enter model features)",
+    "mule_family_id_exposure": "STRICTLY_FORBIDDEN (Must not enter model features)",
+    "future_outcome_conditioning": "STRICTLY_ZERO (Observables computed at t <= event_timestamp)",
+    "chronological_split_integrity": "Train <= Val <= Test by event_timestamp without retrospective leaking"
+  },
+  "target_cluster_sampling_method": "Hierarchical Dirichlet-Multinomial transition: P(cluster) = Dir(alpha * Archetype_Corridor_Priors + (1 - alpha) * Uniform_Background)."
+}
