@@ -1,0 +1,81 @@
+{
+  "version": "v5.2",
+  "document_type": "FEATURE_CONTRACT_REDESIGN",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN_DESIGN",
+  "total_v5_2_features": 54,
+  "classifications": {
+    "KEEP": [
+      "log_amount",
+      "fraud_type_encoded",
+      "payment_channel_encoded",
+      "complaint_hour",
+      "day_of_week",
+      "weekend_flag",
+      "night_flag",
+      "complaint_delay_minutes",
+      "transaction_count",
+      "hop_count",
+      "unique_accounts",
+      "unique_banks",
+      "total_transferred",
+      "mean_transfer_amount",
+      "max_transfer_amount",
+      "transaction_velocity",
+      "chain_duration_minutes",
+      "average_hop_interval",
+      "branching_factor",
+      "max_degree",
+      "mean_degree",
+      "max_pagerank",
+      "max_betweenness",
+      "connected_component_size",
+      "fraud_neighbor_count",
+      "mule_connection_count",
+      "historical_cluster_cashout_count",
+      "historical_cluster_cashout_amount",
+      "historical_cluster_risk",
+      "atm_density",
+      "distance_from_victim",
+      "recent_cluster_activity",
+      "fraud_type_cluster_frequency",
+      "transaction_hour",
+      "time_since_first_transfer",
+      "time_since_last_transfer",
+      "fraud_type_historical_cashout_delay",
+      "account_historical_cashout_delay",
+      "candidate_same_complaint_zone",
+      "candidate_same_terminal_zone",
+      "dist_to_complaint_zone_km",
+      "dist_to_terminal_zone_km",
+      "transfer_burst_score",
+      "night_activity_ratio",
+      "terminal_mule_district_encoded",
+      "prior_24h_cashout_count_near_candidate",
+      "prior_30d_cluster_activity",
+      "candidate_corridor_support_score",
+      "prior_7d_similar_fraud_count"
+    ],
+    "MODIFY": [],
+    "REMOVE": [
+      "candidate_retrieval_priority_rank"
+    ],
+    "ADD": [
+      "candidate_victim_distance_rank",
+      "candidate_terminal_distance_rank",
+      "candidate_corridor_support_rank",
+      "candidate_atm_density_rank",
+      "candidate_fraud_affinity_rank"
+    ]
+  },
+  "justification": {
+    "removal_candidate_retrieval_priority_rank": "Audit showed that candidate_retrieval_priority_rank dominated tree splits (6.87% gain share) by merely echoing the retrieval heuristic order rather than outcome relevance. Removing it prevents imitation bias.",
+    "additions_intra_complaint_ranks": "Adding intra-complaint relative features provides scale-invariant ordering signals (e.g. which candidate is #1 closest or #1 highest corridor support for THIS complaint), aiding ranking algorithms without leakage.",
+    "corridor_support_retained": "candidate_corridor_support_score demonstrated 9.69% gain share with balanced cross-district representation, effectively capturing multi-hop corridor transitions without coarse district-only binary shortcuts."
+  },
+  "leakage_safety": {
+    "target_in_features": false,
+    "future_derived_features_count": 0,
+    "chronological_lookback_enforced": true
+  }
+}

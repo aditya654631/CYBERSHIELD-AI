@@ -1,0 +1,115 @@
+{
+  "analysis_type": "DEVELOPMENT_VALIDATION_ERROR_DECOMPOSITION",
+  "dataset": "ml/data/delhi_v5_cases.csv.gz",
+  "split": "validation",
+  "total_validation_cases": 2250,
+  "candidate_not_present_count": 493,
+  "candidate_present_count": 1757,
+  "candidate_recall_pct": 78.09,
+  "rank_1_count": 369,
+  "rank_1_rate_overall_pct": 16.4,
+  "rank_bins_summary": {
+    "rank_2_3": {
+      "case_count": 328,
+      "share_of_validation_pct": 14.58,
+      "share_of_eligible_pct": 18.67,
+      "mean_score_margin_to_top1": 0.0399,
+      "median_score_margin_to_top1": 0.0134,
+      "mean_spatial_error_km": 7.45,
+      "median_spatial_error_km": 5.29,
+      "cross_district_rate_pct": 52.13,
+      "deep_hop_gt_2_rate_pct": 46.34,
+      "syndicate_hub_rate_pct": 3.66,
+      "top_districts": {
+        "WEST": 47,
+        "CENTRAL": 41,
+        "SOUTH_WEST": 38
+      },
+      "top_fraud_types": {
+        "remote access scam": 46,
+        "phishing fraud": 42,
+        "upi fraud": 39
+      }
+    },
+    "rank_4_5": {
+      "case_count": 236,
+      "share_of_validation_pct": 10.49,
+      "share_of_eligible_pct": 13.43,
+      "mean_score_margin_to_top1": 0.0536,
+      "median_score_margin_to_top1": 0.0228,
+      "mean_spatial_error_km": 7.69,
+      "median_spatial_error_km": 5.58,
+      "cross_district_rate_pct": 55.51,
+      "deep_hop_gt_2_rate_pct": 44.07,
+      "syndicate_hub_rate_pct": 5.08,
+      "top_districts": {
+        "WEST": 32,
+        "SOUTH": 30,
+        "CENTRAL": 29
+      },
+      "top_fraud_types": {
+        "remote access scam": 32,
+        "phishing fraud": 30,
+        "loan app scam": 29
+      }
+    },
+    "rank_6_10": {
+      "case_count": 381,
+      "share_of_validation_pct": 16.93,
+      "share_of_eligible_pct": 21.68,
+      "mean_score_margin_to_top1": 0.0544,
+      "median_score_margin_to_top1": 0.0273,
+      "mean_spatial_error_km": 8.88,
+      "median_spatial_error_km": 7.81,
+      "cross_district_rate_pct": 66.67,
+      "deep_hop_gt_2_rate_pct": 45.14,
+      "syndicate_hub_rate_pct": 9.45,
+      "top_districts": {
+        "WEST": 52,
+        "SOUTH": 44,
+        "SOUTH_WEST": 44
+      },
+      "top_fraud_types": {
+        "phishing fraud": 52,
+        "marketplace fraud": 44,
+        "loan app scam": 44
+      }
+    },
+    "rank_11_25": {
+      "case_count": 443,
+      "share_of_validation_pct": 19.69,
+      "share_of_eligible_pct": 25.21,
+      "mean_score_margin_to_top1": 0.061,
+      "median_score_margin_to_top1": 0.0325,
+      "mean_spatial_error_km": 11.51,
+      "median_spatial_error_km": 11.02,
+      "cross_district_rate_pct": 84.88,
+      "deep_hop_gt_2_rate_pct": 47.4,
+      "syndicate_hub_rate_pct": 17.16,
+      "top_districts": {
+        "WEST": 80,
+        "NORTH_WEST": 62,
+        "SOUTH": 54
+      },
+      "top_fraud_types": {
+        "phishing fraud": 70,
+        "impersonation scam": 53,
+        "remote access scam": 52
+      }
+    }
+  },
+  "failure_mode_diagnosis": {
+    "fine_ordering_errors_rank_2_3": {
+      "cases": 328,
+      "interpretation": "Target is retrieved and ranked in Top 2-3 with very narrow score margin (<0.02-0.03). Pointwise probability outputs are too flat to reliably promote the ground truth over near-tie candidates."
+    },
+    "corridor_confusion_rank_4_5": {
+      "cases": 236,
+      "interpretation": "Target is in intermediate ranks (4-5). High cross-district rate (>70%) where the model prioritizes local origin cluster or commercial hub over the corridor hop destination."
+    },
+    "hub_and_priority_bias_rank_6_25": {
+      "cases": 824,
+      "interpretation": "Target is buried deep in the candidate list (6-25) because candidate_retrieval_priority_rank and high-density commercial hubs push genuine multi-hop destinations down."
+    }
+  }
+}

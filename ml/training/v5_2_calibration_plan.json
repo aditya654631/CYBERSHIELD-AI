@@ -1,0 +1,37 @@
+{
+  "version": "v5.2",
+  "document_type": "CALIBRATION_PLAN",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN_DESIGN",
+  "split_assignment": {
+    "calibration_split": "VALIDATION_CALIBRATION",
+    "calibration_cases_count": 1125,
+    "candidate_rows_count": 28125,
+    "leakage_isolation": "Strict chronological isolation; zero overlap with training tune or future external holdout."
+  },
+  "method": {
+    "algorithm": "Platt Scaling (LogisticRegression on Ranker Continuous Output)",
+    "input": "Continuous ranking score / margin from XGBRanker / XGBClassifier",
+    "target": "Binary candidate target indicator (1 if candidate is ground truth, 0 otherwise)",
+    "hyperparameters": {
+      "C": 1.0,
+      "solver": "lbfgs",
+      "max_iter": 1000,
+      "random_state": 26184
+    }
+  },
+  "calibration_semantics_and_disclosure": {
+    "definition": "Model-estimated candidate cash-out likelihood within the prototype candidate ranking pool.",
+    "forbidden_claims": [
+      "Certainty of suspect presence",
+      "Certainty of arrest",
+      "Absolute criminal probability"
+    ],
+    "artificial_sharpening": false,
+    "temperature_scaling_floor": null
+  },
+  "quality_gate": {
+    "max_acceptable_ece": 0.045,
+    "binning_method": "10-bin equal width confidence bins"
+  }
+}
