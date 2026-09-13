@@ -129,7 +129,7 @@ def validate_v6_1_dataset(dataset_path: str, signature_def_path: str, manifest_p
         if canonical_dist != t_dist:
             mismatches += 1
 
-        # Check district distribution array
+        # Check serialized district distribution array (4-decimal rounded)
         d_arr = json.loads(df.iloc[i]["generator_district_distribution"])
         d_err = abs(sum(d_arr) - 1.0)
         if d_err > max_d_sum_err:
@@ -137,7 +137,7 @@ def validate_v6_1_dataset(dataset_path: str, signature_def_path: str, manifest_p
         if any(p < 0.0 or p > 1.0 for p in d_arr):
             inv_d_rows += 1
 
-        # Check cluster distribution array
+        # Check serialized cluster distribution array (4-decimal rounded)
         c_arr = json.loads(df.iloc[i]["generator_cluster_distribution"])
         c_err = abs(sum(c_arr) - 1.0)
         if c_err > max_c_sum_err:
@@ -145,15 +145,25 @@ def validate_v6_1_dataset(dataset_path: str, signature_def_path: str, manifest_p
         if any(p < 0.0 or p > 1.0 for p in c_arr):
             inv_c_rows += 1
 
+    # Internal full-precision probability contract verification
+    gen_check = DelhiV61DatasetGenerator(seed=RANDOM_SEED, total_cases=total_cases)
+    _ = gen_check.generate_dataset()
+    internal_max_d_err = gen_check.max_district_sum_error
+    internal_max_c_err = gen_check.max_cluster_sum_error
+
     gate_mismatch = (mismatches == 0)
-    gate_prob_d = (max_d_sum_err <= 1e-4) # stored as 4-decimal json in logging
-    gate_prob_c = (max_c_sum_err <= 1e-4)
+    gate_internal_norm = (internal_max_d_err <= 1e-9 and internal_max_c_err <= 1e-9)
+    gate_serialized_rounding = (max_d_sum_err <= 1e-3 and max_c_sum_err <= 1e-3)
+    gate_prob = (gate_internal_norm and inv_d_rows == 0 and inv_c_rows == 0)
+
     print(f"\nGeographic & Probability Invariants:")
-    print(f"  District-Cluster Mismatches:      {mismatches} (Gate == 0) -> {'PASS' if gate_mismatch else 'FAIL'}")
-    print(f"  Max District Probability Sum Err: {max_d_sum_err:.2e} -> PASS")
-    print(f"  Max Cluster Probability Sum Err:  {max_c_sum_err:.2e} -> PASS")
-    print(f"  Invalid District Prob Rows:       {inv_d_rows} (Gate == 0) -> PASS")
-    print(f"  Invalid Cluster Prob Rows:        {inv_c_rows} (Gate == 0) -> PASS")
+    print(f"  District-Cluster Mismatches:          {mismatches} (Gate == 0) -> {'PASS' if gate_mismatch else 'FAIL'}")
+    print(f"  Internal Full-Precision Dist Sum Err: {internal_max_d_err:.2e} (Gate <= 1e-9) -> {'PASS' if internal_max_d_err <= 1e-9 else 'FAIL'}")
+    print(f"  Internal Full-Precision Clust Sum Err:{internal_max_c_err:.2e} (Gate <= 1e-9) -> {'PASS' if internal_max_c_err <= 1e-9 else 'FAIL'}")
+    print(f"  Serialized 4-Dec District Sum Err:    {max_d_sum_err:.2e} (Diag <= 1e-3) -> {'PASS' if gate_serialized_rounding else 'FAIL'}")
+    print(f"  Serialized 4-Dec Cluster Sum Err:     {max_c_sum_err:.2e} (Diag <= 1e-3) -> {'PASS' if gate_serialized_rounding else 'FAIL'}")
+    print(f"  Invalid District Prob Rows:           {inv_d_rows} (Gate == 0) -> {'PASS' if inv_d_rows == 0 else 'FAIL'}")
+    print(f"  Invalid Cluster Prob Rows:            {inv_c_rows} (Gate == 0) -> {'PASS' if inv_c_rows == 0 else 'FAIL'}")
 
     # 4. Anti-Triviality Hard Constraints
     nearest_matches = 0
@@ -406,8 +416,7 @@ def validate_v6_1_dataset(dataset_path: str, signature_def_path: str, manifest_p
     # 10. Acceptance Gates Evaluation
     all_major_gates_pass = (
         gate_mismatch and
-        gate_prob_d and
-        gate_prob_c and
+        gate_prob and
         gate_nearest and
         gate_term and
         gate_dom_acc and
@@ -429,7 +438,7 @@ def validate_v6_1_dataset(dataset_path: str, signature_def_path: str, manifest_p
     print(f"Districts = 11:                      PASS")
     print(f"Clusters = 60:                       PASS")
     print(f"District-Cluster Invariant (== 0):   {mismatches} -> {'PASS' if gate_mismatch else 'FAIL'}")
-    print(f"Probability Normalization:           PASS")
+    print(f"Probability Normalization (<= 1e-9): {'PASS' if gate_prob else 'FAIL'}")
     print(f"Signature Recurrence >= 35%:         {pct_ge_3}% -> {'PASS' if gate_sig_recurrence else 'FAIL'}")
     print(f"Neighbor Top-1 >= 8%:                {knn_1_top1_acc}% -> {'PASS' if gate_knn1 else 'FAIL'}")
     print(f"Neighbor Top-3 >= 22%:               {knn_10_top3_acc}% -> {'PASS' if gate_knn3 else 'FAIL'}")
@@ -487,9 +496,13 @@ def validate_v6_1_dataset(dataset_path: str, signature_def_path: str, manifest_p
             "district_cluster_mismatches": mismatches,
             "invalid_district_probability_rows": inv_d_rows,
             "invalid_cluster_probability_rows": inv_c_rows,
-            "max_district_sum_error": max_d_sum_err,
-            "max_cluster_sum_error": max_c_sum_err,
-            "normalization_status": "PASS"
+            "internal_max_district_sum_error": internal_max_d_err,
+            "internal_max_cluster_sum_error": internal_max_c_err,
+            "internal_probability_normalization_gate": "PASS" if gate_internal_norm else "FAIL",
+            "serialized_max_district_sum_error": max_d_sum_err,
+            "serialized_max_cluster_sum_error": max_c_sum_err,
+            "serialized_rounding_diagnostic": "PASS" if gate_serialized_rounding else "FAIL",
+            "normalization_status": "PASS" if gate_prob else "FAIL"
         },
         "target_signals_descriptive": {
             "nearest_origin_rate_pct": nearest_origin_rate,

@@ -1,0 +1,139 @@
+{
+  "audit_phase": "A.4J.1",
+  "audit_name": "V6.1 Validation Integrity & Normalization Audit",
+  "branch": "ml/delhi-v6-1-dataset",
+  "production_baseline": "b7fe4ac4aa31b4c76a6becc32ed4fd5fe011b97f",
+  "target_dataset": {
+    "version": "v6.1",
+    "seed": 37184,
+    "case_count": 15000,
+    "sha256": "09c92c05cfd5bc5d56786dc37300939b5d18c4b266ee3ac18a209aa4483a4c3a"
+  },
+  "normalization_audit": {
+    "frozen_tolerance": 1e-9,
+    "reported_district_sum_error_initial": 5.00e-04,
+    "reported_cluster_sum_error_initial": 3.00e-04,
+    "district_error_source": "SERIALIZED_ROUNDING",
+    "cluster_error_source": "SERIALIZED_ROUNDING",
+    "explanation": "Generator internal probability vectors (float64) are normalized with sum error <= 1e-9 (district: 6.66e-16, cluster: 2.22e-16). For diagnostic CSV logging, probabilities were rounded to 4 decimal places via round(float(p), 4). Summing 11 rounded floats yields maximum deviation up to 11 * 0.00005 = 0.00055 (5.00e-04). Initial validator parsed the 4-decimal serialized JSON column instead of evaluating internal float64 probabilities against the 1e-9 contract.",
+    "full_precision_internal_max_district_sum_error": 6.661338147750939e-16,
+    "full_precision_internal_max_cluster_sum_error": 2.220446049250313e-16,
+    "full_precision_contract_status": "PASS",
+    "post_serialization_max_district_sum_error": 0.000500000000000056,
+    "post_serialization_max_cluster_sum_error": 0.00029999999999996696,
+    "post_serialization_rounding_diagnostic": "PASS (within expected <= 1e-3 rounding bound for 4 decimals)",
+    "sampling_precision": {
+      "district_sampling_used_full_precision": true,
+      "cluster_sampling_used_full_precision": true,
+      "rounding_performed_before_sampling": false
+    }
+  },
+  "validator_audit": {
+    "validator_checks_internal_probabilities": true,
+    "validator_checks_serialized_probabilities": true,
+    "validator_contract_tolerance": 1e-9,
+    "validator_serialization_diagnostic_tolerance": 1e-3,
+    "why_previous_pass_occurred": "The initial validator output printed '-> PASS' unconditionally on stdout for max error lines, while gate_prob_d was evaluated against 1e-4 on 4-decimal rounded JSON values. This conflated serialized logging diagnostics with the internal 1e-9 normalization contract.",
+    "validator_reporting_bug": true,
+    "generator_semantics_changed": false,
+    "dataset_rows_changed": false
+  },
+  "metric_verification": {
+    "signature_recurrence": {
+      "value_pct": 97.13,
+      "definition": "Cases in TRAIN (10,500) belonging to observable signatures (12-tuple) appearing >= 3 times: 10,199 / 10,500 = 97.13%",
+      "status": "VERIFIED"
+    },
+    "neighbor_top1": {
+      "value_pct": 8.67,
+      "definition": "1-NN Euclidean match on 29 standardized pre-event observables between VALIDATION (2,250) and TRAIN (10,500): 195 / 2,250 = 8.67%",
+      "status": "VERIFIED"
+    },
+    "neighbor_top3": {
+      "value_pct": 24.40,
+      "definition": "10-NN majority Top-3 cluster match between VALIDATION (2,250) and TRAIN (10,500): 549 / 2,250 = 24.40%",
+      "status": "VERIFIED"
+    },
+    "district_top1": {
+      "value_pct": 40.71,
+      "definition": "XGBoost classifier trained on TRAIN (10,500) predicting realized_cashout_district on VALIDATION (2,250) using pre-event features only: 916 / 2,250 = 40.71%",
+      "status": "VERIFIED"
+    },
+    "cross_district_top1": {
+      "value_pct": 30.54,
+      "definition": "District Top-1 accuracy restricted to cross-district validation cases (victim_district != realized_cashout_district, N=1585): 484 / 1585 = 30.54%",
+      "status": "VERIFIED"
+    },
+    "nearest_origin": {
+      "value_pct": 6.71,
+      "definition": "Cases where realized cashout cluster matches cluster closest to victim coordinates: 1,007 / 15,000 = 6.71%",
+      "status": "VERIFIED"
+    },
+    "terminal_mule_district_match": {
+      "value_pct": 39.23,
+      "definition": "Cases where terminal_mule_district == realized_cashout_district: 5,885 / 15,000 = 39.23%",
+      "status": "VERIFIED"
+    },
+    "dominant_account_district_match": {
+      "value_pct": 40.72,
+      "definition": "Cases where dominant_account_district == realized_cashout_district: 6,108 / 15,000 = 40.72%",
+      "status": "VERIFIED"
+    },
+    "maximum_single_cluster_share": {
+      "value_pct": 7.28,
+      "definition": "Max cases assigned to any single cluster across 15,000 cases: Cluster 7 (Connaught Place, Delhi, NEW_DELHI) = 1,092 / 15,000 = 7.28%",
+      "status": "VERIFIED"
+    },
+    "fraud_single_cluster_concentration": {
+      "value_pct": 19.11,
+      "definition": "Max cases within any fraud type assigned to a single cluster: marketplace fraud in Cluster 66 (Seelampur, Delhi) = 328 / 1,716 = 19.11%",
+      "status": "VERIFIED"
+    }
+  },
+  "concentration_details": {
+    "max_cluster": {
+      "cluster_id": 7,
+      "name": "Connaught Place, Delhi",
+      "district": "NEW_DELHI",
+      "count": 1092,
+      "share_pct": 7.28
+    },
+    "worst_fraud_concentration": {
+      "fraud_type": "marketplace fraud",
+      "cluster_id": 66,
+      "cluster_name": "Seelampur, Delhi",
+      "numerator": 328,
+      "denominator": 1716,
+      "concentration_pct": 19.11
+    }
+  },
+  "diagnostic_safety": {
+    "district_diagnostic_leakage": false,
+    "neighbor_diagnostic_leakage": false,
+    "district_cluster_mismatches": 0
+  },
+  "reproducibility": {
+    "status": "PASS",
+    "byte_for_byte_sha256_match": true
+  },
+  "seed_protection": {
+    "seed_37184_consumed": true,
+    "seed_37185_generated": false,
+    "seed_37185_inspected": false,
+    "seed_37185_used": false,
+    "seed_37186_generated": false,
+    "seed_37186_inspected": false,
+    "seed_37186_used": false
+  },
+  "production_safety": {
+    "backend_modified": false,
+    "frontend_modified": false,
+    "database_modified": false,
+    "v4_location_modified": false,
+    "v4_calibrator_modified": false,
+    "v3_time_modified": false,
+    "production_deployed": false,
+    "main_branch_modified": false
+  },
+  "audit_verdict": "V6.1 VALIDATION INTEGRITY CONFIRMED — PROCEED TO NEW V6.2 DESIGN"
+}
