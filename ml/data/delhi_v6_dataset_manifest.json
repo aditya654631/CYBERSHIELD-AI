@@ -1,0 +1,94 @@
+{
+  "dataset_name": "delhi_v6_cases",
+  "dataset_version": "v6.0",
+  "synthetic": true,
+  "real_ncrp_data": false,
+  "seed": 36184,
+  "case_count": 15000,
+  "synthetic_date_range": {
+    "start": "2025-01-01T00:20:39.199708Z",
+    "end": "2025-12-31T23:25:09.760582Z"
+  },
+  "district_count": 11,
+  "cluster_count": 60,
+  "split_counts": {
+    "train": 10500,
+    "validation": 2250,
+    "test": 2250
+  },
+  "archetype_distribution": {
+    "NEARBY_COMMERCIAL_CORRIDOR": 1833,
+    "LOCAL_RAPID_CASHOUT": 1772,
+    "TERMINAL_MULE_DISTRICT": 1749,
+    "CROSS_DISTRICT_MULE_CHAIN": 1746,
+    "TRANSPORT_HUB_MOVEMENT": 1665,
+    "RECURRING_SYNDICATE_CORRIDOR": 1636,
+    "HIGH_VALUE_DELAYED_CASHOUT": 1591,
+    "MULTI_BANK_DISPERSAL": 1520,
+    "NIGHTTIME_ATM_CASHOUT": 1488
+  },
+  "fraud_type_distribution": {
+    "remote access scam": 2420,
+    "job scam": 2219,
+    "digital payment fraud": 2153,
+    "upi fraud": 1616,
+    "marketplace fraud": 1455,
+    "loan app scam": 1394,
+    "impersonation scam": 1290,
+    "phishing fraud": 1284,
+    "investment scam": 1169
+  },
+  "district_distribution": {
+    "SOUTH_EAST": 2035,
+    "WEST": 1945,
+    "SOUTH": 1739,
+    "NORTH_WEST": 1602,
+    "NORTH": 1475,
+    "CENTRAL": 1435,
+    "EAST": 1338,
+    "SOUTH_WEST": 1319,
+    "NEW_DELHI": 1105,
+    "SHAHDARA": 827,
+    "NORTH_EAST": 180
+  },
+  "cluster_distribution_stats": {
+    "min_count": 91,
+    "max_count": 692,
+    "cluster_entropy_bits": 5.7058,
+    "district_entropy_bits": 3.3348
+  },
+  "anti_triviality_metrics": {
+    "nearest_origin_rate_pct": 1.67,
+    "terminal_mule_district_match_pct": 19.89,
+    "max_single_cluster_share_pct": 4.61,
+    "max_fraud_cluster_concentration_pct": 6.76
+  },
+  "learnability_diagnostics": {
+    "cases_in_recurring_signatures_ge_3_pct": 61.75,
+    "dominant_cluster_share_in_recurring_signatures_pct": 29.0,
+    "top3_cluster_concentration_in_recurring_signatures_pct": 72.25,
+    "neighbor_1nn_cluster_agreement_pct": 3.96,
+    "neighbor_10nn_top3_agreement_pct": 11.96,
+    "district_top1_accuracy_pct": 28.76,
+    "district_top2_recall_pct": 45.96,
+    "district_top3_recall_pct": 59.29,
+    "cross_district_top1_accuracy_pct": 24.35,
+    "local_district_top1_accuracy_pct": 55.31,
+    "signal_classification": "MODERATE"
+  },
+  "leakage_verification": {
+    "target_leakage": false,
+    "future_leakage": 0,
+    "family_leakage": 0
+  },
+  "reproducibility": {
+    "status": "PASS",
+    "byte_for_byte_sha256_match": true
+  },
+  "hashes": {
+    "dataset_sha256": "911fcfb0691401d17a82ea070bb19627ceb23264ed61fab5952c3da4cefaa79c",
+    "generator_sha256": "aa54577345038e06b81c5f934fe8090a0b148f6edc1db9c1d8695fc8c1dac6ff",
+    "schema_sha256": "e62b708124e3f774c9e9c7bd8e55a8d30f818acaf34fd06d9fa2444a48669af2"
+  },
+  "acceptance_verdict": "FAIL"
+}

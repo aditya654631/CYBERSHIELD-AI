@@ -1,0 +1,72 @@
+{
+  "version": "v6.0",
+  "document_type": "FROZEN_OBSERVABLE_SIGNATURE_SPECIFICATION",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4H",
+  "status": "FROZEN_PRIOR_TO_GENERATION",
+  "description": "Deterministic tuple of observable pre-event features and bucket boundaries used to compute signature recurrence and neighborhood concentration.",
+  "signature_fields": [
+    "fraud_type",
+    "victim_district",
+    "terminal_mule_district",
+    "payment_channel",
+    "amount_bucket",
+    "transaction_hop_bucket",
+    "mule_count_bucket",
+    "reporting_delay_bucket",
+    "night_activity_bucket",
+    "bank_diversity_bucket",
+    "dominant_account_district",
+    "geo_consistency_bucket"
+  ],
+  "bucket_definitions": {
+    "amount_bucket": {
+      "micro": "<= 10000",
+      "low": "10001 - 50000",
+      "medium": "50001 - 150000",
+      "high": "150001 - 300000",
+      "severe": "> 300000"
+    },
+    "transaction_hop_bucket": {
+      "hop_1_2": "<= 2",
+      "hop_3_4": "3 - 4",
+      "hop_5_plus": ">= 5"
+    },
+    "mule_count_bucket": {
+      "mule_1": "<= 1",
+      "mule_2_3": "2 - 3",
+      "mule_4_plus": ">= 4"
+    },
+    "reporting_delay_bucket": {
+      "fast": "<= 60",
+      "moderate": "61 - 240",
+      "delayed": "> 240"
+    },
+    "night_activity_bucket": {
+      "day_dominant": "<= 0.30",
+      "mixed": "0.31 - 0.60",
+      "night_dominant": "> 0.60"
+    },
+    "bank_diversity_bucket": {
+      "single_bank": "<= 1",
+      "dual_bank": "== 2",
+      "multi_bank": ">= 3"
+    },
+    "geo_consistency_bucket": {
+      "high_consistency": ">= 0.75",
+      "medium_consistency": "0.40 - 0.74",
+      "dispersed": "< 0.40"
+    }
+  },
+  "forbidden_fields": [
+    "realized_cashout_cluster_id",
+    "realized_cashout_cluster_name",
+    "realized_cashout_district",
+    "realized_cashout_lat",
+    "realized_cashout_lon",
+    "realized_cashout_minutes",
+    "latent_archetype",
+    "syndicate_family_id",
+    "mule_family_id"
+  ]
+}
