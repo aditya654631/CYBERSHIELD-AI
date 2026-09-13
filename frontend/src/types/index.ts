@@ -127,7 +127,28 @@ export interface Prediction {
   prediction_mode: string;
   model_version: string;
   operational_scope?: string | null;
-  time_prediction?: any;
+  time_prediction?: {
+    predicted_minutes_to_cashout?: number | null;
+    model_version?: string | null;
+    prediction_reference_time?: string | null;
+    reference_basis?: string;
+    operational_window?: string;
+    window_start?: string | null;
+    window_end?: string | null;
+    predicted_cashout_at?: string | null;
+    window_status?: 'upcoming' | 'active' | 'elapsed';
+    window_basis?: string;
+    uncertainty_minutes?: number | null;
+  } | null;
+  time_model_version?: string | null;
+  score_note?: string;
+  score_type?: string;
+  score_label?: string;
+  training_data_source?: string;
+  analysis_basis?: string;
+  dataset_type?: string;
+  limitations?: string[];
+  candidate_pool_size?: number;
   created_at: string;
 }
 

@@ -2,7 +2,7 @@ import re
 from datetime import datetime
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from backend.app.models.db import get_db
 from backend.app.models.models import Complaint, Account, Transaction, ComplaintAccount, User, Prediction, Alert
@@ -93,35 +93,76 @@ def _enrich_complaint_response(db: Session, complaint: Complaint) -> Complaint:
         complaint.alert_status = "NOT GENERATED"
 
     complaint.locality = getattr(complaint, "locality", None) or complaint.victim_location
-    complaint.provenance_mode = getattr(complaint, "provenance_mode", None) or (
-        "DIRECT_OFFICER_INPUT" if direct_txs else "LINKED_SYNTHETIC_SCENARIO"
+    complaint.provenance_mode = (
+        "SYNTHETIC_DEMO" if complaint.complaint_number.startswith("CMP-DL-")
+        else "LINKED_SYNTHETIC_SCENARIO" if complaint.scenario_link_status == "LINKED"
+        else "DIRECT_OFFICER_INPUT"
     )
     complaint.linked_account_count = len(complaint.accounts)
     complaint.available_transaction_count = len(get_transactions_for_complaint(db, complaint))
     return complaint
 
 def _batch_enrich_complaints(db: Session, complaints: List[Complaint]) -> List[Complaint]:
-    """Optimized batch enrichment for complaint listings."""
+    """Optimized batch enrichment for complaint listings without N+1 queries."""
     if not complaints:
         return complaints
     comp_ids = [c.id for c in complaints]
 
+    # Batch 1: Predictions existence
     pred_comp_ids = set(
         r[0] for r in db.query(Prediction.complaint_id).filter(Prediction.complaint_id.in_(comp_ids)).all()
     )
 
+    # Batch 2: Alerts status
     alert_rows = db.query(Alert.complaint_id, Alert.status).filter(Alert.complaint_id.in_(comp_ids)).all()
     alert_map = {}
     for cid, st in alert_rows:
         alert_map.setdefault(cid, []).append(st)
 
-    for c in complaints:
-        _enrich_complaint_response(db, c)
+    # Batch 3: Account counts
+    acct_counts = dict(
+        db.query(ComplaintAccount.complaint_id, func.count(ComplaintAccount.id))
+        .filter(ComplaintAccount.complaint_id.in_(comp_ids))
+        .group_by(ComplaintAccount.complaint_id)
+        .all()
+    )
 
-        if c.id in pred_comp_ids:
-            c.prediction_status = "AVAILABLE"
+    # Batch 4: Direct transactions with sender/receiver preloaded
+    direct_tx_rows = (
+        db.query(Transaction)
+        .options(joinedload(Transaction.sender), joinedload(Transaction.receiver))
+        .filter(Transaction.complaint_id.in_(comp_ids))
+        .order_by(Transaction.timestamp.asc(), Transaction.id.asc())
+        .all()
+    )
+    direct_tx_map = {}
+    for tx in direct_tx_rows:
+        direct_tx_map.setdefault(tx.complaint_id, []).append(tx)
+
+    for c in complaints:
+        c_txs = direct_tx_map.get(c.id, [])
+        if c_txs:
+            c.source_scenario = None
+            c.scenario_link_status = "DIRECT_OFFICER_INPUT"
+            c.available_transaction_count = len(c_txs)
+            primary_tx = c_txs[0]
+            c.transaction_ref = primary_tx.transaction_ref
+            c.transaction_time = primary_tx.timestamp
+            if primary_tx.sender:
+                c.victim_bank = primary_tx.sender.bank_name
+            if primary_tx.receiver:
+                c.beneficiary_bank = primary_tx.receiver.bank_name
+                holder = primary_tx.receiver.holder_name
+                if holder and holder.startswith("Beneficiary (") and holder.endswith(")"):
+                    c.beneficiary_id = holder[13:-1]
+                else:
+                    c.beneficiary_id = primary_tx.receiver.masked_account or holder
         else:
-            c.prediction_status = "NOT RUN"
+            c.source_scenario = None
+            c.scenario_link_status = "NOT_LINKED"
+            c.available_transaction_count = 0
+
+        c.prediction_status = "AVAILABLE" if c.id in pred_comp_ids else "NOT RUN"
 
         c_alerts = alert_map.get(c.id, [])
         if c_alerts:
@@ -131,6 +172,14 @@ def _batch_enrich_complaints(db: Session, complaints: List[Complaint]) -> List[C
                 c.alert_status = "GENERATED"
         else:
             c.alert_status = "NOT GENERATED"
+
+        c.locality = getattr(c, "locality", None) or c.victim_location
+        c.provenance_mode = (
+            "SYNTHETIC_DEMO" if c.complaint_number.startswith("CMP-DL-")
+            else "LINKED_SYNTHETIC_SCENARIO" if c.scenario_link_status == "LINKED"
+            else "DIRECT_OFFICER_INPUT"
+        )
+        c.linked_account_count = acct_counts.get(c.id, 0)
 
     return complaints
 
@@ -251,19 +300,26 @@ def create_complaint(
     reported_time = data.reported_at or datetime.utcnow()
     incident_time = data.incident_time or reported_time
     victim_state = data.state or "Delhi"
-    locality = data.locality or "Connaught Place"
+    locality = data.locality or data.victim_location or None
 
     # Deterministic Delhi Origin Resolution (Priority: Coords -> Cluster -> Alias -> District -> Unresolved)
     origin_res = resolve_delhi_origin(
-        locality=data.locality,
+        locality=locality,
         district=data.district,
         lat=data.victim_lat,
         lon=data.victim_lon
     )
-    victim_district = data.district or origin_res["resolved_district"] or "CENTRAL_NEW_DELHI"
+    is_delhi = victim_state.strip().lower() == "delhi"
+    if is_delhi:
+        victim_state = "Delhi"
+    victim_district = (
+        origin_res["resolved_district"] or data.district or "UNRESOLVED"
+    ) if is_delhi else (data.district or "UNRESOLVED")
     victim_lat = data.victim_lat
     victim_lon = data.victim_lon
-    victim_location = data.victim_location or f"{locality}, {victim_district}, {victim_state}"
+    victim_location = data.victim_location or ", ".join(
+        part for part in (locality, data.district or origin_res["resolved_district"] if is_delhi else data.district, victim_state) if part
+    )
 
     # Atomic Registration Block (Rollback on any step failure)
     try:
@@ -273,7 +329,7 @@ def create_complaint(
             fraud_type=data.fraud_type,
             amount=data.amount,
             victim_name=data.victim_name or "Anonymous Victim",
-            victim_phone=data.victim_phone or "+91 98765 43210",
+            victim_phone=data.victim_phone or None,
             victim_location=victim_location,
             locality=locality,
             state=victim_state,
@@ -297,10 +353,11 @@ def create_complaint(
         # If officer supplied real transaction / bank / beneficiary data, persist as direct complaint context
         has_direct_tx = bool(
             data.transaction_ref or data.victim_bank or data.beneficiary_bank or data.beneficiary_id
+            or data.beneficiary_account_number or data.beneficiary_upi_id or data.ifsc_code
         )
         if has_direct_tx:
             # 1. Victim Account
-            v_bank = data.victim_bank or "State Bank of India"
+            v_bank = data.victim_bank or "Not provided"
             v_acc_no = f"ACC-VIC-{complaint.id:06d}"
             v_acc = db.query(Account).filter(Account.account_number == v_acc_no).first()
             if not v_acc:
@@ -325,8 +382,8 @@ def create_complaint(
             db.add(ca_v)
 
             # 2. Beneficiary Account
-            b_bank = data.beneficiary_bank or "HDFC Bank"
-            raw_ben = data.beneficiary_account_number or data.beneficiary_id or f"BEN-{complaint.id:06d}"
+            b_bank = data.beneficiary_bank or "Not provided"
+            raw_ben = data.beneficiary_account_number or data.beneficiary_id or data.beneficiary_upi_id or "Not provided"
             b_acc_no = f"ACC-BEN-{complaint.id:06d}" if not data.beneficiary_account_number else data.beneficiary_account_number
             b_acc = db.query(Account).filter(Account.account_number == b_acc_no).first()
             if not b_acc:
@@ -335,12 +392,13 @@ def create_complaint(
                     account_number=b_acc_no,
                     masked_account=masked_b,
                     bank_name=b_bank,
-                    branch=data.beneficiary_upi_id or "Digital Clearing Branch",
-                    ifsc=data.ifsc_code or "HDFC0001234",
+                    branch=data.beneficiary_upi_id or None,
+                    ifsc=data.ifsc_code or None,
                     holder_name=f"Beneficiary ({raw_ben})",
                     account_type="CURRENT" if "CURRENT" in (data.payment_channel or "").upper() else "SAVINGS",
-                    state=victim_state,
-                    district=victim_district,
+                    # A victim's location is not evidence of beneficiary geography.
+                    state="UNKNOWN",
+                    district=None,
                     is_mule=False,
                     flag_reason=None
                 )
@@ -375,13 +433,14 @@ def create_complaint(
             db.add(direct_tx)
             db.flush()
 
-        # Link complaint to scenario (preserves direct data if present)
-        link_result = link_complaint_to_scenario(db, complaint)
+        # Historical synthetic cases train the model; they are not this officer's
+        # evidence. Do not attach unrelated accounts/transactions to a new report.
+        link_result = {"status": "DIRECT_OFFICER_INPUT"}
         db.commit()
         db.refresh(complaint)
     except Exception as exc:
         db.rollback()
-        raise HTTPException(status_code=500, detail=f"Atomic complaint registration failed: {str(exc)}")
+        raise HTTPException(status_code=500, detail="Complaint registration failed; no partial complaint was saved.") from exc
 
     _enrich_complaint_response(db, complaint)
 

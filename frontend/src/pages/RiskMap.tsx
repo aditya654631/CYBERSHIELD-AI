@@ -19,20 +19,23 @@ import {
 import { api } from '../services/api';
 import { HotspotCluster, ATMLocationItem, Complaint, Prediction, PredictionLocationItem } from '../types';
 import { CashOutRiskMap } from '../maps/CashOutRiskMap';
+import { PredictionTiming } from '../components/PredictionTiming';
+import { modelScore, predictionScoreNote } from '../utils/predictionDisplay';
 
 export const RiskMap: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
   // Complaints & Selection
+  const initialCaseParam = searchParams.get('case') || searchParams.get('complaint') || '';
   const [complaints, setComplaints] = useState<Complaint[]>([]);
-  const [selectedComplaintId, setSelectedComplaintId] = useState<string>('');
+  const [selectedComplaintId, setSelectedComplaintId] = useState<string>(initialCaseParam);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
 
   // Persisted Prediction Intelligence State
   const [currentPrediction, setCurrentPrediction] = useState<Prediction | null>(null);
   const [topLocations, setTopLocations] = useState<PredictionLocationItem[]>([]);
-  const [predictionLoading, setPredictionLoading] = useState<boolean>(false);
+  const [predictionLoading, setPredictionLoading] = useState<boolean>(Boolean(initialCaseParam));
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [integrityError, setIntegrityError] = useState<string | null>(null);
   const [alertGenerating, setAlertGenerating] = useState<boolean>(false);
@@ -67,24 +70,49 @@ export const RiskMap: React.FC = () => {
 
   // Layer Toggles
   const [showPredictionZones, setShowPredictionZones] = useState<boolean>(true);
-  const [showHotspots, setShowHotspots] = useState<boolean>(true);
+  const [showHotspots, setShowHotspots] = useState<boolean>(false);
   const [showAtms, setShowAtms] = useState<boolean>(false);
 
   // 1. Initial Load: Fetch Complaints List from Real API (Correction 2)
   useEffect(() => {
     const loadComplaints = async () => {
       try {
-        const comps = await api.getComplaints({ limit: 100 });
-        setComplaints(comps);
+        const comps = await api.getComplaints({ limit: 100, state: 'Delhi' });
+        let allComps = [...comps];
 
         // Check query param first, otherwise default to CMP-NEW-000002 or first complaint
-        const paramId = searchParams.get('case');
-        if (paramId && comps.some(c => c.complaint_number === paramId)) {
-          setSelectedComplaintId(paramId);
+        const paramId = searchParams.get('case') || searchParams.get('complaint') || selectedComplaintId;
+        if (paramId) {
+          const inList = comps.find(c => c.complaint_number === paramId);
+          if (inList) {
+            setSelectedComplaintId(paramId);
+            setSelectedComplaint(inList);
+          } else {
+            try {
+              const specificComp = await api.getComplaint(paramId);
+              if (specificComp && specificComp.complaint_number) {
+                allComps = [specificComp, ...comps];
+                setSelectedComplaintId(paramId);
+                setSelectedComplaint(specificComp);
+              } else if (comps.length > 0) {
+                const defaultComp = comps[0];
+                setSelectedComplaintId(defaultComp.complaint_number);
+                setSelectedComplaint(defaultComp);
+              }
+            } catch {
+              if (comps.length > 0) {
+                const defaultComp = comps[0];
+                setSelectedComplaintId(defaultComp.complaint_number);
+                setSelectedComplaint(defaultComp);
+              }
+            }
+          }
         } else if (comps.length > 0) {
-          const defaultComp = comps.find(c => c.complaint_number === 'CMP-NEW-000002') || comps[0];
+          const defaultComp = comps[0];
           setSelectedComplaintId(defaultComp.complaint_number);
+          setSelectedComplaint(defaultComp);
         }
+        setComplaints(allComps);
       } catch (err) {
         console.error('[GIS] Failed to load complaints list', err);
       }
@@ -114,13 +142,32 @@ export const RiskMap: React.FC = () => {
 
   // 3. Reactive Single Source of Truth: Fetch Persisted Prediction on Complaint Change (Requirement 2 & 19)
   useEffect(() => {
-    if (!selectedComplaintId) return;
+    if (!selectedComplaintId) {
+      setPredictionLoading(false);
+      return;
+    }
+    let cancelled = false;
 
     // Update query param for deep linking / refresh stability (Requirement 22)
-    setSearchParams({ case: selectedComplaintId }, { replace: true });
+    if (searchParams.get('case') !== selectedComplaintId) {
+      setSearchParams({ case: selectedComplaintId }, { replace: true });
+    }
 
     const matchedComp = complaints.find(c => c.complaint_number === selectedComplaintId) || null;
-    setSelectedComplaint(matchedComp);
+    if (matchedComp) {
+      setSelectedComplaint(matchedComp);
+    } else {
+      api.getComplaint(selectedComplaintId)
+        .then((comp) => {
+          if (!cancelled && comp?.complaint_number) {
+            setSelectedComplaint(comp);
+            setComplaints((prev) =>
+              prev.some((c) => c.complaint_number === comp.complaint_number) ? prev : [comp, ...prev]
+            );
+          }
+        })
+        .catch(() => {});
+    }
 
     // CRITICAL (Requirement 19): Clear previous prediction markers immediately before new fetch
     setPredictionLoading(true);
@@ -133,8 +180,18 @@ export const RiskMap: React.FC = () => {
       try {
         // Read-only GET request strictly to Step-10 persisted prediction API
         const pred = await api.getPrediction(selectedComplaintId);
+        if (cancelled) return;
+        if (!pred) {
+          setCurrentPrediction(null);
+          setTopLocations([]);
+          setPredictionError(
+            `No persisted prediction found for ${selectedComplaintId}. This complaint may be outside the model's operational scope or awaiting predictive analysis.`
+          );
+          return;
+        }
+
         setCurrentPrediction(pred);
-        const locs = pred.top_locations || [];
+        const locs = [...(pred.top_locations || [])].sort((a, b) => a.rank - b.rank).slice(0, 3);
         setTopLocations(locs);
 
         // Verify Requirement 9: Prediction.primary_cluster_id == PredictionLocation rank=1 cluster_id
@@ -147,6 +204,7 @@ export const RiskMap: React.FC = () => {
           }
         }
       } catch (err: any) {
+        if (cancelled) return;
         // 404 or Outside Scope Handling (Requirement 17)
         if (err?.response?.status === 404) {
           setPredictionError(
@@ -158,12 +216,13 @@ export const RiskMap: React.FC = () => {
         setCurrentPrediction(null);
         setTopLocations([]);
       } finally {
-        setPredictionLoading(false);
+        if (!cancelled) setPredictionLoading(false);
       }
     };
 
     fetchPersistedPrediction();
-  }, [selectedComplaintId, complaints]);
+    return () => { cancelled = true; };
+  }, [selectedComplaintId]);
 
   const handleGenerateAlertFromMap = async () => {
     if (!currentPrediction?.prediction_id) return;
@@ -210,6 +269,13 @@ export const RiskMap: React.FC = () => {
               onChange={(e) => setSelectedComplaintId(e.target.value)}
               className="bg-transparent text-xs text-slate-800 focus:outline-none cursor-pointer font-medium w-full sm:max-w-[220px]"
             >
+              {selectedComplaintId && !complaints.some((c) => c.complaint_number === selectedComplaintId) && (
+                <option value={selectedComplaintId} className="bg-white text-slate-800">
+                  {selectedComplaint
+                    ? `${selectedComplaint.complaint_number} (${selectedComplaint.district || selectedComplaint.state}) - ₹${Number(selectedComplaint.amount || 0).toLocaleString('en-IN')}`
+                    : selectedComplaintId}
+                </option>
+              )}
               {complaints.map((c) => (
                 <option key={c.complaint_number} value={c.complaint_number} className="bg-white text-slate-800">
                   {c.complaint_number} ({c.district || c.state}) - ₹{Number(c.amount || 0).toLocaleString('en-IN')}
@@ -269,7 +335,7 @@ export const RiskMap: React.FC = () => {
           />
           <div className="mt-3 flex flex-wrap items-center justify-between text-[11px] text-slate-500 px-2">
             <span>
-              Provider: <strong className="text-slate-700">Leaflet OpenStreetMap</strong> | Concentric Rings:{' '}
+              Numbered markers show this case's top 3 locations. Concentric Rings:{' '}
               <strong className="text-blue-700">1km / 2.5km / 5km</strong> (Tactical search radii; not confidence intervals)
             </span>
             <span>
@@ -341,11 +407,15 @@ export const RiskMap: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Location Model:</span>
-                    <span className="text-slate-700">{currentPrediction.model_version || 'Location V3.1'}</span>
+                    <span className="text-slate-700 font-mono">{currentPrediction.model_version || 'unavailable'}</span>
                   </div>
-                  <div className="flex justify-between items-center pt-1 border-t border-[#DCE5F0]">
-                    <span className="text-slate-500">Time Window:</span>
-                    <span className="text-amber-800 font-semibold">{currentPrediction.when_window}</span>
+                  <div className="flex justify-between items-center">
+                    <span className="text-slate-500">Time Model:</span>
+                    <span className="text-slate-700 font-mono">{currentPrediction.time_prediction?.model_version || (currentPrediction as any).time_model_version || 'unavailable'}</span>
+                  </div>
+                  <div className="pt-2 border-t border-[#DCE5F0]">
+                    <div className="text-slate-500 mb-1">Predicted time window</div>
+                    <PredictionTiming prediction={currentPrediction} />
                   </div>
                 </div>
 
@@ -354,6 +424,7 @@ export const RiskMap: React.FC = () => {
                   <h4 className="text-xs font-bold text-slate-700 uppercase">
                     Ranked Cash-Out Zones
                   </h4>
+                  <p className="text-[11px] text-slate-500">{predictionScoreNote(currentPrediction)}</p>
 
                   {topLocations.map((loc) => {
                     const isRank1 = loc.rank === 1;
@@ -405,6 +476,11 @@ export const RiskMap: React.FC = () => {
                           </div>
                         )}
 
+                        <div className="flex justify-between items-center text-slate-500 text-[11px] mt-0.5">
+                          <span>{currentPrediction.score_label || 'Model score'}:</span>
+                          <strong className="text-blue-700">{modelScore(loc)}</strong>
+                        </div>
+                        <p className="text-[11px] text-slate-600 mt-2 leading-relaxed">{loc.reasoning}</p>
                         <div className="flex justify-between items-center text-slate-500 text-[11px] mt-0.5">
                           <span>Priority Status:</span>
                           <span className="text-slate-700 font-medium">
@@ -467,8 +543,15 @@ export const RiskMap: React.FC = () => {
                 <div className="text-xs text-slate-500 leading-relaxed">
                   {predictionError || 'No persisted prediction found for this complaint.'}
                 </div>
+                {selectedComplaintId && <button onClick={() => navigate(`/cases/${selectedComplaintId}`)} className="px-3 py-2 bg-blue-600 text-white rounded text-xs font-semibold">Open case and run analysis</button>}
                 <div className="p-3 bg-[#F6F8FC] rounded-lg border border-[#DCE5F0] text-[11px] text-slate-600 text-left space-y-1">
-                  <div><strong className="text-slate-800">Operational Jurisdiction:</strong> Delhi Pilot (60 Clusters)</div>
+                  <div className="pb-1 mb-1 border-b border-[#DCE5F0] font-semibold text-slate-700">
+                    Model Provenance
+                  </div>
+                  <div><span className="text-slate-500">Prediction Mode:</span> <strong className="text-slate-800 font-mono">unavailable</strong></div>
+                  <div><span className="text-slate-500">Location Model:</span> <strong className="text-slate-800 font-mono">unavailable</strong></div>
+                  <div><span className="text-slate-500">Time Model:</span> <strong className="text-slate-800 font-mono">unavailable</strong></div>
+                  <div className="pt-1"><strong className="text-slate-800">Operational Jurisdiction:</strong> Delhi Pilot (60 Clusters)</div>
                   {selectedComplaint && (
                     <>
                       <div><strong className="text-slate-800">Reported State:</strong> {selectedComplaint.state || 'Unknown'}</div>

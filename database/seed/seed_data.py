@@ -135,7 +135,7 @@ def seed_demo_case_cmp1042(db: Session) -> None:
         state="Madhya Pradesh",
         district="Bhopal",
         payment_channel="UPI",
-        reported_at=now - datetime.timedelta(hours=1, minutes=15),
+        reported_at=now - datetime.timedelta(minutes=50),
         incident_time=now - datetime.timedelta(hours=1, minutes=45),
         risk_level="CRITICAL",
         risk_score=0.87,
@@ -220,15 +220,13 @@ def seed_demo_case_cmp1042(db: Session) -> None:
     db.flush()
 
 def seed_delhi_geography(db: Session) -> Tuple[List[LocationCluster], List[ATMLocation]]:
-    """Idempotently seeds 60 Delhi location clusters and 240 context ATMs."""
-    existing_delhi_clusters = db.query(LocationCluster).filter(LocationCluster.state == "Delhi").all()
-    if existing_delhi_clusters:
-        delhi_atms = db.query(ATMLocation).filter(ATMLocation.state == "Delhi").all()
-        return existing_delhi_clusters, delhi_atms
-
-    print("[Seed] Seeding 60 Delhi location clusters and 240 synthetic context ATMs...")
+    """Fill missing Delhi reference rows without replacing existing locations or ATMs."""
+    existing = {c.cluster_name: c for c in db.query(LocationCluster).filter(LocationCluster.state == "Delhi").order_by(LocationCluster.id).all()}
     clusters = []
     for c_data in DELHI_CLUSTERS_DATA:
+        if c_data["name"] in existing:
+            clusters.append(existing[c_data["name"]])
+            continue
         cl = LocationCluster(
             cluster_name=c_data["name"],
             city="Delhi",
@@ -251,7 +249,11 @@ def seed_delhi_geography(db: Session) -> Tuple[List[LocationCluster], List[ATMLo
     cluster_map = {c.cluster_name: c.id for c in clusters}
 
     atm_objects = []
+    existing_atms = {a.atm_code: a for a in db.query(ATMLocation).filter(ATMLocation.state == "Delhi").all()}
     for a_data in generated_atms:
+        if a_data["atm_code"] in existing_atms:
+            atm_objects.append(existing_atms[a_data["atm_code"]])
+            continue
         cl_id = cluster_map.get(a_data["cluster_name"])
         atm = ATMLocation(
             atm_code=a_data["atm_code"],
@@ -274,16 +276,20 @@ def seed_delhi_geography(db: Session) -> Tuple[List[LocationCluster], List[ATMLo
 
 def seed_delhi_operational_dataset(db: Session, clusters: List[LocationCluster], atms: List[ATMLocation]) -> None:
     """Idempotently seeds the full synthetic Delhi operational dataset."""
-    existing_delhi_complaint = db.query(Complaint).filter(Complaint.complaint_number.like(f"{COMPLAINT_PREFIX}%")).first()
-    if existing_delhi_complaint:
-        print("[Seed] Delhi synthetic operational dataset already seeded. Skipping generation.")
+    existing_complaints = {n for (n,) in db.query(Complaint.complaint_number).filter(Complaint.complaint_number.like(f"{COMPLAINT_PREFIX}%")).all()}
+    existing_accounts = {n for (n,) in db.query(Account.account_number).filter(Account.account_number.like(f"{ACCOUNT_PREFIX}%")).all()}
+    expected_complaints = {f"{COMPLAINT_PREFIX}{i:04d}" for i in range(1, NUM_COMPLAINTS + 1)}
+    expected_accounts = {f"{ACCOUNT_PREFIX}{i:06d}" for i in range(1, NUM_ACCOUNTS + 1)}
+    if expected_complaints <= existing_complaints and expected_accounts <= existing_accounts:
+        print("[Seed] Delhi synthetic complaint/account inventory complete. Skipping generation.")
         return
 
     print(f"[Seed] Generating deterministic Delhi operational dataset (seed={SYNTHETIC_RANDOM_SEED})...")
     t0 = time.time()
     
     cluster_dicts = [
-        {"name": c.cluster_name, "zone": c.district, "lat": c.center_lat, "lon": c.center_lon, "id": c.id}
+        {"name": c.cluster_name, "zone": c.district, "lat": c.center_lat, "lon": c.center_lon, "id": c.id,
+         "risk": c.risk_score, "atm_density": c.atm_count}
         for c in clusters
     ]
     atm_dicts = [
@@ -296,7 +302,7 @@ def seed_delhi_operational_dataset(db: Session, clusters: List[LocationCluster],
 
     # 1. Batch insert Accounts (6,000)
     print(f"[Seed] Batch inserting {len(dataset['accounts'])} accounts...")
-    account_objs = [Account(**acc) for acc in dataset["accounts"]]
+    account_objs = [Account(**acc) for acc in dataset["accounts"] if acc["account_number"] not in existing_accounts]
     BATCH_SIZE = 1000
     for i in range(0, len(account_objs), BATCH_SIZE):
         db.add_all(account_objs[i:i + BATCH_SIZE])
@@ -307,7 +313,9 @@ def seed_delhi_operational_dataset(db: Session, clusters: List[LocationCluster],
 
     # 2. Batch insert Complaints (3,000)
     print(f"[Seed] Batch inserting {len(dataset['complaints'])} complaints...")
-    complaint_objs = [Complaint(**comp) for comp in dataset["complaints"]]
+    # Preserve submitted/edited cases and never claim a prediction was run merely because a row was seeded.
+    complaint_objs = [Complaint(**{**comp, "provenance_mode": "SYNTHETIC_DATASET", "prediction_status": "PENDING", "risk_score": None})
+                      for comp in dataset["complaints"] if comp["complaint_number"] not in existing_complaints]
     for i in range(0, len(complaint_objs), BATCH_SIZE):
         db.add_all(complaint_objs[i:i + BATCH_SIZE])
         db.flush()
@@ -319,10 +327,11 @@ def seed_delhi_operational_dataset(db: Session, clusters: List[LocationCluster],
     # 3. Batch insert ComplaintAccounts (~35,000)
     print(f"[Seed] Batch inserting {len(dataset['complaint_accounts'])} complaint-account associations...")
     ca_objs = []
+    existing_links = set(db.query(ComplaintAccount.complaint_id, ComplaintAccount.account_id).all())
     for ca in dataset["complaint_accounts"]:
         c_id = comp_map.get(ca["complaint_number"])
         a_id = acc_map.get(ca["account_number"])
-        if c_id and a_id:
+        if c_id and a_id and (c_id, a_id) not in existing_links:
             ca_objs.append(ComplaintAccount(
                 complaint_id=c_id,
                 account_id=a_id,
@@ -335,11 +344,12 @@ def seed_delhi_operational_dataset(db: Session, clusters: List[LocationCluster],
     # 4. Batch insert Transactions (~50,000)
     print(f"[Seed] Batch inserting {len(dataset['transactions'])} multi-hop transactions...")
     tx_objs = []
+    existing_refs = {ref for (ref,) in db.query(Transaction.transaction_ref).all()}
     for tx in dataset["transactions"]:
         c_id = comp_map.get(tx["complaint_number"])
         s_id = acc_map.get(tx["sender_account_number"])
         r_id = acc_map.get(tx["receiver_account_number"])
-        if c_id and s_id and r_id:
+        if c_id and s_id and r_id and tx["transaction_ref"] not in existing_refs:
             tx_objs.append(Transaction(
                 transaction_ref=tx["transaction_ref"],
                 complaint_id=c_id,
@@ -359,10 +369,11 @@ def seed_delhi_operational_dataset(db: Session, clusters: List[LocationCluster],
     # 5. Batch insert Withdrawals (~2,100)
     print(f"[Seed] Batch inserting {len(dataset['withdrawals'])} cash-out withdrawals...")
     w_objs = []
+    existing_withdrawals = set(db.query(Withdrawal.atm_id, Withdrawal.account_id, Withdrawal.timestamp).all())
     for w in dataset["withdrawals"]:
         a_id = atm_map.get(w["atm_code"])
         acc_id = acc_map.get(w["account_number"])
-        if a_id and acc_id:
+        if a_id and acc_id and (a_id, acc_id, w["timestamp"]) not in existing_withdrawals:
             w_objs.append(Withdrawal(
                 atm_id=a_id,
                 account_id=acc_id,

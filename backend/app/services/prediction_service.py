@@ -35,6 +35,7 @@ from ml.features.feature_pipeline import (
     FEATURE_COLUMNS_TIME
 )
 from backend.app.services.delhi_origin_resolver import resolve_delhi_origin
+from backend.app.services.prediction_contract import as_utc, build_time_prediction
 
 logger = logging.getLogger("cybershield.prediction_service")
 
@@ -109,8 +110,8 @@ def compute_operational_priority(
     """
     amt = float(amount or 0.0)
     delay_hours = 0.0
-    if incident_time and reported_at and reported_at >= incident_time:
-        delay_hours = (reported_at - incident_time).total_seconds() / 3600.0
+    if incident_time and reported_at and as_utc(reported_at) >= as_utc(incident_time):
+        delay_hours = (as_utc(reported_at) - as_utc(incident_time)).total_seconds() / 3600.0
 
     is_recent = delay_hours <= 4.0
     is_urgent = time_pred_minutes <= 90.0
@@ -212,6 +213,13 @@ class MLPredictionProvider:
             logger.error(self.load_error)
             return
 
+        for filename in (time_filename,):
+            expected = EXPECTED_HASHES.get(filename)
+            if expected and compute_file_sha256(os.path.join(self.artifacts_dir, filename)) != expected:
+                self.load_error = f"Model artifact integrity check failed: {filename}"
+                logger.error(self.load_error)
+                return
+
         try:
             self.location_model = joblib.load(loc_path)
             self.calibrator = joblib.load(cal_path)
@@ -220,6 +228,8 @@ class MLPredictionProvider:
                 self.feature_schema = json.load(f)
             with open(meta_path, "r") as f:
                 self.metadata = json.load(f)
+            if self.feature_schema.get("location_features") != FEATURE_COLUMNS_LOCATION_V3_1 or self.feature_schema.get("time_features") != FEATURE_COLUMNS_TIME:
+                raise ValueError("Artifact feature schema does not match the inference feature order")
 
             self.is_loaded = True
             logger.info(f"Successfully loaded and verified {self.model_version} and {self.time_model_version}")
@@ -285,32 +295,20 @@ class MLPredictionProvider:
         transactions = ctx.get("transactions", [])
         ctx_type = ctx.get("context_type", "EMPTY")
 
-        if ctx_type == "EMPTY" and not transactions:
-            return {
-                "complaint_id": complaint.id,
-                "complaint_number": complaint.complaint_number,
-                "status": "INSUFFICIENT_TRANSACTION_CONTEXT",
-                "prediction_mode": "unavailable",
-                "model_version": self.model_version,
-                "operational_scope": self.operational_scope,
-                "candidate_pool_size": 0,
-                "top_locations": [],
-                "time_prediction": None,
-                "message": f"Complaint {complaint.complaint_number} has empty transaction context. Minimum 1 transaction required.",
-                "limitations": [
-                    "Predictive inference requires observable transaction movement to extract recipient account geography."
-                ]
-            }
+        analysis_basis = (
+            "linked_synthetic_scenario" if ctx_type == "LINKED_SYNTHETIC_SCENARIO"
+            else "observed_transactions" if transactions else "complaint_only"
+        )
 
         # 3. Build Multi-Modal Feature Matrices through Step 8 Service
         loc_res = build_location_features(db, complaint.id, top_k=self.candidate_pool_size, model_version="v3.1")
         time_res = build_time_features(db, complaint.id)
 
-        if loc_res["status"] != "SUCCESS":
+        if loc_res["status"] != "SUCCESS" or time_res["status"] != "SUCCESS":
             return {
                 "complaint_id": complaint.id,
                 "complaint_number": complaint.complaint_number,
-                "status": loc_res["status"],
+                "status": loc_res["status"] if loc_res["status"] != "SUCCESS" else time_res["status"],
                 "prediction_mode": "unavailable",
                 "model_version": self.model_version,
                 "operational_scope": self.operational_scope,
@@ -331,6 +329,8 @@ class MLPredictionProvider:
 
         # Apply Platt calibration (Logistic Regression on raw validation probabilities)
         cal_probs = self.calibrator.predict_proba(raw_probs.reshape(-1, 1))[:, 1]
+        if len(candidates) < 3 or not np.all(np.isfinite(cal_probs)) or np.any((cal_probs < 0) | (cal_probs > 1)):
+            raise ValueError("Location model did not return three valid scored candidates")
 
         # Time model prediction (minutes to cashout)
         if "v3" in self.time_model_version:
@@ -339,9 +339,22 @@ class MLPredictionProvider:
         else:
             time_pred_minutes = float(self.time_model.predict(X_time.reshape(1, -1))[0])
         time_pred_minutes = max(15.0, round(time_pred_minutes, 1))
+        time_metrics = (self.metadata or {}).get("evaluation_metrics", {}).get(
+            "time_v3" if "v3" in self.time_model_version else "time_v2", {}
+        )
+        mae = time_metrics.get("mae")
+        # A heuristic margin based on synthetic held-out error is not a confidence interval.
+        time_margin = max(15, math.ceil(float(mae))) if mae is not None else 35
+        time_prediction = build_time_prediction(
+            complaint, time_pred_minutes, self.time_model_version, time_margin,
+            "synthetic_test_mae" if mae is not None else "operational_estimate",
+        )
 
         # 5. Top-3 Dynamic Ranking
-        ranked_indices = np.argsort(-cal_probs)
+        ranked_indices = sorted(
+            range(len(candidates)),
+            key=lambda i: (-float(cal_probs[i]), int(candidates[i]["id"])),
+        )
         top_locations = []
 
         term_zone = loc_res["provenance"].get("terminal_zone")
@@ -379,9 +392,9 @@ class MLPredictionProvider:
             if origin_zone and cand_zone == origin_zone:
                 evidence.append(f"Direct spatial alignment with complaint origin zone ({origin_zone})")
             if term_zone and cand_zone == term_zone:
-                evidence.append(f"Corresponds to observed terminal mule recipient zone ({term_zone})")
+                evidence.append(f"Matches the latest recipient account zone ({term_zone})")
             elif cand_zone in all_tx_zones:
-                evidence.append(f"Corresponds to intermediate mule transfer account zone ({cand_zone})")
+                evidence.append(f"Matches an intermediate recipient account zone ({cand_zone})")
 
             if has_coords:
                 dist_km = haversine_km(v_lat, v_lon, float(cand["lat"]), float(cand["lon"]))
@@ -389,9 +402,14 @@ class MLPredictionProvider:
             else:
                 dist_km = float(cand.get("dist_to_complaint_zone_km", 12.0))
 
-            base_risk = float(cand.get("base_risk", cand.get("risk", 0.50)))
-            atm_cnt = int(cand.get("atm_density", 15))
-            evidence.append(f"Historical cluster risk score: {base_risk:.2f} across {atm_cnt} commercial ATMs")
+            base_risk = float(cand["historical_risk"])
+            atm_cnt = int(cand["atm_density"])
+            history_count = int(cand["historical_cashout_count"])
+            evidence.append(f"Pilot database: {history_count} synthetic historical cases; {atm_cnt} ATM locations")
+            if analysis_basis == "complaint_only":
+                evidence.append("Preliminary ranking from complaint details and pilot geography; no transaction trail supplied")
+            elif analysis_basis == "linked_synthetic_scenario":
+                evidence.append("Transaction context is a linked synthetic demonstration scenario")
 
             # Operational priority derived from explicit operational signals (Rank, Amount, Window, Recency)
             risk_band = compute_operational_priority(
@@ -431,11 +449,7 @@ class MLPredictionProvider:
                 "evidence": evidence
             })
 
-        # 6. Time Window Formatting (Operational Window based on model MAE)
-        time_margin = 15 if "v3" in self.time_model_version else 35
-        min_mins = max(10, int(time_pred_minutes - time_margin))
-        max_mins = int(time_pred_minutes + time_margin)
-        window_label = f"Next {min_mins}–{max_mins} Minutes (operational estimate window)"
+        window_label = time_prediction["operational_window"]
 
         primary_loc = top_locations[0]["location_name"]
         primary_prob = top_locations[0]["ml_probability"]
@@ -455,9 +469,22 @@ class MLPredictionProvider:
             priority = 30
             priority_label = "ROUTINE"
 
-        ref_time = complaint.reported_at or datetime.utcnow()
-
         top_locations = [PredictionLocationDict(l) for l in top_locations]
+
+        limitations = [
+            "Model trained and evaluated on synthetic Delhi data; scores are not validated real-world probabilities or accuracy.",
+            "Only registered Delhi pilot clusters are ranked; the three scores are not normalized to sum to 100%.",
+            "Time is measured from complaint reporting. The displayed error margin is a heuristic, not a calibrated confidence interval.",
+        ]
+        metrics = (self.metadata or {}).get("evaluation_metrics", {}).get(
+            "location_v4" if "v4" in self.model_version else "location_v3_1", {}
+        )
+        if metrics.get("r3") is not None:
+            limitations.append(f"Synthetic held-out Top-3 recall: {float(metrics['r3']):.2f}%; performance on real complaints is unknown.")
+        if analysis_basis == "complaint_only":
+            limitations.append("No transaction trail is available. This preliminary complaint-only estimate is outside the transaction-rich training setting.")
+        if analysis_basis == "linked_synthetic_scenario":
+            limitations.append("Linked transaction movements are synthetic scenario data, not observed movements for this complaint.")
 
         return PredictionResultDict({
             "prediction_id": 0,
@@ -467,7 +494,12 @@ class MLPredictionProvider:
             "prediction_mode": "trained_ml",
             "model_version": self.model_version,
             "operational_scope": self.operational_scope,
-            "candidate_pool_size": self.candidate_pool_size,
+            "candidate_pool_size": len(candidates),
+            "primary_cluster_id": top_locations[0]["cluster_id"],
+            "score_type": "synthetic_calibrated_candidate_score",
+            "score_label": "Synthetic model score",
+            "training_data_source": "synthetic_delhi",
+            "analysis_basis": analysis_basis,
             "location_feature_version": self.location_feature_version,
             "dataset_version": self.dataset_version,
             "where_location": primary_loc,
@@ -478,25 +510,19 @@ class MLPredictionProvider:
             "risk_band": primary_band,
             "intervention_priority": priority,
             "priority_level": priority_label,
-            "why_summary": f"Rank #1 predicted cash-out cluster based on observed transaction context and historical patterns.",
+            "why_summary": (
+                "Preliminary cash-out cluster ranking from complaint details and synthetic Delhi historical patterns."
+                if analysis_basis == "complaint_only" else
+                "Cash-out cluster ranking from transaction context and synthetic Delhi historical patterns."
+            ),
             "confidence_score": primary_prob,
             "ml_score": primary_prob,
             "graph_score": round(min(1.0, float(loc_res["provenance"].get("graph_edge_count", 0)) / 8.0), 2),
-            "geo_score": round(float(candidates[ranked_indices[0]].get("base_risk", 0.50)), 2),
+            "geo_score": round(float(candidates[ranked_indices[0]]["historical_risk"]), 2),
             "temporal_score": round(min(1.0, max(0.20, 1.0 - (time_pred_minutes / 400.0))), 2),
             "top_locations": top_locations,
-            "time_prediction": {
-                "predicted_minutes_to_cashout": time_pred_minutes,
-                "model_version": self.time_model_version,
-                "prediction_reference_time": ref_time.isoformat() if hasattr(ref_time, "isoformat") else str(ref_time),
-                "operational_window": window_label
-            },
-            "limitations": [
-                "Location V3.1 test set Recall@1 is 13.14% (Exact-Origin baseline is 18.27%).",
-                "Held-out K=25 candidate recall is 76.92%.",
-                "CROSS_ZONE evasion corridor candidate recall is 21.43% due to intermediate mule bypassing.",
-                "Model is strictly calibrated for the Delhi Pilot 60-cluster jurisdiction."
-            ],
+            "time_prediction": time_prediction,
+            "limitations": limitations,
             "provenance": {
                 "location_model_sha256": self.location_hash,
                 "calibrator_sha256": self.calibrator_hash,
@@ -505,7 +531,9 @@ class MLPredictionProvider:
                 "graph_edges": loc_res["provenance"].get("graph_edge_count"),
                 "features_used": 43,
                 "time_features_used": 20,
-                "zero_fabricated_defaults": True,
+                "transaction_count": len(transactions),
+                "source_scenario": ctx.get("source_scenario"),
+                "historical_features_source": "synthetic_pilot_baselines",
                 "zero_target_lookup": True
             },
             "created_at": datetime.utcnow()
@@ -671,9 +699,20 @@ class PredictionService:
             res = self.ml_provider.predict(complaint, db)
             return PredictionResultDict(res)
         except Exception as e:
-            logger.warning(f"ML inference error: {e}, falling back to demo provider")
-            res = self.demo_provider.get_prediction_for_complaint(complaint, db)
-            return PredictionResultDict(res)
+            logger.exception("ML inference failed for complaint %s", complaint.complaint_number)
+            return PredictionResultDict({
+                "complaint_id": complaint.id,
+                "complaint_number": complaint.complaint_number,
+                "status": "INFERENCE_FAILED",
+                "prediction_mode": "unavailable",
+                "model_version": self.ml_provider.model_version,
+                "operational_scope": "DELHI_PILOT",
+                "candidate_pool_size": 0,
+                "top_locations": [],
+                "time_prediction": None,
+                "message": "Analysis could not be completed. Check model readiness and complaint data, then retry.",
+                "limitations": ["No substitute locations or demo scores were generated."],
+            })
 
     def run_and_persist_prediction(self, db: Session, complaint_id: int) -> PredictionResultDict:
         """

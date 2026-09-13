@@ -18,6 +18,7 @@ import math
 import logging
 from typing import Dict, Any, List, Optional, Tuple
 import numpy as np
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from backend.app.models.models import Complaint, LocationCluster, Account
@@ -48,14 +49,11 @@ def _complaint_to_dict(complaint: Complaint) -> Dict[str, Any]:
     v_dist = getattr(complaint, "victim_district", None) or getattr(complaint, "district", None)
     locality_str = getattr(complaint, "locality", None) or getattr(complaint, "victim_location", None) or ""
 
-    if not v_dist or (v_dist == "CENTRAL_NEW_DELHI" and locality_str and "connaught" not in locality_str.lower() and "cp" not in locality_str.lower()):
-        origin_res = resolve_delhi_origin(locality=locality_str, district=v_dist, lat=v_lat, lon=v_lon)
-        if origin_res["resolved_district"] is not None:
-            v_dist = origin_res["resolved_district"]
-        if v_lat is None and origin_res["resolved_lat"] is not None and origin_res["provenance"] in ("LOCALITY_CLUSTER_MATCH", "LOCALITY_ALIAS_MATCH"):
-            if "connaught" not in locality_str.lower():
-                v_lat = origin_res["resolved_lat"]
-                v_lon = origin_res["resolved_lon"]
+    origin_res = resolve_delhi_origin(locality=locality_str, district=v_dist, lat=v_lat, lon=v_lon)
+    if origin_res["resolved_district"] is not None:
+        v_dist = origin_res["resolved_district"]
+    if v_lat is None or v_lon is None:
+        v_lat, v_lon = origin_res["resolved_lat"], origin_res["resolved_lon"]
 
     return {
         "complaint_id": complaint.id,
@@ -82,12 +80,17 @@ def _load_clusters_from_db(db: Session) -> List[Dict[str, Any]]:
     """Loads Delhi pilot location clusters strictly (excludes legacy MP clusters)."""
     clusters = (
         db.query(LocationCluster)
-        .filter((LocationCluster.state == "Delhi") | (LocationCluster.city == "Delhi"))
+        .filter((func.lower(LocationCluster.state) == "delhi") | (func.lower(LocationCluster.city) == "delhi"))
         .order_by(LocationCluster.id.asc())
         .all()
     )
     res = []
     for c in clusters:
+        if c.center_lat is None or c.center_lon is None:
+            continue
+        lat, lon = float(c.center_lat), float(c.center_lon)
+        if not (math.isfinite(lat) and math.isfinite(lon) and 28.38 <= lat <= 28.92 and 76.80 <= lon <= 77.45):
+            continue
         res.append({
             "id": c.id,
             "name": c.cluster_name,
@@ -95,12 +98,13 @@ def _load_clusters_from_db(db: Session) -> List[Dict[str, Any]]:
             "state": c.state or "Delhi",
             "district": c.district,
             "zone": c.district,
-            "lat": float(c.center_lat) if c.center_lat is not None else 28.6139,
-            "lon": float(c.center_lon) if c.center_lon is not None else 77.2090,
-            "atm_density": float(c.atm_count) if c.atm_count is not None else 15.0,
-            "base_risk": float(c.risk_score) if c.risk_score is not None else 0.50,
-            "historical_cashout_count": float(c.historical_fraud_count or 230.0),
-            "historical_cashout_amount": float(c.historical_fraud_count or 230.0) * 50000.0
+            "lat": lat,
+            "lon": lon,
+            "atm_density": float(c.atm_count or 0),
+            "base_risk": float(c.risk_score or 0.0),
+            "historical_cashout_count": float(c.historical_fraud_count or 0),
+            # This legacy feature is a synthetic training proxy, not a measured total.
+            "historical_cashout_amount": float(c.historical_fraud_count or 0) * 50000.0
         })
     return res
 
@@ -180,7 +184,7 @@ def build_location_features(
     else:
         candidates = cand_gen.generate_candidates_for_complaint(comp_dict, top_k=top_k)
 
-    if not candidates:
+    if len(candidates) < 3:
         return {
             "status": "INSUFFICIENT_GEO_DATA",
             "feature_names": selected_feature_names,

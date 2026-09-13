@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import {
   ShieldAlert,
   MapPin,
@@ -30,11 +30,15 @@ import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { LoadingState } from '../components/common/LoadingState';
+import { PredictionTiming } from '../components/PredictionTiming';
+import { apiErrorMessage, modelScore, predictionScoreNote } from '../utils/predictionDisplay';
 
 export const CaseIntelligence: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const caseId = id || 'CMP-NEW-000126';
   const navigate = useNavigate();
+  const location = useLocation();
+  const loadVersion = useRef(0);
 
   const [complaint, setComplaint] = useState<Complaint | null>(null);
   const [prediction, setPrediction] = useState<Prediction | null>(null);
@@ -45,23 +49,38 @@ export const CaseIntelligence: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [runningPrediction, setRunningPrediction] = useState(false);
   const [predictionError, setPredictionError] = useState<string | null>(null);
+  const [caseError, setCaseError] = useState<string | null>(null);
   const [alertSuccess, setAlertSuccess] = useState<string | null>(null);
 
   const fetchCaseDetails = async () => {
+    const version = ++loadVersion.current;
     setLoading(true);
-    setPredictionError(null);
+    setCaseError(null);
+    setPredictionError(location.state?.analysisError || null);
+    setComplaint(null);
+    setPrediction(null);
+    setExplanation(null);
+    setGraphData(null);
+    setExistingAlert(null);
     try {
-      const [compData, predData, mapData, alertsData] = await Promise.all([
+      const [compResult, predResult, mapResult, alertsResult, graphResult] = await Promise.allSettled([
         api.getComplaint(caseId),
         api.getPrediction(caseId),
         api.getRiskMap(),
-        api.getAlerts()
+        api.getAlerts(),
+        api.getGraph(caseId),
       ]);
+      if (version !== loadVersion.current) return;
+      if (compResult.status === 'rejected') throw compResult.reason;
+      const compData = compResult.value;
+      const predData = predResult.status === 'fulfilled' ? predResult.value : null;
+      if (predResult.status === 'rejected') setPredictionError(apiErrorMessage(predResult.reason, 'Could not load analysis. Retry below.'));
       setComplaint(compData);
       setPrediction(predData);
-      setClusters(mapData.hotspots || []);
+      setClusters(mapResult.status === 'fulfilled' ? mapResult.value.hotspots || [] : []);
+      setGraphData(graphResult.status === 'fulfilled' ? graphResult.value : null);
 
-      const matchedAlert = alertsData.find(
+      const matchedAlert = (alertsResult.status === 'fulfilled' ? alertsResult.value : []).find(
         (a) => a.complaint_number === caseId || a.complaint_id === compData.id
       );
       setExistingAlert(matchedAlert || null);
@@ -69,27 +88,23 @@ export const CaseIntelligence: React.FC = () => {
       if (predData?.prediction_id) {
         try {
           const explData = await api.getExplanation(predData.prediction_id);
-          setExplanation(explData);
+          if (version === loadVersion.current) setExplanation(explData);
         } catch {
           // silent fallback
         }
       }
 
-      try {
-        const gData = await api.getGraph(caseId);
-        setGraphData(gData);
-      } catch {
-        // graph is optional
-      }
     } catch (err: any) {
       console.error('Failed to load case intelligence', err);
+      if (version === loadVersion.current) setCaseError(apiErrorMessage(err, 'Could not load this complaint. Check the case number and retry.'));
     } finally {
-      setLoading(false);
+      if (version === loadVersion.current) setLoading(false);
     }
   };
 
   useEffect(() => {
     fetchCaseDetails();
+    return () => { loadVersion.current += 1; };
   }, [caseId]);
 
   // Operational Action: Run Predictive Analysis
@@ -109,9 +124,7 @@ export const CaseIntelligence: React.FC = () => {
       }
     } catch (err: any) {
       console.error('Error running predictive analysis', err);
-      setPredictionError(
-        err.response?.data?.detail || 'Predictive analysis could not be completed. Check case context or backend service.'
-      );
+      setPredictionError(apiErrorMessage(err, 'Predictive analysis could not be completed. Check case context or backend service.'));
     } finally {
       setRunningPrediction(false);
     }
@@ -136,7 +149,7 @@ export const CaseIntelligence: React.FC = () => {
     }
   };
 
-  if (loading || !complaint) {
+  if (loading) {
     return (
       <div className="py-24">
         <LoadingState message="Loading case intelligence dossier and evidence records..." />
@@ -144,17 +157,17 @@ export const CaseIntelligence: React.FC = () => {
     );
   }
 
+  if (!complaint) return (
+    <div className="p-6 bg-white rounded-lg border border-red-200 space-y-3">
+      <p className="text-sm text-red-700">{caseError || 'Complaint unavailable.'}</p>
+      <Button onClick={fetchCaseDetails}>Retry loading case</Button>
+    </div>
+  );
+
   const isTrained = prediction?.prediction_mode === 'trained_ml';
   const isDemo = prediction?.prediction_mode === 'deterministic_demo';
-  const topLocations = prediction?.top_locations || [];
+  const topLocations = [...(prediction?.top_locations || [])].sort((a, b) => a.rank - b.rank).slice(0, 3);
   const rank1Location = topLocations[0] || null;
-
-  // Format likelihood preserving exact rank distinction
-  const formatLikelihood = (prob: number | null | undefined): string => {
-    if (prob == null || !Number.isFinite(prob)) return '—';
-    const pct = prob * 100;
-    return `${pct.toFixed(2)}%`;
-  };
 
   // Context provenance mapping
   const provenanceLabel =
@@ -228,7 +241,7 @@ export const CaseIntelligence: React.FC = () => {
 
             {prediction ? (
               <Button
-                onClick={() => navigate(`/risk-map?complaint=${caseId}`)}
+                onClick={() => navigate(`/risk-map?case=${caseId}`)}
                 variant="outline"
                 size="sm"
                 icon={<MapIcon className="w-3.5 h-3.5" />}
@@ -646,6 +659,18 @@ export const CaseIntelligence: React.FC = () => {
               <div className="text-[11px] text-slate-500 mt-0.5">Post-inference only</div>
             </div>
           </div>
+
+          <div className="p-3.5 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <div className="flex items-center space-x-2">
+              <span className="font-semibold text-slate-700 uppercase text-[11px]">Model Provenance:</span>
+              <span>Prediction Mode: <strong className="text-slate-800 font-mono">unavailable</strong></span>
+              <span>•</span>
+              <span>Location Model: <strong className="text-slate-800 font-mono">unavailable</strong></span>
+              <span>•</span>
+              <span>Time Model: <strong className="text-slate-800 font-mono">unavailable</strong></span>
+            </div>
+            <span className="text-[11px] text-slate-500">Run predictive analysis above to compute live Top-3 candidate clusters</span>
+          </div>
         </div>
       ) : (
         /* ACTIVE PREDICTION WORKSPACE */
@@ -717,6 +742,7 @@ export const CaseIntelligence: React.FC = () => {
                         <tr className="bg-[#F8FAFC] border-b border-[#DCE5F0] text-slate-700 font-semibold">
                           <th className="py-2.5 px-3">Rank</th>
                           <th className="py-2.5 px-3">Candidate Zone</th>
+                          <th className="py-2.5 px-3">{prediction.score_label || 'Model score'}</th>
                           <th className="py-2.5 px-3 text-center">Operational Priority</th>
                           <th className="py-2.5 px-3">Distance</th>
                           <th className="py-2.5 px-3">Intervention Reasoning</th>
@@ -736,6 +762,7 @@ export const CaseIntelligence: React.FC = () => {
                             <td className="py-2.5 px-3 font-semibold text-slate-900">
                               {loc.cluster_name || loc.location_name}
                             </td>
+                            <td className="py-2.5 px-3 font-semibold text-blue-700">{modelScore(loc)}</td>
                             <td className="py-2.5 px-3 text-center">
                               <span className={`inline-block text-[10px] px-2 py-0.5 rounded font-medium border ${
                                 loc.risk_level === 'CRITICAL'
@@ -787,6 +814,7 @@ export const CaseIntelligence: React.FC = () => {
                         </div>
                         <div className="flex items-center justify-between text-[11px] text-slate-500">
                           <span>Distance: <strong className="text-slate-700 font-mono">{loc.distance_km} km</strong></span>
+                          <span>{prediction.score_label || 'Model score'}: <strong className="text-blue-700">{modelScore(loc)}</strong></span>
                         </div>
                         {loc.reasoning && (
                           <div className="text-[11px] text-slate-600 bg-slate-50 p-2 rounded border border-slate-100 leading-relaxed">
@@ -799,10 +827,17 @@ export const CaseIntelligence: React.FC = () => {
                 </div>
 
                 {/* Explanatory Disclaimer Note (Section 21) */}
+                <CashOutRiskMap
+                  topLocations={topLocations}
+                  complaint={complaint}
+                  prediction={prediction}
+                  height="340px"
+                  showControls={false}
+                />
                 <div className="p-3 bg-[#F8FAFC] rounded-md border border-[#DCE5F0] text-xs text-slate-500 flex items-start space-x-2">
                   <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
                   <p className="leading-relaxed">
-                    Candidate zones are ranked by the predictive model for operational prioritization. Rankings do not guarantee that criminal activity will occur at a particular location.
+                    {predictionScoreNote(prediction)} Rankings do not guarantee that activity will occur at a particular location.
                   </p>
                 </div>
               </div>
@@ -821,18 +856,10 @@ export const CaseIntelligence: React.FC = () => {
                     </span>
                   </div>
 
-                  <div className="text-base font-bold text-[#173A63] mt-1">
-                    {prediction.time_prediction?.operational_window || prediction.when_window || 'Window Analysis Pending'}
-                  </div>
-
-                  {prediction.time_prediction?.predicted_minutes_to_cashout != null && (
-                    <div className="text-xs text-slate-600">
-                      Central estimate: <strong className="text-slate-900 font-mono">~{Math.round(prediction.time_prediction.predicted_minutes_to_cashout)} minutes</strong> from reference time.
-                    </div>
-                  )}
+                  <PredictionTiming prediction={prediction} />
 
                   <p className="text-[11px] text-slate-500">
-                    Estimated intervention window generated by {prediction.time_prediction?.model_version || 'cashout-time-xgb-v2'}.
+                    Estimated intervention window generated by {prediction.time_prediction?.model_version || (prediction as any).time_model_version || 'predictive time model'}.
                   </p>
                 </div>
 
@@ -850,15 +877,15 @@ export const CaseIntelligence: React.FC = () => {
                   <div className="space-y-1.5 text-slate-600">
                     <div className="flex justify-between">
                       <span className="text-slate-500">Prediction Mode:</span>
-                      <strong className="text-slate-800">{isTrained ? 'Trained ML' : isDemo ? 'Deterministic Demo' : prediction.prediction_mode}</strong>
+                      <strong className="text-slate-800">{isTrained ? 'Trained ML' : isDemo ? 'Deterministic Demo' : (prediction.prediction_mode || 'unavailable')}</strong>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Location Model:</span>
-                      <span className="font-mono text-slate-800">{prediction.model_version || 'cashout-location-xgb-v3.1'}</span>
+                      <span className="font-mono text-slate-800">{prediction.model_version || 'unavailable'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Time Model:</span>
-                      <span className="font-mono text-slate-800">{prediction.time_prediction?.model_version || 'cashout-time-xgb-v2'}</span>
+                      <span className="font-mono text-slate-800">{prediction.time_prediction?.model_version || (prediction as any).time_model_version || 'unavailable'}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Candidate Scope:</span>
@@ -868,6 +895,9 @@ export const CaseIntelligence: React.FC = () => {
                       <span className="text-slate-500">Context:</span>
                       <span className="text-slate-800">{provenanceLabel}</span>
                     </div>
+                    {prediction.analysis_basis && <div className="pt-2 text-slate-600">
+                      {prediction.analysis_basis === 'complaint_only' ? 'Limited evidence: complaint details only. Add verified transfer evidence to improve analysis.' : prediction.analysis_basis === 'linked_synthetic_scenario' ? 'Evidence includes a synthetic investigation scenario.' : 'Analysis includes recorded transaction evidence.'}
+                    </div>}
                   </div>
                 </div>
 
@@ -917,7 +947,7 @@ export const CaseIntelligence: React.FC = () => {
                   )}
 
                   <Button
-                    onClick={() => navigate('/risk-map')}
+                    onClick={() => navigate(`/risk-map?case=${caseId}`)}
                     variant="outline"
                     size="sm"
                     className="w-full"

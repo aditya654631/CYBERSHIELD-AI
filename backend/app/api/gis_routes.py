@@ -1,11 +1,71 @@
 from typing import List, Optional
+from datetime import datetime, timezone
+from collections import Counter
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy import func
+from sqlalchemy.orm import Session, joinedload
 from backend.app.models.db import get_db
-from backend.app.models.models import LocationCluster, ATMLocation, Complaint
+from backend.app.models.models import LocationCluster, ATMLocation, Complaint, Prediction, PredictionLocation
 from backend.app.schemas.schemas import HotspotCluster, ATMLocationItem, GISOverviewResponse
 
 router = APIRouter(tags=["GIS & Risk Map"])
+
+
+def _cluster_items(db: Session, clusters: List[LocationCluster]) -> List[dict]:
+    """Catalog geography plus current persisted case evidence, with no dummy KPIs."""
+    if not clusters:
+        return []
+    cluster_ids = [cluster.id for cluster in clusters]
+    atm_counts = dict(db.query(ATMLocation.cluster_id, func.count(ATMLocation.id)).filter(
+        ATMLocation.cluster_id.in_(cluster_ids)
+    ).group_by(ATMLocation.cluster_id).all())
+    latest = db.query(func.max(Prediction.id).label("id")).group_by(Prediction.complaint_id).subquery()
+    rows = db.query(PredictionLocation, Prediction, Complaint).join(
+        Prediction, PredictionLocation.prediction_id == Prediction.id
+    ).join(latest, Prediction.id == latest.c.id).join(
+        Complaint, Prediction.complaint_id == Complaint.id
+    ).filter(
+        PredictionLocation.cluster_id.in_(cluster_ids),
+        Complaint.state == "Delhi",
+        ~func.upper(Complaint.case_status).in_(["RESOLVED", "CLOSED"]),
+        Prediction.predicted_window_end > datetime.utcnow(),
+    ).all()
+    evidence = {}
+    for location, prediction, complaint in rows:
+        evidence.setdefault(location.cluster_id, {})[complaint.id] = (prediction, complaint)
+
+    result = []
+    for cluster in clusters:
+        cases = list(evidence.get(cluster.id, {}).values())
+        risk_score = max((float(pred.risk_score or 0) for pred, _ in cases), default=float(cluster.risk_score or 0))
+        risk_level = "CRITICAL" if risk_score >= .8 else "HIGH" if risk_score >= .6 else "MEDIUM" if risk_score >= .4 else "LOW"
+        earliest = min((pred for pred, _ in cases), key=lambda pred: pred.predicted_window_end, default=None)
+        window = "No active case prediction"
+        if earliest:
+            # Absolute UTC timestamps prevent a stored 'Next 2 hours' label from
+            # silently moving forward every time the map is opened.
+            start = earliest.predicted_window_start.replace(tzinfo=timezone.utc).isoformat()
+            end = earliest.predicted_window_end.replace(tzinfo=timezone.utc).isoformat()
+            window = f"{start} – {end}"
+        fraud_counts = Counter(comp.fraud_type for _, comp in cases)
+        result.append({
+            "id": cluster.id,
+            "cluster_name": cluster.cluster_name,
+            "city": cluster.city,
+            "district": cluster.district,
+            "state": cluster.state,
+            "latitude": cluster.center_lat,
+            "longitude": cluster.center_lon,
+            "radius_km": cluster.radius_km,
+            "risk_score": risk_score,
+            "risk_level": risk_level,
+            "active_cases": len(cases),
+            "amount_at_risk": sum(float(comp.amount) for _, comp in cases),
+            "atm_count": atm_counts.get(cluster.id, 0),
+            "expected_window": window,
+            "fraud_type": ", ".join(fraud for fraud, _ in fraud_counts.most_common(3)) or "No active case prediction",
+        })
+    return sorted(result, key=lambda row: (-row["active_cases"], -row["risk_score"], row["id"]))
 
 @router.get("/risk-map", response_model=GISOverviewResponse)
 def get_risk_map_overview(
@@ -19,38 +79,13 @@ def get_risk_map_overview(
 
     clusters = query_clusters.order_by(LocationCluster.risk_score.desc()).all()
 
-    hotspots = []
-    for c in clusters:
-        risk_lvl = "CRITICAL" if c.risk_score >= 0.80 else ("HIGH" if c.risk_score >= 0.60 else "MEDIUM")
-        if risk_level and risk_level != "ALL" and risk_lvl != risk_level:
-            continue
-
-        # Expected window
-        exp_win = "Next 2–4 Hours" if c.risk_score >= 0.80 else "Next 4–8 Hours"
-        amt = 125000.0 if c.risk_score >= 0.80 else (75000.0 if c.risk_score >= 0.70 else 35000.0)
-
-        hotspots.append({
-            "id": c.id,
-            "cluster_name": c.cluster_name,
-            "city": c.city,
-            "district": c.district,
-            "state": c.state,
-            "latitude": c.center_lat,
-            "longitude": c.center_lon,
-            "radius_km": c.radius_km,
-            "risk_score": c.risk_score,
-            "risk_level": risk_lvl,
-            "active_cases": max(1, int(c.risk_score * 7)),
-            "amount_at_risk": amt,
-            "atm_count": c.atm_count or 6,
-            "expected_window": exp_win,
-            "fraud_type": "Investment / Mule Extraction"
-        })
-
-    atms_query = db.query(ATMLocation).join(LocationCluster).filter(LocationCluster.state == "Delhi")
-    if district and district != "ALL":
-        atms_query = atms_query.filter(ATMLocation.district.ilike(f"%{district}%"))
-    atms = atms_query.limit(100).all()
+    hotspots = _cluster_items(db, clusters)
+    if risk_level and risk_level != "ALL":
+        hotspots = [item for item in hotspots if item["risk_level"] == risk_level.upper()]
+    visible_cluster_ids = [item["id"] for item in hotspots]
+    atms = db.query(ATMLocation).options(joinedload(ATMLocation.cluster)).filter(
+        ATMLocation.cluster_id.in_(visible_cluster_ids)
+    ).order_by(ATMLocation.id).all()
 
     atm_items = [
         {
@@ -73,8 +108,9 @@ def get_risk_map_overview(
         "total_hotspots": len(hotspots),
         "critical_clusters": sum(1 for h in hotspots if h["risk_level"] == "CRITICAL"),
         "total_monitored_atms": len(atm_items),
-        "primary_threat_epicenter": hotspots[0]["cluster_name"] if hotspots else "Connaught Place, Delhi",
-        "state": "Delhi"
+        "primary_threat_epicenter": hotspots[0]["cluster_name"] if hotspots and hotspots[0]["active_cases"] else "No active case prediction",
+        "state": "Delhi",
+        "data_basis": "Delhi catalog; active cases use the latest persisted, unexpired prediction per complaint. Catalog risk is a historical synthetic prior when there is no active prediction.",
     }
 
     return {
@@ -86,52 +122,15 @@ def get_risk_map_overview(
 @router.get("/clusters", response_model=List[HotspotCluster])
 def list_clusters(db: Session = Depends(get_db)):
     clusters = db.query(LocationCluster).filter(LocationCluster.state == "Delhi").order_by(LocationCluster.risk_score.desc()).all()
-    res = []
-    for c in clusters:
-        risk_lvl = "CRITICAL" if c.risk_score >= 0.80 else ("HIGH" if c.risk_score >= 0.60 else "MEDIUM")
-        res.append({
-            "id": c.id,
-            "cluster_name": c.cluster_name,
-            "city": c.city,
-            "district": c.district,
-            "state": c.state,
-            "latitude": c.center_lat,
-            "longitude": c.center_lon,
-            "radius_km": c.radius_km,
-            "risk_score": c.risk_score,
-            "risk_level": risk_lvl,
-            "active_cases": max(1, int(c.risk_score * 7)),
-            "amount_at_risk": 125000.0 if c.risk_score >= 0.80 else 50000.0,
-            "atm_count": c.atm_count or 5,
-            "expected_window": "Next 2–4 Hours",
-            "fraud_type": "Investment Scam / Mule Extraction"
-        })
-    return res
+    return _cluster_items(db, clusters)
 
 @router.get("/clusters/{id}", response_model=HotspotCluster)
 def get_cluster(id: int, db: Session = Depends(get_db)):
-    c = db.query(LocationCluster).filter(LocationCluster.id == id).first()
+    c = db.query(LocationCluster).filter(LocationCluster.id == id, LocationCluster.state == "Delhi").first()
     if not c:
         raise HTTPException(status_code=404, detail="Cluster not found")
 
-    risk_lvl = "CRITICAL" if c.risk_score >= 0.80 else ("HIGH" if c.risk_score >= 0.60 else "MEDIUM")
-    return {
-        "id": c.id,
-        "cluster_name": c.cluster_name,
-        "city": c.city,
-        "district": c.district,
-        "state": c.state,
-        "latitude": c.center_lat,
-        "longitude": c.center_lon,
-        "radius_km": c.radius_km,
-        "risk_score": c.risk_score,
-        "risk_level": risk_lvl,
-        "active_cases": 8 if "Vijay" in c.cluster_name else 4,
-        "amount_at_risk": 125000.0,
-        "atm_count": c.atm_count or 6,
-        "expected_window": "Next 2–4 Hours",
-        "fraud_type": "Investment Scam"
-    }
+    return _cluster_items(db, [c])[0]
 
 
 @router.get("/risk-map/prediction/{complaint_id}")

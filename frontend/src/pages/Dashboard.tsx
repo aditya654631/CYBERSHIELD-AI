@@ -205,7 +205,10 @@ export const Dashboard: React.FC = () => {
           </div>
 
           <div className="h-[320px] sm:h-96 w-full rounded-md overflow-hidden border border-[#DCE5F0] relative">
-            <CashOutRiskMap hotspots={hotspots} />
+            <CashOutRiskMap
+              hotspots={hotspots}
+              priorityHotspotIds={hotspots.slice(0, 3).map(h => h.id)}
+            />
           </div>
         </div>
 
@@ -343,7 +346,7 @@ export const Dashboard: React.FC = () => {
               <PieChart>
                 <Pie
                   data={[
-                    { name: 'Trained ML (XGBoost v3.1)', value: mode_distribution.trained_ml },
+                    { name: 'Trained ML', value: mode_distribution.trained_ml },
                     { name: 'Deterministic Demo', value: mode_distribution.deterministic_demo }
                   ]}
                   dataKey="value"

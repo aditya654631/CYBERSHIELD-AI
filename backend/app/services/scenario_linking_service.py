@@ -120,15 +120,11 @@ def match_scenario(db: Session, complaint: Complaint) -> Tuple[Optional[Complain
 
         scored_candidates.append((score, tier, cand))
 
-    # 5. Deterministic tie-breaking
-    # Disperse matches across scenario library using complaint attributes
-    name_factor = abs(hash(complaint.victim_name or complaint.complaint_number or "victim"))
-    tie_offset = (name_factor + int(comp_amt)) % 1000
-
+    # Equal financial/geographic evidence must produce equal matches across
+    # restarts, independent of the victim's identity or Python hash seed.
     def sort_key(item):
         score, _, cand = item
-        cand_id_offset = abs((cand.id % 1000) - tie_offset)
-        return (-score, cand_id_offset, cand.complaint_number)
+        return (-score, cand.complaint_number)
 
     scored_candidates.sort(key=sort_key)
     best_score, best_tier, best_scenario = scored_candidates[0]
@@ -142,18 +138,6 @@ def link_complaint_to_scenario(db: Session, complaint: Complaint) -> Dict[str, A
     Populates ComplaintAccount records for all accounts in the scenario.
     Records provenance metadata cleanly in the complaint description.
     """
-    scenario, tier_reason, score = match_scenario(db, complaint)
-
-    if scenario is None:
-        return {
-            "status": tier_reason,
-            "source_scenario": None,
-            "match_reason": tier_reason,
-            "match_score": 0.0,
-            "linked_account_count": 0,
-            "available_transaction_count": 0
-        }
-
     # 0. DIRECT TRANSACTION PRECEDENCE CHECK:
     # If direct transactions already exist on this complaint, preserve them. Do not overwrite with synthetic accounts.
     direct_txs = db.query(Transaction).filter(Transaction.complaint_id == complaint.id).all()
@@ -163,11 +147,22 @@ def link_complaint_to_scenario(db: Session, complaint: Complaint) -> Dict[str, A
         db.flush()
         return {
             "status": "DIRECT_OFFICER_INPUT",
-            "source_scenario": scenario.complaint_number if scenario else None,
+            "source_scenario": None,
             "match_reason": "Direct complaint transaction context takes precedence",
-            "match_score": score if scenario else 0.0,
+            "match_score": 0.0,
             "linked_account_count": len(direct_cas),
             "available_transaction_count": len(direct_txs)
+        }
+
+    scenario, tier_reason, score = match_scenario(db, complaint)
+    if scenario is None:
+        return {
+            "status": tier_reason,
+            "source_scenario": None,
+            "match_reason": tier_reason,
+            "match_score": 0.0,
+            "linked_account_count": 0,
+            "available_transaction_count": 0
         }
 
     # 1. Retrieve all accounts associated with source scenario
@@ -201,6 +196,7 @@ def link_complaint_to_scenario(db: Session, complaint: Complaint) -> Dict[str, A
 
     # 4. Record scenario provenance in complaint description
     provenance_tag = f"[SCENARIO:{scenario.complaint_number}|STATUS:LINKED|SCORE:{score:.1f}|REASON:{tier_reason}]"
+    complaint.provenance_mode = "LINKED_SYNTHETIC_SCENARIO"
     if complaint.description:
         if "[SCENARIO:" not in complaint.description:
             complaint.description = f"{provenance_tag}\n{complaint.description}"
@@ -228,30 +224,17 @@ def get_scenario_for_complaint(db: Session, complaint: Complaint) -> Optional[Co
     if complaint.complaint_number.startswith("CMP-DL-"):
         return complaint
 
-    # 1. Parse description for provenance tag
+    # Only an explicitly persisted demo link can authorize borrowed context.
+    # Officer narrative text and a shared account cannot establish a scenario.
+    if complaint.provenance_mode != "LINKED_SYNTHETIC_SCENARIO":
+        return None
     if complaint.description:
-        match = re.search(r"\[SCENARIO:(CMP-DL-\d{4})", complaint.description)
+        match = re.search(r"\[SCENARIO:(CMP-DL-\d+)\|", complaint.description)
         if match:
             scenario_num = match.group(1)
             sc = db.query(Complaint).filter(Complaint.complaint_number == scenario_num).first()
             if sc:
                 return sc
-
-    # 2. Fallback: inspect linked accounts to find source synthetic scenario
-    linked_acc_ids = [
-        ca.account_id for ca in db.query(ComplaintAccount.account_id).filter(
-            ComplaintAccount.complaint_id == complaint.id
-        ).all()
-    ]
-    if linked_acc_ids:
-        scenario_ca = db.query(ComplaintAccount).join(
-            Complaint, ComplaintAccount.complaint_id == Complaint.id
-        ).filter(
-            ComplaintAccount.account_id.in_(linked_acc_ids),
-            Complaint.complaint_number.like("CMP-DL-%")
-        ).first()
-        if scenario_ca:
-            return db.query(Complaint).get(scenario_ca.complaint_id)
 
     return None
 
@@ -266,13 +249,19 @@ def get_transactions_for_complaint(db: Session, complaint: Complaint) -> List[Tr
         return []
 
     # 1. Direct transactions
-    direct_txs = db.query(Transaction).filter(Transaction.complaint_id == complaint.id).all()
+    direct_txs = db.query(Transaction).filter(
+        Transaction.complaint_id == complaint.id,
+        Transaction.timestamp <= complaint.reported_at,
+    ).order_by(Transaction.timestamp, Transaction.id).all()
     if direct_txs:
         return direct_txs
 
     # 2. Scenario-linked transactions
     scenario = get_scenario_for_complaint(db, complaint)
     if scenario and scenario.id != complaint.id:
-        return db.query(Transaction).filter(Transaction.complaint_id == scenario.id).all()
+        return db.query(Transaction).filter(
+            Transaction.complaint_id == scenario.id,
+            Transaction.timestamp <= scenario.reported_at,
+        ).order_by(Transaction.timestamp, Transaction.id).all()
 
     return []
