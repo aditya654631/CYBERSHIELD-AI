@@ -1,0 +1,67 @@
+{
+  "dataset_name": "Delhi V5.1 External Holdout Dataset",
+  "case_count": 3000,
+  "seed": 26185,
+  "selection_rule": "First 3000 chronological cases sorted by reported_at / complaint_timestamp ascending (tie-breaker case_id ascending)",
+  "source_cases_count": 12000,
+  "district_coverage_count": 11,
+  "districts_represented": [
+    "CENTRAL",
+    "EAST",
+    "NEW_DELHI",
+    "NORTH",
+    "NORTH_EAST",
+    "NORTH_WEST",
+    "SHAHDARA",
+    "SOUTH",
+    "SOUTH_EAST",
+    "SOUTH_WEST",
+    "WEST"
+  ],
+  "cluster_coverage_count": 60,
+  "fraud_mix": {
+    "phishing fraud": 357,
+    "loan app scam": 349,
+    "digital payment fraud": 341,
+    "investment scam": 338,
+    "upi fraud": 333,
+    "impersonation scam": 328,
+    "job scam": 326,
+    "marketplace fraud": 318,
+    "remote access scam": 310
+  },
+  "district_mix": {
+    "WEST": 369,
+    "SOUTH_EAST": 336,
+    "SOUTH": 312,
+    "NORTH_WEST": 283,
+    "SOUTH_WEST": 277,
+    "CENTRAL": 275,
+    "NEW_DELHI": 275,
+    "EAST": 254,
+    "NORTH": 248,
+    "SHAHDARA": 224,
+    "NORTH_EAST": 147
+  },
+  "amount_percentiles": {
+    "p10": 7035.09,
+    "p50_median": 34230.18,
+    "p90": 148738.22,
+    "mean": 61015.71
+  },
+  "reporting_delay_percentiles": {
+    "p10": 113.67,
+    "p50_median": 499.89,
+    "p90": 2105.91,
+    "mean": 856.93
+  },
+  "cross_district_rate_pct": 69.73,
+  "nearest_origin_target_rate_pct": 9.03,
+  "within_5km_rate_pct": 33.37,
+  "within_10km_rate_pct": 59.9,
+  "duplicate_case_id_count": 0,
+  "invalid_row_count": 0,
+  "missing_target_count": 0,
+  "nan_inf_count": 0,
+  "target_leakage_detected": false
+}

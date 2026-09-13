@@ -1,0 +1,99 @@
+{
+  "model_version": "cashout-location-xgb-v5.1",
+  "phase": "A.4C",
+  "dataset_name": "delhi_v5_cases",
+  "development_dataset_seed": 26184,
+  "external_holdout_seed": 26185,
+  "training_seed": 26184,
+  "external_holdout_sha256": "35eeb72696bc81a607ffeae256d9a7f839ec1c0acaadf5a38c8ff53d8262a257",
+  "feature_schema_sha256": "1a093ef3e4fbe6e6d1608472eeb8434f7c0eb240341c39dd41fd2630981e593b",
+  "ranker_artifact_sha256": "acfa851c4544caa76eefa4d7e86ed7cd9f5a9fcfc61655a8df71b71379b56547",
+  "calibrator_artifact_sha256": "cd569c1e25277ef785e4d057796a22c27065fa1c7c5dcd8b87fa753331627fbc",
+  "candidate_design_version": "Multi-Source Partitioned Quota Retrieval (k=25, universe=60)",
+  "feature_count": 50,
+  "training_configuration": {
+    "objective": "binary:logistic",
+    "eval_metric": "logloss",
+    "max_depth": 6,
+    "learning_rate": 0.05,
+    "n_estimators": 180,
+    "subsample": 0.85,
+    "colsample_bytree": 0.8,
+    "scale_pos_weight": 1.5,
+    "random_state": 26184
+  },
+  "calibration_configuration": {
+    "method": "Platt scaling",
+    "model": "LogisticRegression",
+    "C": 1.0,
+    "solver": "lbfgs",
+    "random_state": 26184
+  },
+  "case_counts": {
+    "training_fitting_cases": 11625,
+    "calibration_fitting_cases": 1125,
+    "external_holdout_cases": 3000
+  },
+  "final_external_metrics": {
+    "top1": 12.33,
+    "top3": 26.93,
+    "top5": 38.03,
+    "mrr": 0.2501,
+    "median_spatial_error": 7.75,
+    "mean_spatial_error": 8.72,
+    "p75_spatial_error": 13.35,
+    "p90_spatial_error": 17.81,
+    "within_5km_pct": 34.93,
+    "within_10km_pct": 60.2,
+    "ece": 0.0028,
+    "brier": 0.03
+  },
+  "conditional_metrics": {
+    "eligible_cases": 2376,
+    "conditional_top1": 15.57,
+    "conditional_top3": 34.01,
+    "conditional_top5": 48.02,
+    "conditional_mrr": 0.3158
+  },
+  "candidate_recall": {
+    "10": 50.13,
+    "15": 64.03,
+    "20": 72.13,
+    "25": 79.13,
+    "30": 84.73,
+    "60": 100.0
+  },
+  "bootstrap_95_ci": {
+    "top1": [
+      11.2,
+      13.57
+    ],
+    "top3": [
+      25.37,
+      28.47
+    ],
+    "top5": [
+      36.37,
+      39.73
+    ],
+    "mrr": [
+      0.2392,
+      0.2614
+    ],
+    "median_spatial_error": [
+      7.35,
+      8.13
+    ]
+  },
+  "promotion_gate_results": {
+    "candidate_recall_gte_72": true,
+    "top1_gte_14_5": false,
+    "top3_gte_27_0": false,
+    "top5_gte_36_0": true,
+    "mrr_gte_0_2600": false,
+    "median_spatial_error_lte_8_0": true,
+    "ece_lte_0_045": true,
+    "subgroup_collapse_detected": false
+  },
+  "synthetic_disclosure": "Trained and evaluated on controlled synthetic Delhi prototype data. Not trained on production NCRP or banking data."
+}
