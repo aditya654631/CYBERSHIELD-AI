@@ -1,9 +1,11 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Marker, Popup, Tooltip, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { HotspotCluster, ATMLocationItem, PredictionLocationItem, Complaint } from '../types';
 import { Eye } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { hasCoordinates, modelScore, predictionWindow } from '../utils/predictionDisplay';
+import 'leaflet/dist/leaflet.css';
 
 const createClusterIcon = (riskLevel: string, isPulsing: boolean) => {
   const color = riskLevel === 'CRITICAL' ? '#ef4444' : riskLevel === 'HIGH' ? '#f59e0b' : '#3b82f6';
@@ -67,6 +69,20 @@ const createAtmIcon = () => {
   });
 };
 
+const createPriorityHotspotIcon = (priorityRank: number, riskLevel: string) => {
+  const bg = riskLevel === 'CRITICAL' ? '#ef4444' : riskLevel === 'HIGH' ? '#f59e0b' : '#3b82f6';
+  return L.divIcon({
+    className: 'custom-priority-hotspot-icon',
+    html: `
+      <div style="width:24px; height:24px; border-radius:4px; background:${bg}; border:2px solid #ffffff; box-shadow:0 0 8px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:10px; font-weight:bold; font-family:monospace;">
+        P${priorityRank}
+      </div>
+    `,
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+  });
+};
+
 /**
  * Reactive controller to dynamically fit Leaflet map bounds when topLocations or complaint change.
  */
@@ -77,36 +93,41 @@ const MapBoundsController: React.FC<{
   const map = useMap();
 
   useEffect(() => {
-    const validCoords: [number, number][] = [];
+    const points: [number, number][] = [];
 
-    // Prioritize persisted prediction locations
     topLocations.forEach((loc) => {
-      if (loc.latitude != null && loc.longitude != null && !isNaN(Number(loc.latitude)) && !isNaN(Number(loc.longitude))) {
-        validCoords.push([Number(loc.latitude), Number(loc.longitude)]);
+      if (hasCoordinates(loc.latitude, loc.longitude)) {
+        points.push([Number(loc.latitude), Number(loc.longitude)]);
       }
     });
 
-    // Add complaint origin if coordinates are legitimately available (Correction 5)
     if (
-      complaint?.victim_lat != null &&
-      complaint?.victim_lon != null &&
-      !isNaN(Number(complaint.victim_lat)) &&
-      !isNaN(Number(complaint.victim_lon))
+      hasCoordinates(complaint?.victim_lat, complaint?.victim_lon)
     ) {
-      validCoords.push([Number(complaint.victim_lat), Number(complaint.victim_lon)]);
+      points.push([Number(complaint!.victim_lat), Number(complaint!.victim_lon)]);
     }
 
-    if (validCoords.length > 0) {
-      const bounds = L.latLngBounds(validCoords);
-      map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
+    if (points.length > 0) {
+      const bounds = L.latLngBounds(points);
+      map.fitBounds(bounds.pad(0.2), { padding: [40, 40], maxZoom: 12 });
+    } else {
+      map.setView([28.6139, 77.2090], 11);
     }
   }, [topLocations, complaint, map]);
+
+  useEffect(() => {
+    const container = map.getContainer();
+    const observer = new ResizeObserver(() => map.invalidateSize({ pan: false }));
+    observer.observe(container);
+    map.invalidateSize();
+    return () => observer.disconnect();
+  }, [map]);
 
   return null;
 };
 
 export interface LeafletFallbackMapProps {
-  hotspots: HotspotCluster[];
+  hotspots?: HotspotCluster[];
   atms?: ATMLocationItem[];
   topLocations?: PredictionLocationItem[];
   complaint?: Complaint | null;
@@ -118,10 +139,11 @@ export interface LeafletFallbackMapProps {
   showAtms?: boolean;
   showComplaintOrigin?: boolean;
   focusTarget?: 'india' | 'complaint' | 'top1' | null;
+  priorityHotspotIds?: number[];
 }
 
 export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
-  hotspots,
+  hotspots = [],
   atms = [],
   topLocations = [],
   complaint,
@@ -132,6 +154,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
   showHotspots = true,
   showAtms = true,
   showComplaintOrigin = true,
+  priorityHotspotIds,
 }) => {
   const navigate = useNavigate();
 
@@ -154,12 +177,8 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
   }
 
   // Legitimate victim coordinates only (Correction 5: no string matching on "bhopal" or "indore")
-  const hasVictimCoords = (
-    complaint?.victim_lat != null &&
-    complaint?.victim_lon != null &&
-    !isNaN(Number(complaint.victim_lat)) &&
-    !isNaN(Number(complaint.victim_lon))
-  ) ? { lat: Number(complaint.victim_lat), lon: Number(complaint.victim_lon) } : null;
+  const hasVictimCoords = hasCoordinates(complaint?.victim_lat, complaint?.victim_lon)
+    ? { lat: Number(complaint!.victim_lat), lon: Number(complaint!.victim_lon) } : null;
 
   return (
     <div style={{ height, width: '100%' }} className="rounded-lg overflow-hidden border border-[#DCE5F0] relative z-10 shadow-xs">
@@ -193,13 +212,12 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
 
         {/* Render Top Predicted Locations (Persisted Step-10 Data Only) */}
         {showPredictionZones && topLocations.map((loc) => {
-          if (loc.latitude == null || loc.longitude == null || isNaN(Number(loc.latitude)) || isNaN(Number(loc.longitude))) {
+          if (!hasCoordinates(loc.latitude, loc.longitude)) {
             return null;
           }
           const lat = Number(loc.latitude);
           const lon = Number(loc.longitude);
           const isTop1 = loc.rank === 1;
-          const prob = Number(loc.probability || loc.ml_probability || 0);
 
           return (
             <React.Fragment key={`pred-${loc.rank}-${loc.cluster_id || loc.location_name}`}>
@@ -259,7 +277,8 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
               )}
 
               {/* Numbered Prediction Marker (#1, #2, #3) */}
-              <Marker position={[lat, lon]} icon={createPredictionIcon(loc.rank)}>
+              <Marker position={[lat, lon]} icon={createPredictionIcon(loc.rank)} zIndexOffset={1200 - loc.rank * 50}>
+                <Tooltip direction="top" offset={[0, -14]} permanent>{`#${loc.rank} ${loc.location_name}`}</Tooltip>
                 <Popup>
                   <div className="bg-[#0b1326] text-slate-100 p-3 rounded-lg border border-[#1b2b4d] font-sans w-72">
                     <div className="flex items-center justify-between pb-1.5 border-b border-[#1b2b4d] mb-2">
@@ -287,7 +306,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
 
                       <div className="flex justify-between">
                         <span className="text-slate-400">Distance from Origin:</span>
-                        <span className="text-slate-200">{loc.distance_km ?? '0.0'} km</span>
+                        <span className="text-slate-200">{loc.distance_km == null ? 'Unavailable' : `${loc.distance_km} km`}</span>
                       </div>
 
                       <div className="flex justify-between">
@@ -298,8 +317,12 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
                       </div>
 
                       <div className="flex justify-between">
+                        <span className="text-slate-400">{prediction?.score_label || 'Model score'}:</span>
+                        <strong className="text-slate-200">{modelScore(loc)}</strong>
+                      </div>
+                      <div className="space-y-1">
                         <span className="text-slate-400">Operational Window:</span>
-                        <span className="text-slate-200">{prediction?.when_window || 'Next 2–4 Hours'}</span>
+                        <div className="text-slate-200">{predictionWindow(prediction)}</div>
                       </div>
 
                       <div className="text-[10px] text-slate-400 pt-1 border-t border-[#1b2b4d]/50">
@@ -307,7 +330,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
                       </div>
 
                       <div className="text-[9px] text-slate-500 pt-1 border-t border-[#1b2b4d]/30">
-                        Provenance: {prediction?.prediction_mode === 'deterministic_demo' ? 'Deterministic Demo / demo-provider-v1' : `Trained ML / ${prediction?.model_version || 'cashout-location-xgb-v3.1'}`}
+                        Provenance: {prediction?.prediction_mode === 'deterministic_demo' ? 'Deterministic Demo' : `Synthetic Delhi ML / ${prediction?.model_version || 'unavailable'}`}
                       </div>
 
                       {isTop1 && (
@@ -325,6 +348,11 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
 
         {/* Render Hotspot Clusters (Generic Context - Separated from Predictions) */}
         {showHotspots && hotspots.map((cluster) => {
+          if (!hasCoordinates(cluster.latitude, cluster.longitude)) return null;
+          const priorityIndex = priorityHotspotIds?.indexOf(cluster.id);
+          const isPriority = priorityIndex != null && priorityIndex >= 0;
+          const priorityRank = isPriority ? priorityIndex + 1 : null;
+
           const isCritical = cluster.risk_level === 'CRITICAL';
           const isHighlighted = highlightCluster && cluster.cluster_name.toLowerCase().includes(highlightCluster.toLowerCase());
           const circleColor = isHighlighted ? '#06b6d4' : (isCritical ? '#ef4444' : (cluster.risk_level === 'HIGH' ? '#f59e0b' : '#3b82f6'));
@@ -336,16 +364,16 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
                 center={[cluster.latitude, cluster.longitude]}
                 radius={radiusMeters}
                 pathOptions={{
-                  color: isHighlighted ? '#06b6d4' : circleColor,
+                  color: isPriority ? '#2563eb' : (isHighlighted ? '#06b6d4' : circleColor),
                   fillColor: circleColor,
-                  fillOpacity: isCritical ? 0.12 : 0.06,
-                  weight: isHighlighted ? 2 : 1,
+                  fillOpacity: isHighlighted ? 0.25 : (isPriority ? 0.18 : 0.08),
+                  weight: isHighlighted ? 2.5 : (isPriority ? 2.5 : 1),
                   dashArray: isCritical ? '6, 6' : undefined,
                 }}
               />
               <Marker
                 position={[cluster.latitude, cluster.longitude]}
-                icon={createClusterIcon(cluster.risk_level, isCritical || !!isHighlighted)}
+                icon={isPriority ? createPriorityHotspotIcon(priorityRank!, cluster.risk_level) : createClusterIcon(cluster.risk_level, isCritical || !!isHighlighted)}
               >
                 <Popup>
                   <div className="bg-[#0b1326] text-slate-100 p-3 rounded-lg border border-[#1b2b4d] font-sans w-64">
@@ -358,9 +386,16 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
                             : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
                         }`}
                       >
-                        {cluster.risk_level} ({Math.round((cluster.risk_score || 0.5) * 100)}%)
+                        {cluster.risk_level}
                       </span>
                     </div>
+
+                    {isPriority && (
+                      <div className="mb-2 pb-1.5 border-b border-[#1b2b4d] flex items-center justify-between">
+                        <span className="text-xs font-bold text-blue-400 font-mono">Priority Hotspot #{priorityRank}</span>
+                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono">P{priorityRank}</span>
+                      </div>
+                    )}
 
                     <div className="space-y-1.5 text-xs text-slate-300 font-mono">
                       <div className="flex justify-between">
@@ -394,7 +429,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
         })}
 
         {/* Render ATMs: Prototype Context Only (Requirement 11) */}
-        {showAtms && atms.map((atm) => (
+        {showAtms && atms.filter((atm) => hasCoordinates(atm.latitude, atm.longitude)).map((atm) => (
           <Marker
             key={atm.id}
             position={[atm.latitude, atm.longitude]}

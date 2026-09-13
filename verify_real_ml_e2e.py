@@ -22,8 +22,12 @@ from backend.app.main import app
 from backend.app.models.db import SessionLocal
 from backend.app.models.models import Complaint, Account, Transaction, Prediction, PredictionLocation, Alert, AuditLog
 
+from backend.app.auth.security import create_access_token
+
 def run_end_to_end_ml_verification():
     client = TestClient(app)
+    _token = create_access_token({"sub": "admin@cybershield.gov.in", "role": "I4C_ADMIN"})
+    client.headers["Authorization"] = f"Bearer {_token}"
     db = SessionLocal()
 
     print("=" * 70)

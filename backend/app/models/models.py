@@ -1,6 +1,6 @@
 import datetime
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric, UniqueConstraint
+    Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric, UniqueConstraint, JSON
 )
 from sqlalchemy.orm import relationship, synonym
 from backend.app.models.db import Base
@@ -194,6 +194,7 @@ class Prediction(Base):
     model_version = Column(String(50), default="demo-provider-v1")
     time_model_version = Column(String(100), nullable=True)
     predicted_minutes_to_cashout = Column(Float, nullable=True)
+    result_metadata = Column(JSON, nullable=True)
     predicted_window_start = Column(DateTime, nullable=False)
     predicted_window_end = Column(DateTime, nullable=False)
     window_label = Column(String(100), default="Next 2–4 Hours")

@@ -49,7 +49,8 @@ def resolve_transaction_context(
     # 1. DIRECT TRANSACTION RULE:
     # First check whether the requested complaint genuinely owns direct Transaction rows.
     direct_query = db.query(Transaction).filter(
-        Transaction.complaint_id == complaint.id
+        Transaction.complaint_id == complaint.id,
+        Transaction.timestamp <= complaint.reported_at,
     ).order_by(
         Transaction.timestamp.asc(),
         Transaction.id.asc()
@@ -63,7 +64,11 @@ def resolve_transaction_context(
             "source_scenario": None,
             "transactions": deduped_direct,
             "transaction_count": len(deduped_direct),
-            "provenance": f"DIRECT_OFFICER_INPUT: Direct transactions owned by complaint {complaint.complaint_number}"
+            "provenance": (
+                f"SYNTHETIC_DEMO: Pre-report transactions owned by {complaint.complaint_number}"
+                if complaint.complaint_number.startswith("CMP-DL-") else
+                f"DIRECT_OFFICER_INPUT: Pre-report transactions owned by complaint {complaint.complaint_number}"
+            )
         }
 
     # 2. LINKED SCENARIO RULE:
@@ -71,7 +76,8 @@ def resolve_transaction_context(
     scenario = get_scenario_for_complaint(db, complaint)
     if scenario and scenario.id != complaint.id:
         scenario_query = db.query(Transaction).filter(
-            Transaction.complaint_id == scenario.id
+            Transaction.complaint_id == scenario.id,
+            Transaction.timestamp <= scenario.reported_at,
         ).order_by(
             Transaction.timestamp.asc(),
             Transaction.id.asc()

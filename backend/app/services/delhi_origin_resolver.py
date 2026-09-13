@@ -357,9 +357,13 @@ def resolve_delhi_origin(
                     }
 
     # 4. District-level reference fallback
-    norm_dist = _normalize_str(district) or (norm_loc if norm_loc in DISTRICT_ALIASES else None)
-    if norm_dist and norm_dist in DISTRICT_ALIASES:
-        canonical_dist = DISTRICT_ALIASES[norm_dist]
+    # Normalize both keys and input: punctuation stripping previously made
+    # canonical values such as NORTH_EAST_SHAHDARA impossible to resolve.
+    normalized_districts = {_normalize_str(key): value for key, value in DISTRICT_ALIASES.items()}
+    normalized_districts.update({_normalize_str(key): key for key in DELHI_ZONE_CENTROIDS})
+    norm_dist = _normalize_str(district) or (norm_loc if norm_loc in normalized_districts else None)
+    if norm_dist and norm_dist in normalized_districts:
+        canonical_dist = normalized_districts[norm_dist]
         if canonical_dist in DELHI_ZONE_CENTROIDS:
             d_lat, d_lon = DELHI_ZONE_CENTROIDS[canonical_dist]
             return {

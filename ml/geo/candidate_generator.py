@@ -213,6 +213,7 @@ class CandidateLocationGenerator:
                 "longitude": c_lon,
                 "atm_density": c_atm,
                 "historical_risk": c_risk,
+                "base_risk": c_risk,
                 "historical_cashout_count": float(c.get("historical_cashout_count", c.get("historical_fraud_count", 230.0))),
                 "historical_cashout_amount": float(c.get("historical_cashout_amount", float(c.get("historical_fraud_count", 230.0)) * 50000.0)),
                 "distance_from_victim_km": round(dist, 1) if not math.isnan(dist) else float("nan"),
@@ -221,8 +222,7 @@ class CandidateLocationGenerator:
             scored_candidates.append((sc, cand_obj))
 
         # Sort by candidate generation score descending
-        scored_candidates.sort(key=lambda item: item[0], reverse=True)
+        scored_candidates.sort(key=lambda item: (-item[0], item[1]["id"]))
         top_candidates = [item[1] for item in scored_candidates[:top_k]]
         return top_candidates
-
 

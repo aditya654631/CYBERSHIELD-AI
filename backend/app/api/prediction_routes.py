@@ -115,7 +115,7 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
         "temporal_score": getattr(prediction, "temporal_score", 0.0) or 0.0,
         "top_locations": top_loc_items,
         "prediction_mode": pred_mode,
-        "model_version": getattr(prediction, "model_version", None) or "cashout-location-xgb-v3.1",
+        "model_version": getattr(prediction, "model_version", None) or "unavailable",
         "operational_scope": op_scope,
         "candidate_pool_size": pool_size,
         "time_prediction": {

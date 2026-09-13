@@ -20,7 +20,8 @@ import {
   Network
 } from 'lucide-react';
 import { api } from '../services/api';
-import { Complaint } from '../types';
+import { Complaint, HotspotCluster } from '../types';
+import { apiErrorMessage, toLocalDateTimeInput } from '../utils/predictionDisplay';
 
 export const Complaints: React.FC = () => {
   const navigate = useNavigate();
@@ -52,13 +53,15 @@ export const Complaints: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [registrationPhase, setRegistrationPhase] = useState('Registering...');
+  const [locationCatalog, setLocationCatalog] = useState<HotspotCluster[]>([]);
 
   // Modal Form Inputs: Section A - Complaint Details
   const [newVictimName, setNewVictimName] = useState('Aman Sharma');
   const [newFraudType, setNewFraudType] = useState('Investment Scam');
   const [newAmount, setNewAmount] = useState('85000');
-  const [newIncidentTime, setNewIncidentTime] = useState(() => new Date(Date.now() - 3600000 * 2).toISOString().slice(0, 16));
-  const [newReportedAt, setNewReportedAt] = useState(() => new Date().toISOString().slice(0, 16));
+  const [newIncidentTime, setNewIncidentTime] = useState(() => toLocalDateTimeInput(new Date(Date.now() - 3600000 * 2)));
+  const [newReportedAt, setNewReportedAt] = useState(() => toLocalDateTimeInput());
   const [newDescription, setNewDescription] = useState('Victim deceived into transferring funds through fraudulent investment platform.');
 
   // Section B - Location (Delhi Pilot)
@@ -73,12 +76,18 @@ export const Complaints: React.FC = () => {
   const [newBeneficiaryBank, setNewBeneficiaryBank] = useState('HDFC Bank');
   const [newBeneficiaryId, setNewBeneficiaryId] = useState('mule.recipient@okhdfcbank');
   const [newTransactionRef, setNewTransactionRef] = useState(() => `UTR-DL-${Date.now().toString().slice(-6)}`);
-  const [newTransactionTime, setNewTransactionTime] = useState(() => new Date(Date.now() - 3600000 * 2).toISOString().slice(0, 16));
+  const [newTransactionTime, setNewTransactionTime] = useState(() => toLocalDateTimeInput(new Date(Date.now() - 3600000 * 2)));
   const [newIfsc, setNewIfsc] = useState('');
   const [newBeneficiaryAccount, setNewBeneficiaryAccount] = useState('');
   const [newBeneficiaryUpi, setNewBeneficiaryUpi] = useState('');
   const [newPhoneOrMerchant, setNewPhoneOrMerchant] = useState('');
   const [newAdditionalRefs, setNewAdditionalRefs] = useState('');
+
+  useEffect(() => {
+    api.getClusters().then(setLocationCatalog).catch(() => setLocationCatalog([]));
+  }, []);
+
+  const districtLocalities = locationCatalog.filter((location) => location.district === newDistrict);
 
   // Debounce search input
   useEffect(() => {
@@ -144,10 +153,18 @@ export const Complaints: React.FC = () => {
   const handleCreateComplaint = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
+    setRegistrationPhase('Registering...');
     setFormError(null);
     try {
       const latVal = newVictimLat.trim() ? parseFloat(newVictimLat.trim()) : null;
       const lonVal = newVictimLon.trim() ? parseFloat(newVictimLon.trim()) : null;
+      if ((latVal == null) !== (lonVal == null)) throw new Error('Enter both latitude and longitude, or leave both empty.');
+      if (latVal != null && (!Number.isFinite(latVal) || latVal < -90 || latVal > 90 || !Number.isFinite(lonVal) || lonVal! < -180 || lonVal! > 180)) {
+        throw new Error('Enter valid latitude and longitude coordinates.');
+      }
+      if (!newLocality.trim()) throw new Error('Enter a Delhi locality.');
+      if (newIncidentTime && newReportedAt && new Date(newIncidentTime) > new Date(newReportedAt)) throw new Error('Reported time must be on or after incident time.');
+      if (newTransactionTime && newReportedAt && new Date(newTransactionTime) > new Date(newReportedAt)) throw new Error('Transaction time must be on or before reported time.');
 
       const created = await api.createComplaint({
         victim_name: newVictimName.trim(),
@@ -175,15 +192,24 @@ export const Complaints: React.FC = () => {
         additional_refs: newAdditionalRefs.trim() || undefined,
       });
 
+      // Auto-Prediction Orchestration: Complaint persistence must remain successful even if prediction fails
+      let analysisError: string | null = null;
+      setRegistrationPhase('Predicting top 3 locations...');
+      try {
+        await api.runPrediction(created.complaint_number);
+      } catch (predErr) {
+        analysisError = apiErrorMessage(predErr, 'Complaint saved. Automatic analysis failed; use Run Predictive Analysis to retry.');
+        console.warn('[Auto-Prediction] Prediction execution skipped/failed, case remains safely persisted:', predErr);
+      }
+
       // Close modal
       setIsModalOpen(false);
 
       // Section 3: Immediately redirect to /cases/{complaint_number}
-      navigate(`/cases/${created.complaint_number}`);
+      navigate(`/cases/${created.complaint_number}`, { state: { analysisError } });
     } catch (err: any) {
       console.error('Failed to register complaint', err);
-      const msg = err?.response?.data?.detail || err?.message || 'Failed to register complaint';
-      setFormError(typeof msg === 'string' ? msg : JSON.stringify(msg));
+      setFormError(apiErrorMessage(err, err?.message || 'Failed to register complaint'));
     } finally {
       setCreating(false);
     }
@@ -987,7 +1013,12 @@ export const Complaints: React.FC = () => {
                     </label>
                     <select
                       value={newDistrict}
-                      onChange={(e) => setNewDistrict(e.target.value)}
+                      onChange={(e) => {
+                        setNewDistrict(e.target.value);
+                        setNewLocality('');
+                        setNewVictimLat('');
+                        setNewVictimLon('');
+                      }}
                       className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                       required
                     >
@@ -1012,11 +1043,22 @@ export const Complaints: React.FC = () => {
                     <input
                       type="text"
                       value={newLocality}
-                      onChange={(e) => setNewLocality(e.target.value)}
+                      list="delhi-localities"
+                      onChange={(e) => {
+                        setNewLocality(e.target.value);
+                        setNewVictimLat('');
+                        setNewVictimLon('');
+                      }}
                       placeholder="e.g. Dwarka, Connaught Place, Rohini, Saket"
                       className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       required
                     />
+                    <datalist id="delhi-localities">
+                      {districtLocalities.map((location) => <option key={location.id} value={location.cluster_name} />)}
+                    </datalist>
+                    <p className="text-[11px] text-slate-500 mt-1">
+                      {districtLocalities.length ? `${districtLocalities.length} supported locations in this district. Choose a suggestion for the most precise locality match.` : 'Enter a known Delhi locality; analysis uses the Delhi location catalog.'}
+                    </p>
                   </div>
 
                   <div>
@@ -1219,7 +1261,7 @@ export const Complaints: React.FC = () => {
                   disabled={creating}
                   className="w-full sm:w-auto px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded shadow-xs flex items-center justify-center space-x-1.5 transition-colors disabled:opacity-50 cursor-pointer"
                 >
-                  <span>{creating ? 'Registering...' : 'REGISTER COMPLAINT'}</span>
+                  <span>{creating ? registrationPhase : 'REGISTER COMPLAINT'}</span>
                 </button>
               </div>
             </form>

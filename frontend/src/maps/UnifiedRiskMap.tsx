@@ -8,6 +8,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { escapeMapText, hasCoordinates, modelScore, predictionWindow } from '../utils/predictionDisplay';
 
 export interface UnifiedRiskMapProps {
   hotspots?: HotspotCluster[];
@@ -18,6 +19,7 @@ export interface UnifiedRiskMapProps {
   highlightCluster?: string;
   height?: string;
   showControls?: boolean;
+  priorityHotspotIds?: number[];
 }
 
 const DELHI_CENTER = { lat: 28.6139, lng: 77.2090 };
@@ -31,6 +33,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
   highlightCluster,
   height = '480px',
   showControls = true,
+  priorityHotspotIds,
 }) => {
   const navigate = useNavigate();
   const mapDivRef = useRef<HTMLDivElement>(null);
@@ -71,7 +74,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
       googleApiKey.includes('YOUR_GOOGLE_MAPS_KEY')
     ) {
       setGoogleLoadStatus('failed');
-      setErrorMessage('Google Maps API key not configured — displaying fallback map.');
+      setErrorMessage(null);
       setProvider('leaflet');
       return;
     }
@@ -81,6 +84,15 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
     }
 
     let isMounted = true;
+    const useFallback = () => {
+      if (!isMounted) return;
+      setGoogleLoadStatus('failed');
+      setErrorMessage('Google Maps unavailable — displaying OpenStreetMap.');
+      setProvider('leaflet');
+    };
+    const loadTimeout = window.setTimeout(useFallback, 8000);
+    const previousAuthFailure = (window as any).gm_authFailure;
+    (window as any).gm_authFailure = useFallback;
     try {
       setOptions({
         key: googleApiKey,
@@ -93,6 +105,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
       ])
         .then(() => {
           if (!isMounted) return;
+          window.clearTimeout(loadTimeout);
           setGoogleLoadStatus('ready');
           setErrorMessage(null);
         })
@@ -113,6 +126,8 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
 
     return () => {
       isMounted = false;
+      window.clearTimeout(loadTimeout);
+      (window as any).gm_authFailure = previousAuthFailure;
     };
   }, [googleApiKey, provider]);
 
@@ -136,14 +151,14 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
       googleMapRef.current = map;
       overlaysRef.current.infoWindow = new google.maps.InfoWindow();
 
-      // Listen to runtime authentication failures (e.g. invalid key or domain restriction)
-      (window as any).gm_authFailure = () => {
-        console.warn('[UnifiedRiskMap] Google Maps authentication failure detected.');
-        setGoogleLoadStatus('failed');
-        setErrorMessage('Google Maps authentication failed — displaying fallback map.');
-        setProvider('leaflet');
-      };
     }
+    return () => {
+      overlaysRef.current.markers.forEach((marker) => marker.setMap(null));
+      overlaysRef.current.circles.forEach((circle) => circle.setMap(null));
+      overlaysRef.current.infoWindow?.close();
+      overlaysRef.current = { markers: [], circles: [], infoWindow: null };
+      googleMapRef.current = null;
+    };
   }, [provider, googleLoadStatus]);
 
   // 3. Update Map Type (Roadmap vs Satellite)
@@ -171,11 +186,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
     overlaysRef.current.infoWindow = infoWindow;
 
     // Layer 1: Complaint Origin Marker (Strict coordinate validation — NO fabrication)
-    const hasValidComplaintCoords =
-      complaint?.victim_lat != null &&
-      complaint?.victim_lon != null &&
-      !isNaN(Number(complaint.victim_lat)) &&
-      !isNaN(Number(complaint.victim_lon));
+    const hasValidComplaintCoords = hasCoordinates(complaint?.victim_lat, complaint?.victim_lon);
 
     if (layerOrigin && hasValidComplaintCoords) {
       const originLat = Number(complaint!.victim_lat);
@@ -207,8 +218,8 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
         infoWindow.setContent(`
           <div style="background:#FFFFFF; color:#1E293B; padding:12px; border-radius:8px; font-family:system-ui, -apple-system, sans-serif; font-size:12px; max-width:240px; border:1px solid #DCE5F0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
             <div style="color:#059669; font-weight:700; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:4px;">Complaint Origin</div>
-            <div style="font-weight:600; color:#0F172A; font-size:13px;">${complaint!.victim_location || 'Reported Location'}</div>
-            <div style="color:#64748B; font-size:11px; margin-top:4px;">Complaint #${complaint!.complaint_number}</div>
+            <div style="font-weight:600; color:#0F172A; font-size:13px;">${escapeMapText(complaint!.victim_location || 'Reported Location')}</div>
+            <div style="color:#64748B; font-size:11px; margin-top:4px;">Complaint #${escapeMapText(complaint!.complaint_number)}</div>
             <div style="color:#94A3B8; font-size:10px; margin-top:2px;">Coords: (${originLat.toFixed(4)}, ${originLon.toFixed(4)})</div>
           </div>
         `);
@@ -223,7 +234,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
     // Layer 2: Top-3 Predicted Cash-Out Zones & Rank #1 Concentric Operational Rings
     if (layerPredictionZones && topLocations.length > 0) {
       topLocations.forEach((loc) => {
-        if (loc.latitude == null || loc.longitude == null || isNaN(Number(loc.latitude)) || isNaN(Number(loc.longitude))) {
+        if (!hasCoordinates(loc.latitude, loc.longitude)) {
           return;
         }
 
@@ -313,27 +324,28 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
                 ${isTop1 ? '#1 PRIMARY' : (loc.rank === 2 ? '#2 SECONDARY' : '#3 TERTIARY')}
               </span>
             </div>
-            <div style="color:#0F172A; font-weight:700; font-size:13px; margin-bottom:4px;">${loc.location_name}</div>
-            ${loc.zone ? `<div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:#64748B;">District:</span><span style="font-weight:500; color:#1E293B;">${loc.zone}</span></div>` : ''}
+            <div style="color:#0F172A; font-weight:700; font-size:13px; margin-bottom:4px;">${escapeMapText(loc.location_name)}</div>
+            ${loc.zone ? `<div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:#64748B;">District:</span><span style="font-weight:500; color:#1E293B;">${escapeMapText(loc.zone)}</span></div>` : ''}
             <div style="display:flex; justify-content:space-between; margin-top:2px;">
               <span style="color:#64748B;">Operational Priority:</span>
               <span style="color:${loc.risk_level === 'CRITICAL' ? '#DC2626' : (loc.risk_level === 'HIGH' ? '#D97706' : '#2563EB')}; font-weight:700;">${loc.risk_level || 'HIGH'}</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:2px;">
               <span style="color:#64748B;">Distance from Origin:</span>
-              <span style="font-weight:500; color:#1E293B;">${loc.distance_km ?? '0.0'} km</span>
+              <span style="font-weight:500; color:#1E293B;">${loc.distance_km == null ? 'Unavailable' : `${loc.distance_km} km`}</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:2px;">
               <span style="color:#64748B;">Operational Window:</span>
-              <span style="font-weight:600; color:#D97706;">${prediction?.when_window || 'Next 2–4 Hours'}</span>
+              <span style="font-weight:600; color:#D97706;">${escapeMapText(predictionWindow(prediction))}</span>
             </div>
+            <div style="margin-top:4px;">${escapeMapText(prediction?.score_label || 'Model score')}: <strong>${modelScore(loc)}</strong> (prototype estimate)</div>
             ${isTop1 ? `
             <div style="margin-top:6px; padding-top:4px; border-top:1px solid #E2E8F0; font-size:10px; color:#2563EB; font-weight:500;">
               Tactical bands: 1 km critical / 2.5 km priority / 5 km context
             </div>
             ` : ''}
             <div style="color:#64748B; font-size:10px; margin-top:6px; padding-top:4px; border-top:1px solid #F1F5F9;">
-              ${loc.reasoning || 'Ranked candidate cluster node'}
+              ${escapeMapText(loc.reasoning || 'Ranked candidate cluster node')}
             </div>
           </div>
         `;
@@ -352,7 +364,11 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
     // Layer 3: Monitored Risk Hotspot Clusters (Delhi Context)
     if (layerHotspots && hotspots.length > 0) {
       hotspots.forEach((cluster) => {
-        if (!cluster.latitude || !cluster.longitude) return;
+        if (!hasCoordinates(cluster.latitude, cluster.longitude)) return;
+
+        const priorityIndex = priorityHotspotIds?.indexOf(cluster.id);
+        const isPriority = priorityIndex != null && priorityIndex >= 0;
+        const priorityRank = isPriority ? priorityIndex + 1 : null;
 
         const isCritical = cluster.risk_level === 'CRITICAL';
         const isHighlighted = highlightCluster && cluster.cluster_name.toLowerCase().includes(highlightCluster.toLowerCase());
@@ -363,36 +379,60 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
           map,
           center: { lat: cluster.latitude, lng: cluster.longitude },
           radius: radiusMeters,
-          strokeColor: color,
-          strokeOpacity: isHighlighted ? 0.9 : 0.45,
-          strokeWeight: isHighlighted ? 2 : 1.2,
+          strokeColor: isPriority ? '#1D4ED8' : color,
+          strokeOpacity: isHighlighted ? 0.9 : (isPriority ? 0.8 : 0.45),
+          strokeWeight: isHighlighted ? 2 : (isPriority ? 2 : 1.2),
           fillColor: color,
-          fillOpacity: isCritical ? 0.12 : 0.06,
+          fillOpacity: isCritical ? 0.12 : (isPriority ? 0.10 : 0.06),
         });
 
         const marker = new google.maps.Marker({
           position: { lat: cluster.latitude, lng: cluster.longitude },
           map,
-          title: `${cluster.cluster_name} (${cluster.risk_level})`,
-          icon: {
-            path: google.maps.SymbolPath.CIRCLE,
-            scale: isHighlighted ? 7 : 5,
-            fillColor: color,
-            fillOpacity: 0.9,
-            strokeColor: '#FFFFFF',
-            strokeWeight: 1.5,
-          },
+          title: isPriority
+            ? `Priority Hotspot #${priorityRank}: ${cluster.cluster_name} (${cluster.risk_level})`
+            : `${cluster.cluster_name} (${cluster.risk_level})`,
+          label: isPriority
+            ? {
+                text: `P${priorityRank}`,
+                color: '#FFFFFF',
+                fontWeight: 'bold',
+                fontSize: '11px',
+                fontFamily: 'monospace',
+              }
+            : undefined,
+          icon: isPriority
+            ? {
+                path: 'M -12,-12 L 12,-12 L 12,12 L -12,12 Z',
+                fillColor: color,
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+                scale: 1.05,
+                anchor: new google.maps.Point(0, 0),
+                labelOrigin: new google.maps.Point(0, 0),
+              }
+            : {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: isHighlighted ? 7 : 5,
+                fillColor: color,
+                fillOpacity: 0.9,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 1.5,
+              },
+          zIndex: isPriority ? 400 - priorityRank! : undefined,
         });
 
         const content = `
-          <div style="background:#FFFFFF; color:#1E293B; padding:12px; border-radius:8px; font-family:system-ui, -apple-system, sans-serif; font-size:12px; max-width:250px; border:1px solid #DCE5F0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+          <div style="background:#FFFFFF; color:#1E293B; padding:12px; border-radius:8px; font-family:system-ui, -apple-system, sans-serif; font-size:12px; max-width:260px; border:1px solid #DCE5F0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:4px; margin-bottom:6px;">
-              <strong style="color:#0F172A; font-size:12px;">${cluster.cluster_name}</strong>
+              <strong style="color:#0F172A; font-size:12px;">${isPriority ? `<span style="background:#EFF6FF; color:#1D4ED8; padding:1px 5px; border-radius:3px; font-weight:700; margin-right:4px; border:1px solid #BFDBFE;">P${priorityRank}</span> ` : ''}${cluster.cluster_name}</strong>
               <span style="color:${isCritical ? '#DC2626' : '#D97706'}; font-weight:700; font-size:10px;">${cluster.risk_level}</span>
             </div>
+            ${isPriority ? `<div style="color:#1D4ED8; font-weight:700; font-size:11px; margin-bottom:4px;">Priority Hotspot #${priorityRank}</div>` : ''}
             <div style="color:#64748B; font-size:11px; margin-top:2px;">Context Window: <strong style="color:#0284C7;">${cluster.expected_window}</strong></div>
             <div style="color:#64748B; font-size:11px; margin-top:2px;">Amount at Risk: <strong style="color:#059669;">₹${(cluster.amount_at_risk || 0).toLocaleString('en-IN')}</strong></div>
-            <div style="color:#64748B; font-size:11px; margin-top:2px;">Surrounding Terminals: ${cluster.atm_count || 6} ATMs in ${cluster.radius_km || 2.5} km</div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Surrounding Terminals: ${cluster.atm_count ?? 0} ATMs in ${cluster.radius_km || 2.5} km</div>
             <div style="color:#94A3B8; font-size:9px; margin-top:6px; border-top:1px solid #F1F5F9; padding-top:4px;">
               Monitored Geographic Risk Cluster
             </div>
@@ -489,6 +529,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
     layerHotspots,
     layerAtms,
     layerOrigin,
+    priorityHotspotIds,
   ]);
 
   // Quick Focus Helpers
@@ -567,6 +608,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
           showHotspots={layerHotspots}
           showAtms={layerAtms}
           showComplaintOrigin={layerOrigin}
+          priorityHotspotIds={priorityHotspotIds}
         />
       </div>
     );

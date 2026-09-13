@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import List, Optional, Dict, Any
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Auth Schemas
 class LoginRequest(BaseModel):
@@ -30,18 +30,18 @@ class UserResponse(BaseModel):
 
 # Complaint Schemas
 class ComplaintCreate(BaseModel):
-    fraud_type: str
-    amount: float
+    fraud_type: str = Field(min_length=1, max_length=100)
+    amount: float = Field(gt=0, le=999999999999.99, allow_inf_nan=False)
     victim_name: Optional[str] = None
     victim_phone: Optional[str] = None
     incident_time: Optional[datetime] = None
     reported_at: Optional[datetime] = None
     state: str = "Delhi"
-    district: str = "CENTRAL_NEW_DELHI"
+    district: Optional[str] = None
     locality: Optional[str] = None
     victim_location: Optional[str] = None
-    victim_lat: Optional[float] = None
-    victim_lon: Optional[float] = None
+    victim_lat: Optional[float] = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
+    victim_lon: Optional[float] = Field(default=None, ge=-180, le=180, allow_inf_nan=False)
     description: Optional[str] = None
     payment_channel: str = "UPI"
     victim_bank: Optional[str] = None
@@ -53,6 +53,31 @@ class ComplaintCreate(BaseModel):
     beneficiary_upi_id: Optional[str] = None
     ifsc_code: Optional[str] = None
     additional_references: Optional[str] = None
+
+    @field_validator("*", mode="before")
+    @classmethod
+    def trim_input(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+    @field_validator("reported_at", "incident_time", "transaction_time")
+    @classmethod
+    def normalize_utc(cls, value):
+        # Database DateTime columns store UTC without an offset.
+        if value is not None and value.tzinfo is not None:
+            return value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+    @model_validator(mode="after")
+    def validate_timeline_and_coordinates(self):
+        reported = self.reported_at or datetime.utcnow()
+        incident = self.incident_time or reported
+        if incident > reported:
+            raise ValueError("Incident time cannot be after reporting time")
+        if self.transaction_time and self.transaction_time > reported:
+            raise ValueError("Transaction time cannot be after reporting time")
+        if (self.victim_lat is None) != (self.victim_lon is None):
+            raise ValueError("Latitude and longitude must be supplied together")
+        return self
 
 class ComplaintResponse(BaseModel):
     id: int
@@ -223,6 +248,13 @@ class TimePredictionDetail(BaseModel):
     model_version: Optional[str] = None
     prediction_reference_time: Optional[str] = None
     operational_window: Optional[str] = None
+    reference_basis: Optional[str] = None
+    predicted_cashout_at: Optional[str] = None
+    window_start: Optional[str] = None
+    window_end: Optional[str] = None
+    window_status: Optional[str] = None
+    uncertainty_minutes: Optional[float] = None
+    window_basis: Optional[str] = None
 
     class Config:
         from_attributes = True
@@ -253,6 +285,12 @@ class PredictionResponse(BaseModel):
     candidate_pool_size: Optional[int] = 25
     primary_cluster_id: Optional[int] = None
     time_prediction: Optional[TimePredictionDetail] = None
+    score_type: Optional[str] = None
+    score_label: Optional[str] = None
+    training_data_source: Optional[str] = None
+    analysis_basis: Optional[str] = None
+    dataset_version: Optional[str] = None
+    provenance: Optional[Dict[str, Any]] = None
     limitations: Optional[List[str]] = None
     message: Optional[str] = None
     created_at: Optional[datetime] = None

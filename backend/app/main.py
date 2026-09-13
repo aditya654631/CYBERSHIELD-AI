@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from backend.app.config.settings import settings
 from backend.app.models.db import engine, Base, SessionLocal, check_database_connection, get_database_engine_type
 from backend.app.models import models
+from backend.app.models.bootstrap import ensure_prototype_schema
 from database.seed.seed_data import seed_database
 
 # Routers
@@ -26,14 +27,16 @@ async def lifespan(app: FastAPI):
     # Startup: Database schema managed authoritatively by Alembic migrations; Base.metadata.create_all retained for test/bootstrap fallback
     print(f"[Startup] Verifying database connectivity and schema readiness for {engine_type}...")
     try:
-        Base.metadata.create_all(bind=engine)
+        ensure_prototype_schema(engine)
 
         db = SessionLocal()
         try:
             seed_database(db)
+            app.state.bootstrap_ready = True
         finally:
             db.close()
     except Exception as exc:
+        app.state.bootstrap_ready = False
         print(f"[Startup] Warning: Database bootstrap initialization failed ({exc.__class__.__name__}). Database may be unreachable.")
 
     yield
@@ -62,15 +65,22 @@ app.add_middleware(
 # Root Health Check (Reports real database connectivity without leaking credentials)
 @app.get("/health", tags=["Health"])
 def health_check():
+    from backend.app.services.prediction_service import prediction_service
     db_health = check_database_connection()
-    is_healthy = db_health.get("status") == "connected"
+    provider = prediction_service.ml_provider
+    model_ready = provider.is_available()
+    bootstrap_state = getattr(app.state, "bootstrap_ready", None)
+    schema_ready = db_health.get("status") == "connected" if bootstrap_state is None else bool(bootstrap_state)
+    is_healthy = db_health.get("status") == "connected" and model_ready and schema_ready
     return {
         "status": "healthy" if is_healthy else "degraded",
         "service": settings.APP_NAME,
         "version": "1.0.0",
-        "engine": "Online",
+        "engine": "Online" if model_ready else "Unavailable",
         "database": db_health,
-        "predictive_pipeline": "Active (Hybrid Ensemble + NetworkX Centrality)"
+        "schema_ready": schema_ready,
+        "predictive_pipeline": "Active (Delhi synthetic prototype)" if model_ready and schema_ready else "Unavailable",
+        "models": {"available": model_ready, "location": provider.model_version, "time": provider.time_model_version}
     }
 
 # Include API Routers under /api/v1

@@ -15,11 +15,15 @@ Strict Guarantees:
 """
 
 import logging
+import math
+import hashlib
+import json
 from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 
 from backend.app.models.models import Complaint, Prediction, PredictionLocation
+from backend.app.services.prediction_contract import as_utc, build_time_prediction
 
 logger = logging.getLogger("cybershield.prediction_persistence")
 
@@ -74,16 +78,27 @@ class PredictionPersistenceService:
             )
             return None
 
+        if len({loc.get("cluster_id") for loc in top_locations}) != 3 or sorted(loc.get("rank") for loc in top_locations) != [1, 2, 3]:
+            raise ValueError("Predictions require three distinct clusters ranked 1, 2, 3")
+        top_locations = sorted(top_locations, key=lambda loc: loc["rank"])
+        fingerprint_payload = {
+            "locations": top_locations,
+            "time_prediction": {key: value for key, value in (prediction_data.get("time_prediction") or {}).items() if key != "window_status"},
+            "analysis_basis": prediction_data.get("analysis_basis"),
+        }
+        fingerprint = hashlib.sha256(json.dumps(fingerprint_payload, sort_keys=True, default=str).encode()).hexdigest()
+
         # 2. Idempotency / Debounce Check
         # If an identical prediction was created within the last few seconds, reuse it to prevent rapid double-clicks
         if not bypass_debounce:
             latest = self.get_latest_prediction(db, complaint.id)
             if latest and latest.created_at:
-                time_diff = (datetime.utcnow() - latest.created_at).total_seconds()
+                time_diff = (as_utc(datetime.utcnow()) - as_utc(latest.created_at)).total_seconds()
                 if (
                     0 <= time_diff <= IDEMPOTENCY_DEBOUNCE_SECONDS
                     and latest.prediction_mode == pred_mode
                     and latest.model_version == prediction_data.get("model_version")
+                    and (latest.result_metadata or {}).get("result_fingerprint") == fingerprint
                 ):
                     logger.info(
                         f"[Persistence] Reusing existing prediction #{latest.id} for {complaint.complaint_number} "
@@ -99,12 +114,17 @@ class PredictionPersistenceService:
             window_end = ref_time + timedelta(hours=4)
         else:
             time_pred = prediction_data.get("time_prediction") or {}
-            time_mins = float(time_pred.get("predicted_minutes_to_cashout", 120.0))
-            min_mins = max(10, int(time_mins - 35))
-            max_mins = int(time_mins + 35)
-            window_label = f"Next {min_mins}–{max_mins} Minutes (operational estimate window)"
-            window_start = ref_time + timedelta(minutes=min_mins)
-            window_end = ref_time + timedelta(minutes=max_mins)
+            if not time_pred.get("window_start") or not time_pred.get("window_end"):
+                time_pred = build_time_prediction(
+                    complaint, float(time_pred["predicted_minutes_to_cashout"]),
+                    time_pred.get("model_version"),
+                    15 if "v3" in str(time_pred.get("model_version")) else 35,
+                )
+            window_label = time_pred["operational_window"]
+            window_start = as_utc(time_pred["window_start"]).replace(tzinfo=None)
+            window_end = as_utc(time_pred["window_end"]).replace(tzinfo=None)
+            if window_end <= window_start:
+                raise ValueError("Prediction window must end after it starts")
 
         # 4. Extract and Validate Primary Location Metadata
         from backend.app.models.models import LocationCluster
@@ -122,7 +142,7 @@ class PredictionPersistenceService:
                 f"does not exist in LocationCluster table. Remapping is strictly forbidden."
             )
 
-        primary_prob = float(rank1_loc.get("ml_probability", rank1_loc.get("probability", 0.85)))
+        primary_prob = float(rank1_loc.get("ml_probability", rank1_loc.get("probability", 0.0)))
         primary_band = rank1_loc.get("risk_band") or rank1_loc.get("risk_level", "CRITICAL")
 
         # 5. Atomic Transaction Execution
@@ -141,6 +161,15 @@ class PredictionPersistenceService:
                 model_version=prediction_data.get("model_version", "cashout-location-xgb-v3.1"),
                 time_model_version=persisted_time_model_version,
                 predicted_minutes_to_cashout=persisted_predicted_minutes,
+                result_metadata={
+                    **{key: prediction_data[key] for key in (
+                        "candidate_pool_size", "operational_scope", "dataset_version", "score_type", "score_label",
+                        "training_data_source", "analysis_basis", "provenance", "limitations",
+                    ) if key in prediction_data},
+                    "time_prediction": time_pred if pred_mode == "trained_ml" else prediction_data.get("time_prediction"),
+                    "location_evidence": {str(loc["cluster_id"]): loc.get("evidence", []) for loc in top_locations},
+                    "result_fingerprint": fingerprint,
+                },
                 predicted_window_start=window_start,
                 predicted_window_end=window_end,
                 window_label=window_label,
@@ -162,6 +191,8 @@ class PredictionPersistenceService:
             # Insert exactly 3 children
             for loc in top_locations:
                 prob_val = float(loc.get("ml_probability", loc.get("probability", 0.0)))
+                if not math.isfinite(prob_val) or not 0 <= prob_val <= 1:
+                    raise ValueError("Location score must be finite and between zero and one")
                 reason_val = loc.get("reasoning")
                 if not reason_val and loc.get("evidence"):
                     reason_val = "; ".join(loc.get("evidence", []))[:250]

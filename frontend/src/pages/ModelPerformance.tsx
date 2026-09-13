@@ -108,11 +108,11 @@ export const ModelPerformance: React.FC = () => {
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Location Model:</span>
-            <span className="text-slate-800 break-all sm:break-normal">{data.location_model_version || 'Location V3.1'}</span>
+            <span className="text-slate-800 break-all sm:break-normal">{data.location_model_version || 'unavailable'}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Time Model:</span>
-            <span className="text-slate-800 break-all sm:break-normal">{data.time_model_version || 'Time V2'}</span>
+            <span className="text-slate-800 break-all sm:break-normal">{data.time_model_version || 'unavailable'}</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Location Feature Count:</span>
