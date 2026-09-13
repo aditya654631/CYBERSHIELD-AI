@@ -1,0 +1,61 @@
+{
+  "manifest_version": "v7_expanded_training",
+  "generated_at": "2026-09-13T21:05:00Z",
+  "purpose": "Final multi-regime training pool combining V4 baseline with V6.2 and V6.3 train partitions with equal source weighting.",
+  "target_model": "cashout-location-xgb-v7",
+  "candidate_universe": 60,
+  "top_k_candidates": 25,
+  "sources": [
+    {
+      "dataset_version": "delhi_synthetic_v2 (V4)",
+      "source_type": "generator_reproducible",
+      "generation_seed": 26184,
+      "generator_script": "database/seed/synthetic_generator.py",
+      "rows_available": 3000,
+      "split_used": "train (70% chronological)",
+      "rows_selected": 2100,
+      "validation_rows_selected": 450,
+      "source_contribution_pct": 33.33,
+      "synthetic_disclosure": "Controlled synthetic Delhi cybercrime scenario simulation. NOT real NCRP.",
+      "known_limitations": "Smaller complaint volume (3000 cases total), lower diversity in transaction topologies."
+    },
+    {
+      "dataset_version": "delhi_v6_2",
+      "source_path": "ml/data/delhi_v6_2_cases.csv.gz",
+      "source_sha256": "5fd8bf18efd18f52cfcc0b8fa6870415cc3f092c0133e8d1b8f11e3522558235",
+      "generator_commit": "c594b07bc8951876fd171e39109b9e348dda47a8",
+      "rows_available": 15000,
+      "train_split_total": 10500,
+      "split_used": "train",
+      "rows_selected": 2100,
+      "validation_rows_selected": 450,
+      "source_contribution_pct": 33.33,
+      "synthetic_disclosure": "Controlled synthetic Delhi cybercrime scenario simulation. NOT real NCRP.",
+      "known_limitations": "High conditional concentration on terminal mule district; requires multi-regime balancing to prevent synthetic shortcut learning."
+    },
+    {
+      "dataset_version": "delhi_v6_3",
+      "source_path": "ml/data/delhi_v6_3_cases.csv.gz",
+      "source_sha256": "61cfdcab0b36684790c572b9d589e0df48a46a7892a6ffe1cf60342ae78fcf71",
+      "generator_commit": "6c2e8749e755519ec3533bebe5bcda3e6d2bc62b",
+      "rows_available": 15000,
+      "train_split_total": 10500,
+      "split_used": "train",
+      "rows_selected": 2100,
+      "validation_rows_selected": 450,
+      "source_contribution_pct": 33.33,
+      "synthetic_disclosure": "Controlled synthetic Delhi cybercrime scenario simulation. NOT real NCRP.",
+      "known_limitations": "Lower conditional concentration to prevent shortcuts, higher geographic dispersion."
+    }
+  ],
+  "totals": {
+    "total_training_complaints": 6300,
+    "total_internal_validation_complaints": 1350,
+    "source_balance": {
+      "v4_pct": 33.33,
+      "v6_2_pct": 33.33,
+      "v6_3_pct": 33.33
+    },
+    "source_identifier_used_as_feature": false
+  }
+}

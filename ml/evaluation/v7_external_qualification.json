@@ -1,0 +1,149 @@
+{
+  "evaluation_timestamp": "2026-09-13T15:36:01.291960Z",
+  "dual_regime_holdouts": {
+    "regime_a": {
+      "seed": 52162,
+      "cases": 2000,
+      "style": "v6.2_two_stage"
+    },
+    "regime_b": {
+      "seed": 52163,
+      "cases": 2000,
+      "style": "v6.3_balanced_signal"
+    },
+    "total_holdout_cases": 4000
+  },
+  "combined_holdout_metrics": {
+    "v4": {
+      "candidate_recall@25": 73.52,
+      "r1": 6.22,
+      "r3": 17.93,
+      "r5": 27.1,
+      "mrr": 0.1728,
+      "median_error_km": 8.08,
+      "ece": 0.01712
+    },
+    "v7": {
+      "candidate_recall@25": 73.52,
+      "r1": 17.18,
+      "r3": 33.38,
+      "r5": 44.1,
+      "mrr": 0.2954,
+      "median_error_km": 5.14,
+      "ece": 0.00054
+    },
+    "improvement": {
+      "top3_delta_pp": 15.45,
+      "top5_delta_pp": 17.0,
+      "mrr_delta": 0.1226,
+      "spatial_error_reduction_km": 2.94
+    }
+  },
+  "per_regime_metrics": {
+    "v6_2_holdout": {
+      "v4": {
+        "candidate_recall@25": 80.35,
+        "r1": 7.4,
+        "r3": 20.45,
+        "r5": 30.9,
+        "mrr": 0.1976,
+        "median_error_km": 7.55,
+        "ece": 0.01987
+      },
+      "v7": {
+        "candidate_recall@25": 80.35,
+        "r1": 24.25,
+        "r3": 44.9,
+        "r5": 56.05,
+        "mrr": 0.3822,
+        "median_error_km": 3.9,
+        "ece": 0.00237
+      }
+    },
+    "v6_3_holdout": {
+      "v4": {
+        "candidate_recall@25": 66.7,
+        "r1": 5.05,
+        "r3": 15.4,
+        "r5": 23.3,
+        "mrr": 0.1481,
+        "median_error_km": 8.41,
+        "ece": 0.01438
+      },
+      "v7": {
+        "candidate_recall@25": 66.7,
+        "r1": 10.1,
+        "r3": 21.85,
+        "r5": 32.15,
+        "mrr": 0.2086,
+        "median_error_km": 6.57,
+        "ece": 0.00321
+      }
+    }
+  },
+  "original_v4_test_regression_check": {
+    "v4": {
+      "candidate_recall@25": 76.92,
+      "r1": 13.46,
+      "r3": 24.68,
+      "r5": 33.65,
+      "mrr": 0.2443,
+      "median_error_km": 8.91,
+      "ece": 0.00059
+    },
+    "v7": {
+      "candidate_recall@25": 76.92,
+      "r1": 12.82,
+      "r3": 22.76,
+      "r5": 33.65,
+      "mrr": 0.2369,
+      "median_error_km": 9.05,
+      "ece": 0.00616
+    },
+    "pass": false
+  },
+  "feature_audit": {
+    "largest_feature_contribution": 0.2489,
+    "largest_feature_name": "historical_cluster_risk",
+    "top_5_features": [
+      {
+        "feature": "historical_cluster_risk",
+        "importance": 0.2489
+      },
+      {
+        "feature": "candidate_same_terminal_zone",
+        "importance": 0.1839
+      },
+      {
+        "feature": "candidate_same_any_account_zone",
+        "importance": 0.0882
+      },
+      {
+        "feature": "fraud_type_cluster_frequency",
+        "importance": 0.0677
+      },
+      {
+        "feature": "candidate_same_complaint_zone",
+        "importance": 0.0516
+      }
+    ],
+    "terminal_related_contribution": 0.2118,
+    "dominant_account_related_contribution": 0.0882,
+    "spatial_distance_contribution": 0.0931,
+    "cluster_history_contribution": 0.4171
+  },
+  "gates": {
+    "candidate_recall_pass": true,
+    "r1_pass": true,
+    "r3_pass": true,
+    "r5_pass": true,
+    "mrr_pass": true,
+    "spatial_error_pass": true,
+    "ece_pass": true,
+    "regime_robustness_pass": true,
+    "v4_regression_pass": false,
+    "feature_safety_pass": true,
+    "all_gates_pass": false
+  },
+  "qualification_status": "DISQUALIFIED_KEEP_V4"
+}
