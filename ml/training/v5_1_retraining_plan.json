@@ -1,0 +1,46 @@
+{
+  "version": "v5.1",
+  "document_type": "RETRAINING_PLAN",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN_PLAN",
+  "challenger_naming": {
+    "location_model": "location_ranker_v5_1.joblib",
+    "location_calibrator": "location_calibrator_v5_1.joblib",
+    "feature_schema": "feature_schema_v5_1.json",
+    "rule": "Phase A.4 artifacts (location_ranker_v5.joblib, etc.) remain permanently intact as immutable benchmark evidence."
+  },
+  "retraining_methodology": {
+    "architecture": "POINTWISE_XGBCLASSIFIER_WITH_CALIBRATION",
+    "candidate_pool": "V5.1 Multi-Source Partitioned Quota (25 candidates)",
+    "training_split": "TRAIN (10,500 cases = 262,500 candidate examples)",
+    "tuning_split": "VALIDATION_TUNE (1,125 cases = 28,125 candidate examples)",
+    "calibration_split": "VALIDATION_CALIBRATION (1,125 cases = 28,125 candidate examples)",
+    "hyperparameter_grid": [
+      {"max_depth": 5, "learning_rate": 0.04, "n_estimators": 160, "scale_pos_weight": 1.2},
+      {"max_depth": 6, "learning_rate": 0.05, "n_estimators": 180, "scale_pos_weight": 1.5},
+      {"max_depth": 6, "learning_rate": 0.06, "n_estimators": 200, "scale_pos_weight": 1.8}
+    ]
+  },
+  "required_conditional_headroom_math": {
+    "target_candidate_recall_at_25": 77.56,
+    "absolute_overall_gates": {
+      "top1_gte": 14.5,
+      "top3_gte": 27.0,
+      "top5_gte": 36.0
+    },
+    "required_conditional_accuracy_needed": {
+      "top1_conditional_needed": 18.70,
+      "top3_conditional_needed": 34.81,
+      "top5_conditional_needed": 46.42
+    },
+    "at_82_pct_recall": {
+      "top1_conditional_needed": 17.68,
+      "top3_conditional_needed": 32.93,
+      "top5_conditional_needed": 43.90
+    }
+  },
+  "time_model_handling": {
+    "strategy": "KEEP_TIME_V3_ACTIVE_AND_DEFER_V5_TIME",
+    "rationale": "Production Time V3 remains active and healthy. Due to high synthetic target noise in the 546-day V5 distribution, time model retraining will be addressed in a dedicated future iteration."
+  }
+}

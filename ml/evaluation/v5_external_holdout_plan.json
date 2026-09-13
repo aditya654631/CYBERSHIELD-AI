@@ -1,0 +1,30 @@
+{
+  "version": "v5.1",
+  "document_type": "EXTERNAL_HOLDOUT_PLAN",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN_PLAN",
+  "rationale": "Because the original 2,250 A.4 TEST cases were observed during A.4 evaluation, testing V5.1 on the same test set would introduce data snooping bias. A completely fresh, unobserved external holdout dataset must be generated for final benchmark qualification.",
+  "holdout_specifications": {
+    "generator_file": "ml/data/generate_delhi_v5_dataset.py",
+    "generation_seed": 26185,
+    "target_cases_count": 3000,
+    "allowed_range": "3,000 to 5,000 cases",
+    "planned_path": "ml/data/delhi_v5_external_holdout.csv.gz",
+    "status": "DESIGN_ONLY — Not generated during Phase A.4B",
+    "usage_rules": {
+      "training_allowed": false,
+      "validation_tuning_allowed": false,
+      "calibration_allowed": false,
+      "feature_selection_allowed": false,
+      "purpose": "Locked, one-shot final benchmark evaluation after V5.1 training is frozen"
+    }
+  },
+  "frozen_promotion_gates_to_evaluate": {
+    "top1_gte": 14.5,
+    "top3_gte": 27.0,
+    "top5_gte": 36.0,
+    "mrr_gte": 0.2600,
+    "median_spatial_error_lte_km": 8.0,
+    "ece_lte": 0.045
+  }
+}

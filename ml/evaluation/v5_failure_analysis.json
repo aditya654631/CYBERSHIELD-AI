@@ -1,0 +1,56 @@
+{
+  "phase": "A.4B",
+  "document_type": "FAILURE_ANALYSIS",
+  "project": "CyberShield AI — SIH 26184",
+  "analyzed_at": "2026-09-13T10:15:00Z",
+  "status": "FROZEN_OBSERVATION",
+  "frozen_test_status": {
+    "original_test_observed": true,
+    "original_test_reused_for_tuning": false,
+    "rule": "Original 2,250 A.4 TEST cases are consumed and permanently frozen as benchmark history. All diagnostic and redesign decisions in Phase A.4B are conducted exclusively on TRAIN and VALIDATION splits."
+  },
+  "location_v5_failure_decomposition": {
+    "validation_cases_count": 2250,
+    "candidate_generation_failure": {
+      "candidate_miss_count": 596,
+      "candidate_miss_rate_pct": 26.49,
+      "candidate_present_count": 1654,
+      "candidate_present_rate_pct": 73.51
+    },
+    "ranker_failure_given_candidate_present": {
+      "top1_miss_count": 1398,
+      "top1_miss_rate_pct": 84.52,
+      "top3_miss_count": 1080,
+      "top3_miss_rate_pct": 65.30,
+      "top5_miss_count": 836,
+      "top5_miss_rate_pct": 50.54
+    },
+    "spatial_near_miss": {
+      "top1_wrong_but_within_5km_count": 470,
+      "rate_given_candidate_present_pct": 28.42,
+      "interpretation": "In more than 28% of cases where target was present, the model selected an adjacent or corridor cluster within 5km of the ground truth, indicating strong regional orientation with fine-grained intra-district cluster ambiguity."
+    },
+    "failures_by_operational_context": {
+      "cross_district_top3_misses": 1338,
+      "local_corridor_top3_misses": 257,
+      "syndicate_hub_top3_misses": 336,
+      "deep_mule_chain_top3_misses": 783
+    },
+    "primary_bottleneck_verdict": "BOTH — Candidate generation limits achievable accuracy to 73.51% maximum, but ranker discriminative power is also insufficient (34.7% conditional Top-3) to clear the required 27% overall gate."
+  },
+  "feature_dominance_audit": {
+    "feature_name": "candidate_same_any_account_zone",
+    "gain_share_pct": 42.72,
+    "classification": "LEGITIMATE_HIGH_SIGNAL_WITH_SYNTHETIC_PROXY_RISK",
+    "findings": "Because cash-out outcomes in the synthetic dataset are strongly pulled by terminal and intermediary mule accounts (which mirror real-world cybercrime movement), the binary match indicator captures immense operational predictive power. However, its binary nature causes tree splits to heavily bias towards coarse district matching rather than learning fine-grained multi-hop corridor transitions.",
+    "recommended_action": "MODIFY — Replace single coarse binary indicator with a richer continuous representation: candidate_account_support_count, distance_to_terminal_mule_km, and candidate_corridor_transition_score."
+  },
+  "time_v4_failure_diagnosis": {
+    "observed_mae_minutes": 38.03,
+    "frozen_promotion_gate_mae": 11.5,
+    "root_cause": "HIGH_SYNTHETIC_TARGET_NOISE_AND_DATASET_DIVERGENCE",
+    "analysis": "In the V5 historical dataset, cash-out delays span 12 to 500+ minutes with standard deviations between 35 and 100 minutes per fraud family (e.g. Investment Scams have P10=160 min, P90=421 min, Std=100 min). The 11.5-minute gate was calibrated under the old narrow-variance synthetic V2 pilot. Predicting individual cash-out timestamps with <11.5 min error on this wide-variance distribution is mathematically impossible without severe label leakage.",
+    "realistically_attainable_on_v5": false,
+    "recommendation": "KEEP_TIME_V3_ACTIVE_AND_DEFER_V5_TIME — Maintain production cashout-time-xgb-v3 as active baseline while focusing ML improvement exclusively on the location ranking challenger."
+  }
+}

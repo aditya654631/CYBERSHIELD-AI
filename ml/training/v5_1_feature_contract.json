@@ -1,0 +1,86 @@
+{
+  "version": "v5.1",
+  "document_type": "FEATURE_CONTRACT_REVISED",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN_REVISION",
+  "feature_transformations": {
+    "total_features": 49,
+    "actions": {
+      "KEEP": [
+        "log_amount",
+        "fraud_type_encoded",
+        "payment_channel_encoded",
+        "complaint_hour",
+        "day_of_week",
+        "weekend_flag",
+        "night_flag",
+        "complaint_delay_minutes",
+        "transaction_count",
+        "hop_count",
+        "unique_accounts",
+        "unique_banks",
+        "total_transferred",
+        "mean_transfer_amount",
+        "max_transfer_amount",
+        "transaction_velocity",
+        "chain_duration_minutes",
+        "average_hop_interval",
+        "branching_factor",
+        "max_degree",
+        "mean_degree",
+        "max_pagerank",
+        "max_betweenness",
+        "connected_component_size",
+        "fraud_neighbor_count",
+        "mule_connection_count",
+        "historical_cluster_cashout_count",
+        "historical_cluster_cashout_amount",
+        "historical_cluster_risk",
+        "atm_density",
+        "distance_from_victim",
+        "recent_cluster_activity",
+        "fraud_type_cluster_frequency",
+        "transaction_hour",
+        "time_since_first_transfer",
+        "time_since_last_transfer",
+        "fraud_type_historical_cashout_delay",
+        "account_historical_cashout_delay",
+        "candidate_same_complaint_zone",
+        "candidate_same_terminal_zone",
+        "dist_to_complaint_zone_km",
+        "dist_to_terminal_zone_km",
+        "transfer_burst_score",
+        "night_activity_ratio",
+        "terminal_mule_district_encoded",
+        "prior_24h_cashout_count_near_candidate",
+        "prior_30d_cluster_activity"
+      ],
+      "MODIFY": [
+        {
+          "old_feature": "candidate_same_any_account_zone",
+          "replacement": "candidate_corridor_support_score",
+          "rationale": "De-correlates tree dominance by replacing raw binary match with a multi-level support score accounting for both origin and terminal account proximity."
+        }
+      ],
+      "REMOVE": [],
+      "ADD": [
+        {
+          "new_feature": "prior_7d_similar_fraud_count",
+          "type": "integer",
+          "source": "chronological_prior_7d_window",
+          "rationale": "Captures short-term syndicate surge for the specific fraud family in the candidate locality prior to complaint event."
+        },
+        {
+          "new_feature": "candidate_retrieval_priority_rank",
+          "type": "integer",
+          "source": "v5_1_candidate_generator",
+          "rationale": "Provides the ranker with candidate retrieval priority order (1..25) to cleanly leverage multi-source heuristic confidence."
+        }
+      ]
+    }
+  },
+  "leakage_verification": {
+    "target_leakage": false,
+    "chronological_cutoff": "Strictly historical timestamp < case.event_timestamp"
+  }
+}

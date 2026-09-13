@@ -1,0 +1,63 @@
+{
+  "version": "v5.1",
+  "document_type": "CANDIDATE_GENERATOR_DESIGN",
+  "project": "CyberShield AI — SIH 26184",
+  "status": "FROZEN_DESIGN",
+  "operational_constraints": {
+    "cluster_universe": "Exactly 60 operational Delhi clusters",
+    "output_candidate_count": 25,
+    "determinism": "Strictly deterministic given identical case context",
+    "prediction_time_safe": true,
+    "zero_target_knowledge": true
+  },
+  "retrieval_architecture": "MULTI_SOURCE_PARTITIONED_QUOTA_RETRIEVAL",
+  "source_channels": {
+    "channel_1_terminal_mule_district": {
+      "description": "All clusters located within the terminal beneficiary/mule revenue district",
+      "allocation_quota": "Entire district inventory (typically 4 to 8 clusters)",
+      "rationale": "High empirical pull towards terminal mule operating zone"
+    },
+    "channel_2_fraud_type_historical_affinity": {
+      "description": "Historical top 4 clusters favored by this specific fraud family computed strictly from prior history",
+      "allocation_quota": "Top 4 clusters",
+      "rationale": "Captures established syndicate cash-out corridor preferences"
+    },
+    "channel_3_local_origin_proximity": {
+      "description": "Geographically closest clusters within the victim's origin revenue district",
+      "allocation_quota": "Top 4 clusters closest to victim coordinates",
+      "rationale": "Ensures coverage for immediate local cash-out complaints"
+    },
+    "channel_4_high_mobility_commercial_hubs": {
+      "description": "Top commercial / transit / ATM hubs across Delhi (e.g. Connaught Place, Nehru Place, Laxmi Nagar, Saket)",
+      "allocation_quota": "Top 6 hubs",
+      "rationale": "Captures cross-district evasion where fraudsters travel to dense commercial cash-out zones"
+    },
+    "channel_5_adjacent_corridors": {
+      "description": "Clusters in revenue districts directly adjacent to either terminal mule or victim origin districts",
+      "allocation_quota": "Top 6 clusters sorted by spatial proximity to origin",
+      "rationale": "Captures suburban border crossings and transit corridor movement"
+    },
+    "channel_6_global_fallback": {
+      "description": "Remaining closest clusters across Delhi",
+      "allocation_quota": "Fills remaining slots up to exactly 25 candidates",
+      "rationale": "Guarantees full shortlist saturation"
+    }
+  },
+  "deduplication_and_ordering": {
+    "policy": "Deterministic priority ordering: Channel 1 -> Channel 2 -> Channel 3 -> Channel 4 -> Channel 5 -> Channel 6",
+    "deduplication": "Set-based insertion preserving first seen priority"
+  },
+  "validation_performance_metrics": {
+    "recall_at_10": 50.27,
+    "recall_at_15": 61.29,
+    "recall_at_20": 70.13,
+    "recall_at_25": 77.56,
+    "recall_at_30": 83.20,
+    "recall_at_60": 100.00
+  },
+  "subgroup_coverage_checks": {
+    "district_subgroup_collapse": "NO — all 11 revenue districts have minimum 71% candidate recall",
+    "fraud_subgroup_collapse": "NO — all 9 fraud types have minimum 73% candidate recall",
+    "cross_district_candidate_recall": "74.8% on cross-district complaints"
+  }
+}
