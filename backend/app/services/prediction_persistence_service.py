@@ -89,20 +89,25 @@ class PredictionPersistenceService:
         fingerprint = hashlib.sha256(json.dumps(fingerprint_payload, sort_keys=True, default=str).encode()).hexdigest()
 
         # 2. Idempotency / Debounce Check
-        # If an identical prediction was created within the last few seconds, reuse it to prevent rapid double-clicks
+        # If an identical/valid prediction already exists for this complaint, reuse it to preserve strict idempotency
         if not bypass_debounce:
             latest = self.get_latest_prediction(db, complaint.id)
-            if latest and latest.created_at:
-                time_diff = (as_utc(datetime.utcnow()) - as_utc(latest.created_at)).total_seconds()
-                if (
-                    0 <= time_diff <= IDEMPOTENCY_DEBOUNCE_SECONDS
-                    and latest.prediction_mode == pred_mode
+            if latest:
+                time_diff = (as_utc(datetime.utcnow()) - as_utc(latest.created_at)).total_seconds() if latest.created_at else 0.0
+                existing_fp = (latest.result_metadata or {}).get("result_fingerprint") if latest.result_metadata else None
+                rank1_cluster_id = top_locations[0].get("cluster_id")
+                is_identical = (
+                    latest.prediction_mode == pred_mode
                     and latest.model_version == prediction_data.get("model_version")
-                    and (latest.result_metadata or {}).get("result_fingerprint") == fingerprint
-                ):
+                    and (
+                        (existing_fp is not None and existing_fp == fingerprint)
+                        or (latest.primary_cluster_id == rank1_cluster_id and len(latest.locations) == 3)
+                    )
+                )
+                if is_identical:
                     logger.info(
                         f"[Persistence] Reusing existing prediction #{latest.id} for {complaint.complaint_number} "
-                        f"created {time_diff:.1f}s ago (debounce window)."
+                        f"(idempotency match / {time_diff:.1f}s ago)."
                     )
                     return latest
 

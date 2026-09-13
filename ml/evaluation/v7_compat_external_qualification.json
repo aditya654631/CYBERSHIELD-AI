@@ -1,0 +1,142 @@
+{
+  "evaluation_timestamp": "2026-09-13T16:04:28.986357+00:00",
+  "holdouts": {
+    "legacy_seed_56261": {
+      "cases": 1395,
+      "v4": {
+        "candidate_recall@25": 78.92,
+        "r1": 15.91,
+        "r3": 26.74,
+        "r5": 35.56,
+        "mrr": 0.2671,
+        "median_error_km": 9.0,
+        "ece": 0.00092
+      },
+      "v7_compat": {
+        "candidate_recall@25": 78.92,
+        "r1": 16.56,
+        "r3": 28.24,
+        "r5": 37.42,
+        "mrr": 0.2758,
+        "median_error_km": 8.76,
+        "ece": 0.00593
+      },
+      "pass": true
+    },
+    "v6_2_seed_56262": {
+      "cases": 2000,
+      "v4": {
+        "candidate_recall@25": 79.0,
+        "r1": 6.05,
+        "r3": 20.45,
+        "r5": 31.2,
+        "mrr": 0.1897,
+        "median_error_km": 7.44,
+        "ece": 0.01925
+      },
+      "v7_compat": {
+        "candidate_recall@25": 79.0,
+        "r1": 22.6,
+        "r3": 44.6,
+        "r5": 54.85,
+        "mrr": 0.3689,
+        "median_error_km": 3.81,
+        "ece": 0.00464
+      },
+      "pass": true
+    },
+    "v6_3_seed_56263": {
+      "cases": 2000,
+      "v4": {
+        "candidate_recall@25": 65.65,
+        "r1": 4.9,
+        "r3": 13.9,
+        "r5": 22.85,
+        "mrr": 0.1435,
+        "median_error_km": 9.01,
+        "ece": 0.01395
+      },
+      "v7_compat": {
+        "candidate_recall@25": 65.65,
+        "r1": 10.2,
+        "r3": 23.8,
+        "r5": 32.25,
+        "mrr": 0.2101,
+        "median_error_km": 6.62,
+        "ece": 0.00181
+      },
+      "pass": true
+    }
+  },
+  "combined_6000": {
+    "v4": {
+      "candidate_recall@25": 74.03,
+      "r1": 8.17,
+      "r3": 19.65,
+      "r5": 29.23,
+      "mrr": 0.1926,
+      "median_error_km": 8.14,
+      "ece": 0.0124
+    },
+    "v7_compat": {
+      "candidate_recall@25": 74.03,
+      "r1": 16.44,
+      "r3": 32.66,
+      "r5": 41.96,
+      "mrr": 0.286,
+      "median_error_km": 5.76,
+      "ece": 0.0033
+    },
+    "improvement": {
+      "top3_delta_pp": 13.01,
+      "mrr_delta": 0.0934,
+      "spatial_error_delta_km": 2.38
+    },
+    "pass": true
+  },
+  "feature_audit": {
+    "v4_candidate_score_importance": 0.2563,
+    "v4_features_combined_importance": 0.5197,
+    "historical_cluster_risk_importance": 0.0704,
+    "terminal_geography_importance": 0.084,
+    "trajectory_features_importance": 0.0791,
+    "top_features": [
+      {
+        "feature": "v4_candidate_score",
+        "importance": 0.2563
+      },
+      {
+        "feature": "v4_score_gap_from_candidate1",
+        "importance": 0.1657
+      },
+      {
+        "feature": "v4_candidate_rank_normalized",
+        "importance": 0.0807
+      },
+      {
+        "feature": "historical_cluster_risk",
+        "importance": 0.0704
+      },
+      {
+        "feature": "candidate_same_terminal_zone",
+        "importance": 0.0593
+      },
+      {
+        "feature": "recent_cluster_activity",
+        "importance": 0.0312
+      },
+      {
+        "feature": "historical_cluster_cashout_count",
+        "importance": 0.0307
+      }
+    ]
+  },
+  "gates": {
+    "legacy_gates_pass": true,
+    "v62_gates_pass": true,
+    "v63_gates_pass": true,
+    "combined_gates_pass": true,
+    "all_gates_pass": true
+  },
+  "status": "V7_COMPAT_QUALIFIED"
+}

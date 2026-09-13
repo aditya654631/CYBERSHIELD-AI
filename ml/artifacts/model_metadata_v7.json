@@ -1,0 +1,50 @@
+{
+  "model_version": "cashout-location-xgb-v7",
+  "time_model_version": "cashout-time-xgb-v3",
+  "training_timestamp": "2026-09-13T15:34:38.290747Z",
+  "algorithm": "pointwise_xgb_classifier",
+  "hyperparameters": {
+    "n_estimators": "140",
+    "max_depth": "5",
+    "learning_rate": "0.07",
+    "reg_lambda": "2.5",
+    "colsample_bytree": "0.8",
+    "subsample": "0.85",
+    "scale_pos_weight": "4.924473987111067",
+    "random_state": "42",
+    "eval_metric": "logloss",
+    "n_jobs": "-1"
+  },
+  "calibration_method": "platt_logistic",
+  "internal_metrics": {
+    "candidate_recall@25": 76.73,
+    "r1": 18.23,
+    "r3": 34.24,
+    "r5": 45.38,
+    "mrr": 0.3067,
+    "median_error_km": 5.23
+  },
+  "internal_ece": 0.00158,
+  "artifacts": {
+    "ranker": {
+      "file": "location_ranker_v7.joblib",
+      "sha256": "acc387988442696fe1f8a48fc6e4935f091114ccb1453a73139fd93c2e11f39e"
+    },
+    "calibrator": {
+      "file": "location_calibrator_v7.joblib",
+      "sha256": "0144fae76cfac5c2ad38fbc6cc1fc5c652c80c9364a3ff7edc02f3444ac90ad8"
+    },
+    "feature_schema": {
+      "file": "feature_schema_v7.json",
+      "sha256": "eaa533b314f5a39698449f92b2f80c85bf7866b1f15acd2aaa70405d14f18eed"
+    }
+  },
+  "training_sources": {
+    "v4_cases": 1430,
+    "v6_2_cases": 2100,
+    "v6_3_cases": 2100,
+    "total_train_cases": 5630,
+    "total_val_cases": 1212
+  },
+  "synthetic_disclosure": "Trained on multi-regime controlled synthetic Delhi cybercrime scenario corpus. NOT real NCRP data."
+}

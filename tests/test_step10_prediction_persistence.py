@@ -87,7 +87,7 @@ def test_cmp_new_000002_live_persistence(db):
     assert data["status"] == "SUCCESS"
     assert data["prediction_id"] > 0
     assert data["prediction_mode"] == "trained_ml"
-    assert data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4")
+    assert data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
     assert "operational estimate window" in data["when_window"]
 
     # Verify DB delta: exactly 1 Prediction and 3 PredictionLocations
@@ -106,7 +106,7 @@ def test_cmp_new_000002_live_persistence(db):
     assert persisted is not None
     assert persisted.id == data["prediction_id"]
     assert persisted.prediction_mode == "trained_ml"
-    assert persisted.model_version in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4")
+    assert persisted.model_version in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
     assert "operational estimate window" in persisted.window_label
 
     # Verify children
@@ -167,7 +167,7 @@ def test_cmp_dl_0001_live_persistence(db):
 
     assert data["status"] == "SUCCESS"
     assert data["prediction_mode"] == "trained_ml"
-    assert data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4")
+    assert data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
     assert len(data["top_locations"]) == 3
     assert data["time_prediction"]["predicted_minutes_to_cashout"] > 0
 

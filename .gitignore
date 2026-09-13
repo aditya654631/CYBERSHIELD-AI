@@ -32,7 +32,18 @@ frontend/.env.*.local
 *.swp
 *.swo
 
-# ML Artifacts (only keep models trained locally if needed)
+# ML Artifacts (only keep promoted models)
 ml/artifacts/*.joblib
 ml/artifacts/*.pkl
 !ml/artifacts/.gitkeep
+!ml/artifacts/location_ranker_v4.joblib
+!ml/artifacts/location_calibrator_v4.joblib
+!ml/artifacts/location_ranker_v7_compat.joblib
+!ml/artifacts/location_calibrator_v7_compat.joblib
+!ml/artifacts/time_regressor_v3.joblib
+
+# ML Experimental Data & Research Backups
+ml/data/*.csv.gz
+ml/data/*.pkl
+ml/data/generate_delhi_v*.py
+ml/research_backup/
