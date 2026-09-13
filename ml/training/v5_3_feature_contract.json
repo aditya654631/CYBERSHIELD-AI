@@ -1,0 +1,97 @@
+{
+  "version": "v5.3",
+  "document_type": "HIERARCHICAL_FEATURE_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4F",
+  "status": "FROZEN_DEVELOPMENT_CONTRACT",
+  "architecture": "Hierarchical Two-Stage Cash-Out Routing & Pairwise Cluster Ranking",
+  "feature_dimensions": {
+    "stage_1_district_model": {
+      "model_type": "XGBClassifier (multi:softprob)",
+      "num_classes": 11,
+      "objective": "Predict probability distribution over 11 Delhi revenue districts",
+      "feature_count": 25,
+      "features": [
+        "log_amount",
+        "fraud_type_encoded",
+        "payment_channel_encoded",
+        "complaint_hour",
+        "day_of_week",
+        "weekend_flag",
+        "night_flag",
+        "complaint_delay_minutes",
+        "transaction_count",
+        "hop_count",
+        "unique_accounts",
+        "unique_banks",
+        "total_transferred",
+        "mean_transfer_amount",
+        "max_transfer_amount",
+        "transaction_velocity",
+        "chain_duration_minutes",
+        "average_hop_interval",
+        "branching_factor",
+        "connected_component_size",
+        "victim_district_encoded",
+        "terminal_mule_district_encoded",
+        "transfer_burst_score",
+        "night_activity_ratio",
+        "cross_district_flag"
+      ],
+      "leakage_protection": "5-Fold Out-of-Fold (OOF) cross-validation on TRAIN. Test/Val uses TRAIN-fitted model."
+    },
+    "stage_2_hierarchical_cluster_ranker": {
+      "model_type": "XGBRanker (rank:pairwise)",
+      "num_candidates_per_case": 25,
+      "total_ranking_features": 60,
+      "base_ranking_features_count": 54,
+      "hierarchical_added_features_count": 6,
+      "hierarchical_features": [
+        {
+          "name": "candidate_district_probability",
+          "type": "float32",
+          "description": "Posterior probability of the candidate cluster's revenue district from Stage 1 district model",
+          "leakage_safe": true
+        },
+        {
+          "name": "candidate_district_rank",
+          "type": "float32",
+          "description": "Rank (1..11) of the candidate cluster's revenue district by predicted probability",
+          "leakage_safe": true
+        },
+        {
+          "name": "candidate_in_top2_predicted_districts",
+          "type": "float32",
+          "description": "Binary flag indicating if candidate cluster's district is in Top-2 predicted districts",
+          "leakage_safe": true
+        },
+        {
+          "name": "candidate_in_top3_predicted_districts",
+          "type": "float32",
+          "description": "Binary flag indicating if candidate cluster's district is in Top-3 predicted districts",
+          "leakage_safe": true
+        },
+        {
+          "name": "smoothed_fraud_district_cluster_prior",
+          "type": "float32",
+          "description": "Laplace-smoothed empirical historical probability P(cluster | fraud_type, victim_district) computed on prior training history",
+          "leakage_safe": true
+        },
+        {
+          "name": "smoothed_terminal_district_cluster_prior",
+          "type": "float32",
+          "description": "Flag/prior indicating whether candidate cluster resides in the terminal mule account's district",
+          "leakage_safe": true
+        }
+      ]
+    }
+  },
+  "constraints_verification": {
+    "total_features_lte_65": true,
+    "actual_total_features": 60,
+    "target_leakage_prevented": true,
+    "true_target_district_in_features": false,
+    "true_pattern_in_features": false,
+    "realized_cashout_in_features": false
+  }
+}

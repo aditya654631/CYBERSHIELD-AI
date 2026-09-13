@@ -1,0 +1,431 @@
+{
+  "phase": "A.4F",
+  "title": "Hierarchical Routing Development & Signal Ceiling Report",
+  "evaluated_at": "2026-09-13T10:54:26Z",
+  "district_model": {
+    "model_type": "XGBClassifier (multi:softprob, 11 districts)",
+    "features_count": 25,
+    "top1_accuracy_pct": 33.33,
+    "top2_recall_pct": 52.44,
+    "top3_recall_pct": 64.89,
+    "local_district_accuracy_pct": 65.88,
+    "cross_district_accuracy_pct": 19.24,
+    "training_oof_leakage_safety": "5-Fold Out-of-Fold (OOF) cross-validation on TRAIN"
+  },
+  "auxiliary_pattern": {
+    "latent_pattern_exists": true,
+    "pattern_model_used": false,
+    "pattern_accuracy_pct": 27.91,
+    "pattern_macro_f1": 0.1377
+  },
+  "hierarchical_architectures": {
+    "A_canonical_pairwise_baseline": {
+      "top1": 12.0,
+      "top3": 25.16,
+      "top5": 38.49,
+      "mrr": 0.2439,
+      "median_spatial_error": 8.12,
+      "mean_spatial_error": 9.02,
+      "conditional_top1": 15.22,
+      "conditional_top3": 31.91,
+      "conditional_mrr": 0.3093,
+      "feature_count": 54,
+      "fit_time": 6.1
+    },
+    "B_pairwise_plus_district_posterior": {
+      "top1": 12.0,
+      "top3": 26.13,
+      "top5": 37.51,
+      "mrr": 0.2449,
+      "median_spatial_error": 8.05,
+      "mean_spatial_error": 8.99,
+      "conditional_top1": 15.22,
+      "conditional_top3": 33.15,
+      "conditional_mrr": 0.3105,
+      "feature_count": 58,
+      "fit_time": 6.72
+    },
+    "C_pairwise_hierarchical_full": {
+      "top1": 11.38,
+      "top3": 25.16,
+      "top5": 35.47,
+      "mrr": 0.2332,
+      "median_spatial_error": 8.29,
+      "mean_spatial_error": 9.02,
+      "conditional_top1": 14.43,
+      "conditional_top3": 31.91,
+      "conditional_mrr": 0.2958,
+      "feature_count": 60,
+      "fit_time": 8.03
+    }
+  },
+  "selected_architecture": {
+    "name": "C_pairwise_hierarchical_full",
+    "feature_count": 60,
+    "metrics": {
+      "top1": 11.38,
+      "top3": 25.16,
+      "top5": 35.47,
+      "mrr": 0.2332,
+      "median_spatial_error": 8.29,
+      "mean_spatial_error": 9.02,
+      "conditional_top1": 14.43,
+      "conditional_top3": 31.91,
+      "conditional_mrr": 0.2958,
+      "feature_count": 60,
+      "fit_time": 8.03
+    }
+  },
+  "oracle_gap": {
+    "oracle_top1_pct": 30.58,
+    "oracle_top3_pct": 54.84,
+    "oracle_mrr": 0.456,
+    "predicted_model_top1_pct": 11.38,
+    "predicted_model_top3_pct": 25.16,
+    "top1_gap_pct": 19.2,
+    "top3_gap_pct": 29.68,
+    "primary_bottleneck": "BOTH"
+  },
+  "temporal_stability": {
+    "first_half": {
+      "top1": 12.28,
+      "top3": 24.91,
+      "top5": 33.63,
+      "mrr": 0.2333,
+      "median_spatial_error": 8.49,
+      "mean_spatial_error": 9.2
+    },
+    "second_half": {
+      "top1": 10.48,
+      "top3": 25.4,
+      "top5": 37.3,
+      "mrr": 0.2332,
+      "median_spatial_error": 8.13,
+      "mean_spatial_error": 8.83
+    },
+    "severe_temporal_collapse": false
+  },
+  "bootstrap_95_ci": {
+    "top1": [
+      9.69,
+      13.24
+    ],
+    "top3": [
+      22.84,
+      27.47
+    ],
+    "mrr": [
+      0.2165,
+      0.2508
+    ]
+  },
+  "development_headroom": {
+    "top1_gte_15": false,
+    "top3_gte_28": false,
+    "mrr_gte_0_270": false,
+    "median_spatial_error_lte_8": false,
+    "candidate_recall_gte_76": true,
+    "ready_for_seed_26186": false
+  },
+  "dataset_decision": {
+    "classification": "DATASET_HIGH_AMBIGUITY",
+    "recommended_next_action": "KEEP_V4_PRODUCTION_AND_STOP_V5_LOCATION_CYCLE"
+  },
+  "subgroup_safety": {
+    "by_district": {
+      "CENTRAL": {
+        "top1": 13.08,
+        "top3": 31.78,
+        "top5": 44.86,
+        "mrr": 0.2724,
+        "median_spatial_error": 5.29,
+        "mean_spatial_error": 6.43,
+        "n_cases": 107
+      },
+      "EAST": {
+        "top1": 11.25,
+        "top3": 33.75,
+        "top5": 46.25,
+        "mrr": 0.2779,
+        "median_spatial_error": 7.95,
+        "mean_spatial_error": 9.26,
+        "n_cases": 80
+      },
+      "NEW_DELHI": {
+        "top1": 20.95,
+        "top3": 48.57,
+        "top5": 68.57,
+        "mrr": 0.404,
+        "median_spatial_error": 5.81,
+        "mean_spatial_error": 6.75,
+        "n_cases": 105
+      },
+      "NORTH": {
+        "top1": 7.79,
+        "top3": 23.38,
+        "top5": 29.87,
+        "mrr": 0.2073,
+        "median_spatial_error": 7.47,
+        "mean_spatial_error": 7.94,
+        "n_cases": 77
+      },
+      "NORTH_EAST": {
+        "top1": 55.36,
+        "top3": 71.43,
+        "top5": 87.5,
+        "mrr": 0.6733,
+        "median_spatial_error": 0.0,
+        "mean_spatial_error": 2.58,
+        "n_cases": 56
+      },
+      "NORTH_WEST": {
+        "top1": 8.2,
+        "top3": 15.57,
+        "top5": 29.51,
+        "mrr": 0.1658,
+        "median_spatial_error": 8.67,
+        "mean_spatial_error": 10.76,
+        "n_cases": 122
+      },
+      "SHAHDARA": {
+        "top1": 6.19,
+        "top3": 31.96,
+        "top5": 42.27,
+        "mrr": 0.2296,
+        "median_spatial_error": 5.35,
+        "mean_spatial_error": 9.85,
+        "n_cases": 97
+      },
+      "SOUTH": {
+        "top1": 8.47,
+        "top3": 17.8,
+        "top5": 21.19,
+        "mrr": 0.1758,
+        "median_spatial_error": 10.67,
+        "mean_spatial_error": 10.48,
+        "n_cases": 118
+      },
+      "SOUTH_EAST": {
+        "top1": 7.69,
+        "top3": 16.15,
+        "top5": 28.46,
+        "mrr": 0.1945,
+        "median_spatial_error": 10.82,
+        "mean_spatial_error": 10.24,
+        "n_cases": 130
+      },
+      "SOUTH_WEST": {
+        "top1": 4.94,
+        "top3": 8.64,
+        "top5": 19.75,
+        "mrr": 0.1375,
+        "median_spatial_error": 12.77,
+        "mean_spatial_error": 11.49,
+        "n_cases": 81
+      },
+      "WEST": {
+        "top1": 8.55,
+        "top3": 16.45,
+        "top5": 25.0,
+        "mrr": 0.1863,
+        "median_spatial_error": 9.21,
+        "mean_spatial_error": 9.55,
+        "n_cases": 152
+      }
+    },
+    "by_fraud_type": {
+      "digital payment fraud": {
+        "top1": 15.0,
+        "top3": 27.86,
+        "top5": 36.43,
+        "mrr": 0.2591,
+        "median_spatial_error": 8.1,
+        "mean_spatial_error": 8.56,
+        "n_cases": 140
+      },
+      "impersonation scam": {
+        "top1": 9.01,
+        "top3": 27.03,
+        "top5": 37.84,
+        "mrr": 0.2297,
+        "median_spatial_error": 7.81,
+        "mean_spatial_error": 8.82,
+        "n_cases": 111
+      },
+      "investment scam": {
+        "top1": 10.53,
+        "top3": 20.18,
+        "top5": 29.82,
+        "mrr": 0.2123,
+        "median_spatial_error": 9.48,
+        "mean_spatial_error": 9.8,
+        "n_cases": 114
+      },
+      "job scam": {
+        "top1": 12.82,
+        "top3": 27.35,
+        "top5": 44.44,
+        "mrr": 0.258,
+        "median_spatial_error": 8.69,
+        "mean_spatial_error": 9.48,
+        "n_cases": 117
+      },
+      "loan app scam": {
+        "top1": 13.22,
+        "top3": 22.31,
+        "top5": 29.75,
+        "mrr": 0.2386,
+        "median_spatial_error": 8.28,
+        "mean_spatial_error": 8.53,
+        "n_cases": 121
+      },
+      "marketplace fraud": {
+        "top1": 9.92,
+        "top3": 24.43,
+        "top5": 36.64,
+        "mrr": 0.2355,
+        "median_spatial_error": 7.6,
+        "mean_spatial_error": 8.23,
+        "n_cases": 131
+      },
+      "phishing fraud": {
+        "top1": 10.07,
+        "top3": 22.3,
+        "top5": 35.25,
+        "mrr": 0.2213,
+        "median_spatial_error": 6.58,
+        "mean_spatial_error": 8.23,
+        "n_cases": 139
+      },
+      "remote access scam": {
+        "top1": 10.83,
+        "top3": 30.0,
+        "top5": 44.17,
+        "mrr": 0.256,
+        "median_spatial_error": 9.34,
+        "mean_spatial_error": 10.12,
+        "n_cases": 120
+      },
+      "upi fraud": {
+        "top1": 15.91,
+        "top3": 33.33,
+        "top5": 43.18,
+        "mrr": 0.2886,
+        "median_spatial_error": 8.4,
+        "mean_spatial_error": 9.39,
+        "n_cases": 132
+      }
+    },
+    "local_vs_cross": {
+      "local": {
+        "top1": 28.24,
+        "top3": 45.0,
+        "top5": 58.53,
+        "mrr": 0.4251,
+        "median_spatial_error": 2.97,
+        "mean_spatial_error": 3.72,
+        "n_cases": 340
+      },
+      "cross_district": {
+        "top1": 4.97,
+        "top3": 17.96,
+        "top5": 28.41,
+        "mrr": 0.1668,
+        "median_spatial_error": 10.71,
+        "mean_spatial_error": 11.27,
+        "n_cases": 785
+      }
+    },
+    "hop_depth": {
+      "short_chain_lte_2": {
+        "top1": 13.5,
+        "top3": 27.15,
+        "top5": 38.37,
+        "mrr": 0.2592,
+        "median_spatial_error": 7.7,
+        "mean_spatial_error": 8.61,
+        "n_cases": 615
+      },
+      "deep_chain_gt_2": {
+        "top1": 10.2,
+        "top3": 24.9,
+        "top5": 36.47,
+        "mrr": 0.2275,
+        "median_spatial_error": 8.48,
+        "mean_spatial_error": 9.44,
+        "n_cases": 510
+      }
+    },
+    "reporting_delay": {
+      "low_delay": {
+        "top1": 13.32,
+        "top3": 28.06,
+        "top5": 38.54,
+        "mrr": 0.2555,
+        "median_spatial_error": 7.82,
+        "mean_spatial_error": 8.83,
+        "n_cases": 563
+      },
+      "high_delay": {
+        "top1": 10.68,
+        "top3": 24.2,
+        "top5": 36.48,
+        "mrr": 0.2342,
+        "median_spatial_error": 8.13,
+        "mean_spatial_error": 9.15,
+        "n_cases": 562
+      }
+    }
+  },
+  "top1_error_audit_rank2": {
+    "cases_at_rank_2_count": 87,
+    "cases_at_rank_2_pct": 7.73,
+    "mean_score_margin": 1.2953,
+    "median_score_margin": 1.58,
+    "same_district_pct": 21.84,
+    "mean_distance_between_p1_and_target_km": 9.59,
+    "median_distance_between_p1_and_target_km": 8.6,
+    "sample_rank2_cases": [
+      {
+        "case_id": "CMP-V5-010504",
+        "true_cluster": 7,
+        "pred_cluster": 8,
+        "score_margin": 2.1783,
+        "same_district": false,
+        "distance_km": 3.37
+      },
+      {
+        "case_id": "CMP-V5-010517",
+        "true_cluster": 30,
+        "pred_cluster": 10,
+        "score_margin": 2.265,
+        "same_district": false,
+        "distance_km": 8.51
+      },
+      {
+        "case_id": "CMP-V5-010554",
+        "true_cluster": 66,
+        "pred_cluster": 45,
+        "score_margin": 0.4257,
+        "same_district": false,
+        "distance_km": 6.79
+      },
+      {
+        "case_id": "CMP-V5-010599",
+        "true_cluster": 8,
+        "pred_cluster": 39,
+        "score_margin": 0.4717,
+        "same_district": false,
+        "distance_km": 16.01
+      },
+      {
+        "case_id": "CMP-V5-010604",
+        "true_cluster": 62,
+        "pred_cluster": 59,
+        "score_margin": 1.934,
+        "same_district": false,
+        "distance_km": 7.35
+      }
+    ]
+  }
+}

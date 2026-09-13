@@ -1,0 +1,45 @@
+{
+  "version": "v5.3",
+  "document_type": "HIERARCHICAL_ROUTING_DESIGN",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4F",
+  "status": "DEVELOPMENT_DESIGN",
+  "overview": "Two-stage hierarchical routing architecture designed to evaluate learnable signal and bridge the district-routing gap on Delhi V5 cybercrime cases.",
+  "stage_1_district_routing": {
+    "target": "realized_cashout_district (11 classes)",
+    "inputs": "25 pre-event case-level features only (no cluster or realization leakage)",
+    "model": "XGBClassifier (objective='multi:softprob', num_class=11)",
+    "hyperparameters": {
+      "max_depth": 5,
+      "learning_rate": 0.05,
+      "n_estimators": 180,
+      "subsample": 0.85,
+      "colsample_bytree": 0.80,
+      "random_state": 26184,
+      "tree_method": "hist"
+    },
+    "leakage_protocol": "5-Fold Out-of-Fold (OOF) cross-validation on TRAIN. VALIDATION evaluated strictly with TRAIN-fitted estimator."
+  },
+  "stage_2_pairwise_cluster_ranker": {
+    "target": "binary relevance within candidate pool (1 if candidate == realized_cashout_cluster else 0)",
+    "inputs": "60 features (54 canonical ranking features + 4 district posterior features + 2 historical priors)",
+    "model": "XGBRanker (objective='rank:pairwise', eval_metric='ndcg@5')",
+    "hyperparameters": {
+      "max_depth": 5,
+      "learning_rate": 0.05,
+      "n_estimators": 180,
+      "subsample": 0.85,
+      "colsample_bytree": 0.80,
+      "random_state": 26184,
+      "tree_method": "hist"
+    },
+    "routing_strategy": "Soft routing via continuous posterior probability and rank features. Hard pruning avoided to protect cross-district cases against error propagation."
+  },
+  "headroom_gates": {
+    "top1_gte": 15.0,
+    "top3_gte": 28.0,
+    "mrr_gte": 0.270,
+    "median_spatial_error_lte_km": 8.0,
+    "candidate_recall_gte": 76.0
+  }
+}

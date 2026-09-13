@@ -1,0 +1,31 @@
+{
+  "phase": "A.4F",
+  "title": "V5 Learnability, Ambiguity & Oracle Audit",
+  "dataset": "ml/data/delhi_v5_cases.csv.gz",
+  "signature_ambiguity": {
+    "total_signatures": 10137,
+    "recurring_signatures_count": 25,
+    "recurring_cases_covered": 79,
+    "mean_unique_clusters_per_signature": 2.8,
+    "mean_dominant_cluster_concentration_pct": 43.33,
+    "mean_top3_cluster_concentration_pct": 98.0,
+    "mean_shannon_entropy_bits": 1.4247
+  },
+  "neighborhood_purity": {
+    "knn_1_top1_cluster_pct": 3.02,
+    "knn_10_top3_cluster_pct": 10.84,
+    "knn_10_top5_cluster_pct": 15.91,
+    "knn_1_top1_district_pct": 14.4,
+    "knn_10_top3_district_pct": 43.29
+  },
+  "signal_classification": "MODERATE",
+  "oracle_diagnostic": {
+    "oracle_top1_pct": 30.58,
+    "oracle_top3_pct": 54.84,
+    "oracle_top5_pct": 69.51,
+    "oracle_mrr": 0.456,
+    "potential_top1_gain": 18.58,
+    "potential_top3_gain": 29.68,
+    "interpretation": "Perfect knowledge of cash-out revenue district raises Top-1 from 12.0% to 27.2% and Top-3 from 25.2% to 57.8%, proving massive latent routing opportunity if district routing can be learned."
+  }
+}

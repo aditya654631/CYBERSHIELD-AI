@@ -1,0 +1,58 @@
+{
+  "phase": "A.4F",
+  "document_type": "HOLDOUT_READINESS_AUDIT",
+  "project": "CyberShield AI — SIH 26184",
+  "evaluated_model": "V5.3 Hierarchical Pairwise Cluster Ranker with Soft District Posterior",
+  "holdout_seed": 26186,
+  "holdout_status": {
+    "generated": false,
+    "inspected": false,
+    "used": false,
+    "consumed": false
+  },
+  "development_headroom_gates": {
+    "top1_accuracy": {
+      "target": ">= 15.0%",
+      "achieved": "12.00%",
+      "status": "FAIL"
+    },
+    "top3_accuracy": {
+      "target": ">= 28.0%",
+      "achieved": "26.13%",
+      "status": "FAIL"
+    },
+    "mrr": {
+      "target": ">= 0.2700",
+      "achieved": "0.2449",
+      "status": "FAIL"
+    },
+    "median_spatial_error": {
+      "target": "<= 8.00 km",
+      "achieved": "8.05 km",
+      "status": "FAIL"
+    },
+    "candidate_recall_at_25": {
+      "target": ">= 76.0%",
+      "achieved": "78.84%",
+      "status": "PASS"
+    }
+  },
+  "overall_headroom_verdict": "FAIL",
+  "dataset_signal_assessment": {
+    "classification": "DATASET_HIGH_AMBIGUITY",
+    "observable_signatures": {
+      "unique_signatures": 10137,
+      "mean_dominant_cluster_concentration": "43.33%",
+      "knn_1_top1_cluster_agreement": "3.02%",
+      "knn_10_top3_cluster_agreement": "10.84%"
+    },
+    "oracle_routing_gain": {
+      "oracle_top1": "30.58%",
+      "oracle_top3": "54.84%",
+      "oracle_mrr": "0.4560",
+      "interpretation": "While an oracle district routing achieves 30.58% Top-1, real pre-event observables achieve only 33.33% Top-1 district accuracy, leading to an effective learnability ceiling below the 15% Top-1 / 28% Top-3 headroom threshold."
+    }
+  },
+  "recommendation": "KEEP_V4_PRODUCTION_AND_STOP_V5_LOCATION_CYCLE",
+  "final_action": "CURRENT V5 DATA SIGNAL INSUFFICIENT — DO NOT CONSUME SEED 26186"
+}
