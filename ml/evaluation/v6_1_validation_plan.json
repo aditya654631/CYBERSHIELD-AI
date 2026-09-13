@@ -1,0 +1,57 @@
+{
+  "version": "v6.1",
+  "document_type": "VALIDATION_PLAN",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4I",
+  "status": "FROZEN_VALIDATION_PLAN",
+  "execution_sequence": {
+    "step_1_primary_generation": {
+      "seed": 37184,
+      "cases": 15000,
+      "output_path": "ml/data/delhi_v6_1_cases.csv.gz",
+      "generation_phase": "PHASE_A.4J"
+    },
+    "step_2_data_integrity_audit": {
+      "checks": [
+        "Exactly 15000 rows, 0 NaN/Inf, 0 missing targets",
+        "All 60 operational clusters and 11 revenue districts represented",
+        "Strict chronological ordering (train <= validation <= test)",
+        "Zero cross-split syndicate or mule family leakage"
+      ]
+    },
+    "step_3_anti_triviality_verification": {
+      "contract": "ml/evaluation/v6_1_anti_triviality_contract.json",
+      "hard_caps": {
+        "nearest_origin_rate": "<= 22.0%",
+        "terminal_mule_district_match": "<= 48.0%",
+        "dominant_account_district_match": "<= 55.0%",
+        "max_single_cluster_share": "<= 5.0%",
+        "max_fraud_cluster_concentration": "<= 15.0%",
+        "max_archetype_cluster_concentration": "<= 20.0%"
+      }
+    },
+    "step_4_learnability_contract_verification": {
+      "contract": "ml/evaluation/v6_1_learnability_contract.json",
+      "gates": {
+        "signature_recurrence_ge_3": ">= 35.0%",
+        "recurring_signature_dominant_cluster_share": ">= 32.0%",
+        "recurring_signature_top3_concentration": ">= 68.0%",
+        "neighbor_1nn_top1_cluster_purity": ">= 8.0%",
+        "neighbor_10nn_top3_cluster_purity": ">= 22.0%",
+        "district_predictability_top1": ">= 45.0%",
+        "cross_district_predictability_top1": ">= 30.0%"
+      }
+    },
+    "step_5_independent_seed_generalization": {
+      "conditional_requirement": "Executed ONLY if seed 37184 passes all Step 3 and Step 4 gates without any parameter modification.",
+      "validation_seed": 37185,
+      "cases": 15000,
+      "purpose": "Verify generator generalization across an independent random seed universe."
+    },
+    "step_6_holdout_protection": {
+      "final_holdout_seed": 37186,
+      "status": "FROZEN_UNTOUCHED",
+      "usage": "Reserved exclusively for final one-shot model qualification."
+    }
+  }
+}

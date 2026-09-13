@@ -1,0 +1,219 @@
+{
+  "version": "v6.1",
+  "document_type": "DATASET_GENERATOR_DESIGN",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4I",
+  "seed_universe": {
+    "primary_implementation_seed": 37184,
+    "independent_validation_seed": 37185,
+    "final_external_holdout_seed": 37186,
+    "retired_seeds": [26184, 26185, 26186, 36184, 36185, 36186],
+    "unconsumed_protection": "Seeds 37184, 37185, 37186 are strictly ungenerated in this phase. Seeds 36185 and 36186 remain completely untouched."
+  },
+  "dataset_specifications": {
+    "target_cases": 15000,
+    "splits": {
+      "train": 10500,
+      "validation": 2250,
+      "test": 2250
+    },
+    "districts_count": 11,
+    "clusters_count": 60,
+    "chronological_ordering": "Strict event_timestamp order"
+  },
+  "two_stage_target_generation": {
+    "architecture": "Explicit Two-Stage Hierarchical Sampling",
+    "flowchart": "PRE-EVENT OBSERVABLES -> Stage 1 Probabilistic District Transition -> REALIZED CASHOUT DISTRICT -> Stage 2 Conditional Intra-District Cluster Selection -> REALIZED CASHOUT CLUSTER",
+    "stage_1_district_transition": {
+      "objective": "Derive P(cashout_district | observables) over 11 revenue districts",
+      "observable_inputs": [
+        "victim_district",
+        "terminal_mule_district",
+        "dominant_account_district",
+        "dominant_account_district_share",
+        "account_district_count",
+        "cross_district_transfer_count",
+        "geographic_dispersion_score",
+        "beneficiary_geo_consistency",
+        "money_flow_net_displacement_km",
+        "dominant_flow_district",
+        "terminal_flow_alignment_score",
+        "fraud_type",
+        "transaction_velocity"
+      ],
+      "probability_distribution_ranges": {
+        "preferred_district_mass": "0.40 - 0.65",
+        "secondary_adjacent_district_mass": "0.20 - 0.35",
+        "stochastic_long_tail_mass": "0.10 - 0.25",
+        "determinism_prohibition": "No single district probability may equal 1.0."
+      }
+    },
+    "stage_2_cluster_selection": {
+      "objective": "Derive P(cashout_cluster | realized_district, archetype, observables)",
+      "intra_district_cluster_roles": {
+        "commercial_hubs": "Preferred by NEARBY_COMMERCIAL_CORRIDOR, MULTI_BANK_DISPERSAL",
+        "transit_nodes": "Preferred by TRANSPORT_HUB_MOVEMENT, CROSS_DISTRICT_MULE_CHAIN",
+        "high_density_atm_kiosks": "Preferred by HIGH_VALUE_DELAYED_CASHOUT, NIGHTTIME_ATM_CASHOUT",
+        "local_branch_clusters": "Preferred by LOCAL_RAPID_CASHOUT, TERMINAL_MULE_DISTRICT"
+      },
+      "cross_district_long_tail_allowance": "0.08 - 0.12 probability mass reserved for adjacent corridor clusters to reflect realistic physical boundary crossing."
+    }
+  },
+  "behavioral_archetypes_and_sub_prototypes": {
+    "total_archetypes": 9,
+    "sub_prototypes_per_archetype": 6,
+    "total_sub_prototypes": 54,
+    "sub_prototype_storage": "LATENT_GENERATION_ONLY (Never exposed to model feature allowlist)",
+    "archetypes": [
+      {
+        "archetype": "LOCAL_RAPID_CASHOUT",
+        "prevalence_pct": 18.0,
+        "district_transition_tendency": {
+          "victim_district_prob": 0.62,
+          "adjacent_district_prob": 0.26,
+          "long_tail_prob": 0.12
+        }
+      },
+      {
+        "archetype": "NEARBY_COMMERCIAL_CORRIDOR",
+        "prevalence_pct": 16.0,
+        "district_transition_tendency": {
+          "nearest_commercial_district_prob": 0.58,
+          "victim_or_terminal_district_prob": 0.28,
+          "long_tail_prob": 0.14
+        }
+      },
+      {
+        "archetype": "TERMINAL_MULE_DISTRICT",
+        "prevalence_pct": 15.0,
+        "district_transition_tendency": {
+          "terminal_mule_district_prob": 0.55,
+          "adjacent_corridor_district_prob": 0.30,
+          "long_tail_prob": 0.15
+        }
+      },
+      {
+        "archetype": "TRANSPORT_HUB_MOVEMENT",
+        "prevalence_pct": 12.0,
+        "district_transition_tendency": {
+          "transport_hub_districts_prob": 0.56,
+          "radial_transit_district_prob": 0.30,
+          "long_tail_prob": 0.14
+        }
+      },
+      {
+        "archetype": "CROSS_DISTRICT_MULE_CHAIN",
+        "prevalence_pct": 12.0,
+        "district_transition_tendency": {
+          "terminal_flow_district_prob": 0.48,
+          "intermediate_path_district_prob": 0.34,
+          "long_tail_prob": 0.18
+        }
+      },
+      {
+        "archetype": "RECURRING_SYNDICATE_CORRIDOR",
+        "prevalence_pct": 10.0,
+        "district_transition_tendency": {
+          "syndicate_base_district_prob": 0.64,
+          "secondary_syndicate_district_prob": 0.24,
+          "long_tail_prob": 0.12
+        }
+      },
+      {
+        "archetype": "HIGH_VALUE_DELAYED_CASHOUT",
+        "prevalence_pct": 7.0,
+        "district_transition_tendency": {
+          "dense_financial_district_prob": 0.54,
+          "suburban_high_limit_district_prob": 0.30,
+          "long_tail_prob": 0.16
+        }
+      },
+      {
+        "archetype": "MULTI_BANK_DISPERSAL",
+        "prevalence_pct": 6.0,
+        "district_transition_tendency": {
+          "convergent_banking_district_prob": 0.52,
+          "dispersal_boundary_district_prob": 0.32,
+          "long_tail_prob": 0.16
+        }
+      },
+      {
+        "archetype": "NIGHTTIME_ATM_CASHOUT",
+        "prevalence_pct": 4.0,
+        "district_transition_tendency": {
+          "victim_or_transit_district_prob": 0.60,
+          "adjacent_commercial_district_prob": 0.27,
+          "long_tail_prob": 0.13
+        }
+      }
+    ]
+  },
+  "signal_noise_budget": {
+    "STRONG_OBSERVABLE_SIGNAL": [
+      "dominant_account_district",
+      "terminal_mule_district",
+      "dominant_flow_district",
+      "beneficiary_geo_consistency",
+      "terminal_flow_alignment_score"
+    ],
+    "MODERATE_OBSERVABLE_SIGNAL": [
+      "victim_district",
+      "cross_district_transfer_count",
+      "money_flow_net_displacement_km",
+      "transaction_hop_count",
+      "distinct_bank_count",
+      "transfer_burst_score",
+      "night_activity_ratio"
+    ],
+    "WEAK_OBSERVABLE_SIGNAL": [
+      "amount_bucket",
+      "fraud_type",
+      "payment_channel",
+      "graph_branching_factor",
+      "weekend_flag"
+    ],
+    "LATENT_CAUSAL_SIGNAL": [
+      "latent_archetype",
+      "sub_prototype_id",
+      "syndicate_family_id"
+    ],
+    "STOCHASTIC_NOISE": [
+      "intra_district_cluster_micro_offset",
+      "arrival_minute_dwell_variation",
+      "multinomial_temperature_sampling_variance"
+    ],
+    "TARGET_ONLY": [
+      "realized_cashout_district",
+      "realized_cashout_cluster_id",
+      "realized_cashout_lat",
+      "realized_cashout_lon",
+      "realized_cashout_minutes"
+    ]
+  },
+  "anti_triviality_safeguards": {
+    "nearest_origin_target_rate": {
+      "design_range": "8.0% - 18.0%",
+      "hard_cap": "<= 22.0%"
+    },
+    "terminal_mule_district_match": {
+      "design_range": "28.0% - 42.0%",
+      "hard_cap": "<= 48.0%"
+    },
+    "dominant_account_district_match": {
+      "design_range": "32.0% - 48.0%",
+      "hard_cap": "<= 55.0%"
+    },
+    "maximum_single_cluster_share": {
+      "design_range": "2.5% - 4.2%",
+      "hard_cap": "<= 5.0%"
+    },
+    "fraud_to_single_cluster_concentration": {
+      "design_range": "5.0% - 11.0%",
+      "hard_cap": "<= 15.0%"
+    },
+    "archetype_to_single_cluster_concentration": {
+      "design_range": "6.0% - 14.0%",
+      "hard_cap": "<= 20.0%"
+    }
+  }
+}

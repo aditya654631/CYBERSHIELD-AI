@@ -1,0 +1,46 @@
+{
+  "phase": "A.4I",
+  "document_type": "V6_FAILURE_ANALYSIS",
+  "project": "CyberShield AI — SIH 26184",
+  "dataset_evaluated": {
+    "version": "v6.0",
+    "seed": 36184,
+    "status": "CONSUMED_DEVELOPMENT_EVIDENCE",
+    "sha256": "911fcfb0691401d17a82ea070bb19627ceb23264ed61fab5952c3da4cefaa79c"
+  },
+  "metrics_summary": {
+    "cases_total": 15000,
+    "signature_recurrence_pct": 61.75,
+    "neighbor_1nn_top1_pct": 3.96,
+    "neighbor_10nn_top3_pct": 11.96,
+    "district_top1_accuracy_pct": 28.76,
+    "district_top2_recall_pct": 45.96,
+    "district_top3_recall_pct": 59.29,
+    "cross_district_top1_accuracy_pct": 24.35,
+    "local_district_top1_accuracy_pct": 55.31,
+    "recurring_signature_dominant_cluster_share_pct": 29.0,
+    "recurring_signature_top3_concentration_pct": 72.25,
+    "nearest_origin_rate_pct": 1.67,
+    "terminal_mule_district_match_pct": 19.89,
+    "max_single_cluster_share_pct": 4.61,
+    "max_fraud_cluster_concentration_pct": 6.76,
+    "leakage": {
+      "target_leakage": false,
+      "future_leakage": 0,
+      "family_leakage": 0
+    },
+    "reproducibility": "PASS"
+  },
+  "diagnostic_classifications": {
+    "signature_recurrence": "SIGNATURE_RECURRENCE_PASS",
+    "geographic_learnability": "GEOGRAPHIC_LEARNABILITY_FAIL",
+    "district_signal": "DISTRICT_SIGNAL_FAIL",
+    "anti_triviality": "ANTI_TRIVIALITY_PASS",
+    "leakage": "LEAKAGE_PASS",
+    "reproducibility": "REPRODUCIBILITY_PASS"
+  },
+  "root_cause_analysis": {
+    "diagnosis": "V6 successfully eliminated signature sparsity and achieved reproducible structure without leakage. However, target cluster selection operated via a single-stage multinomial sampling across all 60 clusters with an excessive background baseline (weight=0.20) and broad dispersion. Consequently, nearest-origin rate collapsed to 1.67% and terminal mule district match to 19.89% (well below realistic values), diluting geographical concentration. Repeated observable behaviors failed to tightly constrain cash-out geography, yielding only 3.96% 1-NN cluster agreement and 28.76% district Top-1 accuracy.",
+    "remediation": "Transition from single-stage global cluster sampling to an explicit Two-Stage Target Generation architecture: (1) Probabilistic District Transition conditioned on money-flow trajectories and account consensus; (2) Intra-District Conditional Cluster Selection utilizing commercial, transit, and ATM cluster functional roles."
+  }
+}

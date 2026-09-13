@@ -1,0 +1,72 @@
+{
+  "version": "v6.1",
+  "document_type": "DATASET_LEARNABILITY_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4I",
+  "status": "FROZEN_BEFORE_GENERATION",
+  "purpose": "Strict mathematical learnability criteria that the V6.1 primary dataset (seed 37184) must satisfy before generator validation passes.",
+  "learnability_gates": {
+    "observable_signature_recurrence": {
+      "metric": "percentage_of_cases_in_signatures_repeating_ge_3_times",
+      "frozen_minimum": ">= 35.0%",
+      "preferred_target": ">= 45.0%",
+      "v6_achieved": "61.75%",
+      "status": "FROZEN"
+    },
+    "recurring_signature_dominant_cluster_share": {
+      "metric": "mean_dominant_cluster_percentage_within_recurring_signatures",
+      "frozen_minimum": ">= 32.0%",
+      "preferred_range": "35.0% - 50.0%",
+      "v6_achieved": "29.00%",
+      "status": "FROZEN"
+    },
+    "recurring_signature_top3_concentration": {
+      "metric": "mean_top3_cluster_concentration_within_recurring_signatures",
+      "frozen_minimum": ">= 68.0%",
+      "preferred_range": "70.0% - 85.0%",
+      "v6_achieved": "72.25%",
+      "status": "FROZEN"
+    },
+    "neighbor_1nn_top1_cluster_purity": {
+      "metric": "1_nearest_neighbor_cluster_agreement_on_validation_from_train_pct",
+      "frozen_minimum": ">= 8.0%",
+      "preferred_target": ">= 10.0%",
+      "v6_achieved": "3.96%",
+      "status": "FROZEN"
+    },
+    "neighbor_10nn_top3_cluster_purity": {
+      "metric": "10_nearest_neighbors_top3_cluster_agreement_on_validation_pct",
+      "frozen_minimum": ">= 22.0%",
+      "preferred_target": ">= 25.0%",
+      "v6_achieved": "11.96%",
+      "status": "FROZEN"
+    },
+    "district_predictability_top1": {
+      "metric": "pre_event_observable_district_top1_accuracy_pct",
+      "frozen_minimum": ">= 45.0%",
+      "preferred_target": ">= 50.0%",
+      "v6_achieved": "28.76%",
+      "status": "FROZEN"
+    },
+    "district_predictability_top2": {
+      "metric": "pre_event_observable_district_top2_recall_pct",
+      "frozen_minimum": ">= 65.0%",
+      "v6_achieved": "45.96%",
+      "status": "FROZEN"
+    },
+    "district_predictability_top3": {
+      "metric": "pre_event_observable_district_top3_recall_pct",
+      "frozen_minimum": ">= 78.0%",
+      "v6_achieved": "59.29%",
+      "status": "FROZEN"
+    },
+    "cross_district_predictability_top1": {
+      "metric": "cross_district_cases_district_top1_accuracy_pct",
+      "frozen_minimum": ">= 30.0%",
+      "preferred_target": ">= 35.0%",
+      "v6_achieved": "24.35%",
+      "status": "FROZEN"
+    }
+  },
+  "enforcement_rule": "Every frozen minimum must be strictly met on seed 37184. If any gate fails, training shall NOT proceed, and seed 37184 is deemed failed."
+}

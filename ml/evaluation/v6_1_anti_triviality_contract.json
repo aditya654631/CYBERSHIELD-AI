@@ -1,0 +1,47 @@
+{
+  "version": "v6.1",
+  "document_type": "ANTI_TRIVIALITY_CONTRACT",
+  "project": "CyberShield AI — SIH 26184",
+  "phase": "A.4I",
+  "status": "FROZEN_BEFORE_GENERATION",
+  "purpose": "Hard upper bounds preventing synthetic data generator from creating trivial, deterministic, or single-shortcut targets.",
+  "anti_triviality_gates": {
+    "nearest_origin_cluster_rate": {
+      "metric": "percentage_of_cases_where_target_cluster_equals_nearest_origin_cluster",
+      "hard_ceiling": "<= 22.0%",
+      "preferred_design_range": "8.0% - 18.0%",
+      "rationale": "Prevents distance baseline from trivially dominating the ML ranker."
+    },
+    "terminal_mule_district_match_rate": {
+      "metric": "percentage_of_cases_where_target_district_equals_terminal_mule_district",
+      "hard_ceiling": "<= 48.0%",
+      "preferred_design_range": "28.0% - 42.0%",
+      "rationale": "Ensures terminal mule branch district is informative but never deterministic."
+    },
+    "dominant_account_district_match_rate": {
+      "metric": "percentage_of_cases_where_target_district_equals_dominant_account_district",
+      "hard_ceiling": "<= 55.0%",
+      "preferred_design_range": "32.0% - 48.0%",
+      "rationale": "Prevents downstream laundering account majority from completely collapsing the target."
+    },
+    "maximum_single_cluster_target_share": {
+      "metric": "highest_percentage_of_cases_assigned_to_any_single_operational_cluster",
+      "hard_ceiling": "<= 5.0%",
+      "preferred_design_range": "2.5% - 4.2%",
+      "rationale": "Ensures full utilization across all 60 clusters and prevents geographic mode collapse."
+    },
+    "fraud_type_to_single_cluster_concentration": {
+      "metric": "maximum_conditional_probability_P(cluster | fraud_type)",
+      "hard_ceiling": "<= 15.0%",
+      "preferred_design_range": "5.0% - 11.0%",
+      "rationale": "Guarantees no fraud modus operandi maps directly to a specific cluster."
+    },
+    "archetype_to_single_cluster_concentration": {
+      "metric": "maximum_conditional_probability_P(cluster | latent_archetype)",
+      "hard_ceiling": "<= 20.0%",
+      "preferred_design_range": "6.0% - 14.0%",
+      "rationale": "Ensures even latent operational archetypes sample across multiple corridors."
+    }
+  },
+  "enforcement_rule": "Every generated dataset must strictly respect all 6 hard ceilings. A violation of any single ceiling constitutes immediate generation invalidation."
+}
