@@ -47,3 +47,7 @@ ml/data/*.csv.gz
 ml/data/*.pkl
 ml/data/generate_delhi_v*.py
 ml/research_backup/
+
+# Blockchain Generated Crypto & Artifacts
+blockchain/network/organizations/
+blockchain/network/channel-artifacts/
