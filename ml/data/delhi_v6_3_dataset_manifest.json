@@ -1,0 +1,109 @@
+{
+  "version": "V6.3",
+  "document_type": "DATASET_MANIFEST",
+  "dataset_name": "delhi_v6_3_cases.csv.gz",
+  "synthetic_disclosure": "CONTROLLED_SYNTHETIC_DELHI_CYBERCRIME_DATA",
+  "created_at": "2026-09-13T14:50:11.875419Z",
+  "generation_seed": 39184,
+  "total_cases": 15000,
+  "splits": {
+    "train": 10500,
+    "validation": 2250,
+    "test": 2250
+  },
+  "districts_count": 11,
+  "clusters_count": 60,
+  "file_hashes": {
+    "dataset_sha256": "61cfdcab0b36684790c572b9d589e0df48a46a7892a6ffe1cf60342ae78fcf71",
+    "generator_sha256": "81439766327b1534529edcf1876d2ce03be06cf8c4f5c31ab6481bb2848d1c0b",
+    "schema_sha256": "5efa665c237140aca16e52a5da2d839191377247daa1b90f2f66d857b8f25465"
+  },
+  "signal_budget": {
+    "channel_A_terminal_mule_max_pct": 30.0,
+    "channel_B_dominant_account_max_pct": 30.0,
+    "channel_C_route_trajectory_max_pct": 25.0,
+    "channel_D_behavioral_origin_max_pct": 10.0,
+    "channel_E_leakage_safe_history_max_pct": 5.0,
+    "undocumented_stage1_channels": 0,
+    "budget_integrity": "PASS"
+  },
+  "target_contract": {
+    "district_sampled_first": true,
+    "cluster_restricted_to_district": true,
+    "district_cluster_mismatches": 0,
+    "internal_max_district_sum_error": 4.440892098500626e-16,
+    "internal_max_cluster_sum_error": 4.440892098500626e-16,
+    "normalization_status": "PASS"
+  },
+  "anti_triviality_metrics": {
+    "nearest_origin_rate_pct": 4.99,
+    "terminal_mule_district_match_pct": 39.34,
+    "dominant_account_district_match_pct": 40.78,
+    "dominant_flow_district_match_pct": 40.78,
+    "route_consensus_target_match_pct": 40.59,
+    "victim_district_match_pct": 23.85,
+    "cross_district_rate_pct": 76.15,
+    "max_single_cluster_share_pct": 3.73,
+    "max_single_cluster_name": "Connaught Place, Delhi",
+    "max_single_cluster_count": 560,
+    "top5_cumulative_share_pct": 16.32,
+    "max_fraud_cluster_concentration_pct": 9.99,
+    "worst_fraud_type": "marketplace fraud",
+    "worst_fraud_target_cluster": "Seelampur, Delhi",
+    "max_archetype_cluster_concentration_pct": 6.74,
+    "worst_archetype": "LOCAL_RAPID_CASHOUT",
+    "worst_archetype_target_cluster": "Shahdara, Delhi"
+  },
+  "learnability_metrics": {
+    "signature_recurrence_ge_2_pct": 98.65,
+    "signature_recurrence_ge_3_pct": 97.09,
+    "signature_recurrence_ge_5_pct": 92.39,
+    "recurring_dominant_cluster_share_pct": 24.0,
+    "recurring_top3_concentration_pct": 56.28,
+    "knn_1_top1_cluster_accuracy_pct": 5.38,
+    "knn_10_top3_cluster_accuracy_pct": 16.98,
+    "district_top1_accuracy_pct": 41.91,
+    "district_top2_recall_pct": 56.58,
+    "district_top3_recall_pct": 65.2,
+    "cross_district_top1_accuracy_pct": 34.55,
+    "local_district_top1_accuracy_pct": 64.95
+  },
+  "single_signal_district_diagnostics": {
+    "terminal_only_district_accuracy_pct": 40.62,
+    "dominant_account_only_district_accuracy_pct": 42.31,
+    "dominant_flow_only_district_accuracy_pct": 42.31,
+    "route_consensus_only_district_accuracy_pct": 41.69,
+    "full_observable_district_accuracy_pct": 41.91,
+    "signal_distribution_assessment": "DOMINATED"
+  },
+  "historical_popularity_audit": {
+    "configured_cap_pct": 6.0,
+    "max_realized_contribution_pct": 6.0,
+    "mean_realized_contribution_pct": 5.999999999997766,
+    "status": "PASS"
+  },
+  "entropy_diagnostics": {
+    "H_cluster": 5.7943,
+    "H_cluster_given_signature": 3.472,
+    "H_cluster_given_fraud": 5.6,
+    "H_cluster_given_archetype": 5.634,
+    "H_cluster_given_district": 2.3902,
+    "H_district": 3.404,
+    "H_district_given_terminal": 2.8054,
+    "H_district_given_dominant_account": 2.7691,
+    "H_district_given_dominant_flow": 2.7691,
+    "H_district_given_route_consensus": 2.7791
+  },
+  "leakage_audit": {
+    "target_derived_input_columns": 0,
+    "future_derived_input_columns": 0,
+    "latent_fields_exposed_to_features": 0,
+    "cohort_family_leakage_cases": 0,
+    "post_cashout_inputs": 0
+  },
+  "reproducibility": {
+    "deterministic_reproducibility": "PASS",
+    "sha256_match": true
+  },
+  "final_verdict": "V6.3 SEED 39184 FAILS \u2014 DO NOT GENERATE 39185"
+}
