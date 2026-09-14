@@ -1,0 +1,136 @@
+{
+  "experiment_id": "EXP-B6-BLOCKCHAIN-SHADOW-RERANKER-V1",
+  "version": "1.0.0",
+  "created_at": "2026-09-14T13:21:00Z",
+  "author": "Antigravity AI — Phase B.6",
+  "status": "FROZEN_BEFORE_HOLDOUT",
+  "dataset_spec": {
+    "train_seed": 66210,
+    "internal_val_seed": 66211,
+    "holdout_seeds_frozen": {
+      "legacy_holdout": 66261,
+      "v6_2_holdout": 66262,
+      "v6_3_holdout": 66263
+    },
+    "train_counts": {
+      "legacy": 3000,
+      "v6_2": 2250,
+      "v6_3": 2250,
+      "total": 7500
+    },
+    "internal_val_counts": {
+      "legacy": 600,
+      "v6_2": 450,
+      "v6_3": 450,
+      "total": 1500
+    },
+    "source_proportions": {
+      "legacy": 0.40,
+      "v6_2": 0.30,
+      "v6_3": 0.30
+    },
+    "source_sample_weights": {
+      "legacy": 1.0,
+      "v6_2": 1.0,
+      "v6_3": 1.0
+    }
+  },
+  "candidate_generation": {
+    "version": "v7_compat_candidate_generator_v1",
+    "top_k": 25,
+    "cluster_universe": "Delhi 60 clusters"
+  },
+  "feature_spec": {
+    "v7_compat_base_features": [
+      "v7_candidate_score",
+      "v7_candidate_rank_normalized",
+      "v7_candidate_percentile",
+      "v7_score_gap_from_candidate1",
+      "distance_to_victim_km",
+      "cluster_base_risk",
+      "cluster_atm_density"
+    ],
+    "blockchain_features": [
+      "verified_cashouts_1h",
+      "verified_cashouts_6h",
+      "verified_cashouts_24h",
+      "withdrawal_attempts_1h",
+      "withdrawal_attempts_6h",
+      "withdrawal_attempts_24h",
+      "branch_cashouts_6h",
+      "branch_cashouts_24h",
+      "mule_activity_6h",
+      "mule_activity_24h",
+      "lea_confirmations_6h",
+      "lea_confirmations_24h",
+      "distinct_orgs_1h",
+      "distinct_orgs_6h",
+      "distinct_orgs_24h",
+      "distinct_banks_1h",
+      "distinct_banks_6h",
+      "distinct_banks_24h",
+      "multi_org_attestation_1h",
+      "multi_org_attestation_6h",
+      "multi_org_attestation_24h",
+      "has_multi_org_attestation_1h",
+      "has_multi_org_attestation_6h",
+      "has_multi_org_attestation_24h",
+      "mean_signal_confidence_1h",
+      "mean_signal_confidence_6h",
+      "mean_signal_confidence_24h",
+      "max_signal_confidence_1h",
+      "max_signal_confidence_6h",
+      "max_signal_confidence_24h",
+      "latest_signal_age_minutes",
+      "latest_verified_cashout_age_minutes",
+      "latest_attempt_age_minutes",
+      "latest_lea_confirmation_age_minutes",
+      "cluster_signal_count_7d",
+      "cluster_signal_count_30d",
+      "cluster_active_days_7d",
+      "cluster_active_days_30d",
+      "cluster_recurrence_rate_7d",
+      "cluster_recurrence_rate_30d",
+      "correction_count_24h",
+      "revocation_count_24h",
+      "active_signal_ratio_24h",
+      "subject_features_available",
+      "subject_signal_count_1h",
+      "subject_signal_count_6h",
+      "subject_signal_count_24h",
+      "subject_distinct_clusters_24h",
+      "subject_distinct_orgs_24h",
+      "fabric_available"
+    ]
+  },
+  "model_candidates": {
+    "candidate_1": {
+      "type": "XGBoost_Pairwise_Ranker",
+      "objective": "rank:pairwise",
+      "eval_metric": "ndcg@3"
+    },
+    "candidate_2": {
+      "type": "XGBoost_Pointwise_Classifier",
+      "objective": "binary:logistic",
+      "eval_metric": "logloss"
+    }
+  },
+  "hyperparameter_search_space": {
+    "n_estimators": [100, 150, 200],
+    "max_depth": [3, 4, 5],
+    "learning_rate": [0.03, 0.05, 0.1],
+    "subsample": [0.8, 1.0],
+    "colsample_bytree": [0.8, 1.0]
+  },
+  "internal_selection_metric": "Top-3 Accuracy on Seed 66211 Validation Set",
+  "calibrator_method": "LogisticRegression_Platt_Scaling",
+  "subgroup_minimum_sample_size": 50,
+  "qualification_gates": {
+    "blockchain_ablation_delta_top3": "Model_C_Top3 - Model_B_Top3 >= +0.010 (1.0 percentage point)",
+    "top1_non_regression": "Model_C_Top1 >= Model_A_Top1",
+    "regime_safety_slack_max_drop": "0.005 (0.5 percentage points)",
+    "fabric_outage_graceful_fallback": "Zero exceptions and Top-3 within 0.005 of V7 when fabric_available=0",
+    "p95_reranker_latency_ms": 25.0
+  },
+  "post_holdout_retuning_allowed": false
+}
