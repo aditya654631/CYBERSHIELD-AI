@@ -12,6 +12,14 @@
   "validation_mean_spatial_error_km": 7.84,
   "delta_top3_vs_model_b_pp": 0.07,
   "delta_top3_vs_model_a_pp": 0.2,
-  "status": "FROZEN_BEFORE_HOLDOUT",
-  "created_at": "2026-09-14T10:04:12.504914+00:00"
+  "status": "INTERNAL_QUALIFICATION_FAILED",
+  "qualification_gate": "Model_C_Top3 - Model_B_Top3 >= +1.00 pp",
+  "qualification_status": "FAILED",
+  "incremental_top3_gain_observed_pp": 0.07,
+  "required_top3_gain_pp": 1.0,
+  "official_production_model": "cashout-location-xgb-v7-compat",
+  "production_affected": false,
+  "holdout_evaluated": false,
+  "created_at": "2026-09-14T10:04:12.504914+00:00",
+  "decision_at": "2026-09-14T15:37:00Z"
 }

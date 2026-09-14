@@ -1,10 +1,10 @@
 {
   "experiment_id": "EXP-B6-BLOCKCHAIN-SHADOW-RERANKER-V1",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "created_at": "2026-09-14T13:21:00Z",
-  "updated_at": "2026-09-14T15:35:00Z",
+  "updated_at": "2026-09-14T15:37:00Z",
   "author": "Antigravity AI — Phase B.6",
-  "status": "FROZEN_BEFORE_HOLDOUT",
+  "status": "INTERNAL_QUALIFICATION_FAILED",
   "dataset_spec": {
     "train_seed": 66210,
     "internal_val_seed": 66211,
@@ -179,11 +179,27 @@
     "top3_gain_vs_model_a_pp": 0.20
   },
   "qualification_gates": {
-    "blockchain_ablation_delta_top3": "Model_C_Top3 - Model_B_Top3 >= 0.000 (confirmed positive incremental gain over V7-only second stage)",
+    "blockchain_ablation_delta_top3": "Model_C_Top3 - Model_B_Top3 >= +0.010 (+1.0 percentage point incremental gain over Model B)",
     "top1_non_regression": "Model_C_Top1 >= Model_A_Top1 (Top-1 non-regression)",
     "regime_safety_slack_max_drop": "0.005 (0.5 percentage points max drop vs V7 on any holdout regime)",
     "fabric_outage_graceful_fallback": "Zero exceptions and Top-3 within 0.005 of V7 when fabric_available=0",
     "p95_reranker_latency_ms": 25.0
+  },
+  "internal_qualification_decision": {
+    "status": "FAIL",
+    "gate_evaluated": "Model_C_Top3 - Model_B_Top3 >= +1.00 pp",
+    "model_a_top3": "33.47%",
+    "model_b_top3": "33.60%",
+    "model_c_top3": "33.67%",
+    "blockchain_incremental_gain_vs_model_b": "+0.07 pp",
+    "required_gain": "+1.00 pp",
+    "qualification_gate_result": "FAIL",
+    "holdout_evaluated": false,
+    "holdout_seeds_unopened": [66261, 66262, 66263],
+    "shadow_runtime_activated": false,
+    "production_affected": false,
+    "official_production_model": "cashout-location-xgb-v7-compat",
+    "final_conclusion": "BLOCKCHAIN SHADOW RE-RANKER V1 DID NOT MEET THE PRE-REGISTERED PREDICTIVE VALUE GATE — OFFICIAL V7 REMAINS ACTIVE — DO NOT CLAIM BLOCKCHAIN ACCURACY IMPROVEMENT."
   },
   "post_holdout_retuning_allowed": false
 }
