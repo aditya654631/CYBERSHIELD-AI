@@ -1,0 +1,53 @@
+# ---------------------------------------------------------------------------
+# CyberShield AI — Hyperledger Fabric Consortium Prototype
+# Organizations: BankA, BankB, BankC, I4C, LEA (Simulated Prototype Orgs)
+# ---------------------------------------------------------------------------
+
+OrdererOrgs:
+  - Name: Orderer
+    Domain: cybershield.net
+    EnableNodeOUs: true
+    Specs:
+      - Hostname: orderer
+        CommonName: orderer.cybershield.net
+
+PeerOrgs:
+  - Name: BankA
+    Domain: banka.cybershield.net
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+
+  - Name: BankB
+    Domain: bankb.cybershield.net
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+
+  - Name: BankC
+    Domain: bankc.cybershield.net
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+
+  - Name: I4C
+    Domain: i4c.cybershield.net
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1
+
+  - Name: LEA
+    Domain: lea.cybershield.net
+    EnableNodeOUs: true
+    Template:
+      Count: 1
+    Users:
+      Count: 1

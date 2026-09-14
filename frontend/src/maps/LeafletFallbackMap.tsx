@@ -317,8 +317,8 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
                       </div>
 
                       <div className="flex justify-between">
-                        <span className="text-slate-400">{prediction?.score_label || 'Model score'}:</span>
-                        <strong className="text-slate-200">{modelScore(loc)}</strong>
+                        <span className="text-slate-400">Model ranking score:</span>
+                        <strong className="text-slate-200 font-mono">{modelScore(loc)}</strong>
                       </div>
                       <div className="space-y-1">
                         <span className="text-slate-400">Operational Window:</span>

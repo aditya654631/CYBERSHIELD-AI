@@ -127,11 +127,88 @@ CyberShield AI/
 ---
 
 ## 🛡️ Hackathon SIH Demo Workflow
-1. Navigate to `http://localhost:5173/login` and select **District Cyber Cell (Indore)**.
+1. Navigate to `http://localhost:5173/login` and select **National Command (I4C)** or **District Cyber Cell**.
 2. On `/dashboard`, click the glowing **RUN SIH DEMO** button.
-3. Observe case **CMP-1042** with:
-   - Ranked locations: **Vijay Nagar (87% CRITICAL)**, **Palasia (61% HIGH)**, **Rau (34% MEDIUM)**.
-   - Cash-out window: **Next 2–4 Hours**.
-   - Intervention Priority: **94 / 100 IMMEDIATE ACTION**.
-4. Click **ANALYZE NETWORK** to explore the Cytoscape.js directed graph from the victim to the Vijay Nagar cluster.
-5. Click **GENERATE ALERT** to dispatch tactical alarms and inspect the audit log on `/audit`.
+3. Observe case **CMP-1042** or submit a new Delhi NCT cybercrime complaint:
+   - Official Top-3 ranked cash-out locations with calibrated probability and operational risk level.
+   - Bounded cash-out time window (`cashout-time-xgb-v3`).
+   - Intervention Priority and dispatch recommendation.
+4. On **Case Intelligence**:
+   - Inspect Model Provenance (`cashout-location-xgb-v7-compat`).
+   - Run on-demand **Explain Prediction** to generate local LIME feature attributions and fidelity diagnostics.
+   - Run **Verify on Ledger** to audit prediction hash anchoring against the Hyperledger Fabric ledger.
+5. On **Model Performance**:
+   - Review official production model validation metrics.
+   - Inspect the **Research Pipeline & Ablation Audit (Phase B.6)** card distinguishing official production from the unpromoted shadow model.
+
+---
+
+## 🏛️ System Architecture & Subsystems
+
+```
+Complaint Intake
+       │
+       ▼
+Feature Extraction (V7-compat Schema: 39 Features)
+       │
+       ▼
+Official Trained ML Engine (cashout-location-xgb-v7-compat + cashout-time-xgb-v3)
+       │
+       ▼
+Authoritative Top-3 Cash-Out Predictions
+       ├── PostgreSQL Persistence (Atomic 1 Prediction + 3 Locations)
+       ├── Case Intelligence & Triage
+       ├── GIS Risk Map (Cluster Centroids & Radii)
+       ├── Tactical Alerts & Dispatch
+       ├── Hyperledger Fabric Prediction Audit Anchor (Canonical SHA-256)
+       └── On-Demand LIME Tabular Explainability (Non-blocking Local Surrogate)
+
+Separately (Consortium Layer):
+BankA / BankB / BankC / I4C / LEA
+       │
+       ▼
+Hyperledger Fabric Blockchain Consortium (Channel: cyber-intelligence)
+       │
+       ├── geo-intelligence chaincode (Multi-org mule & ATM corridor signals)
+       ├── prediction-audit chaincode (Tamper-evident hash ledger)
+       ▼
+Fabric Gateway & Blockchain Feature Engine (Operational Intelligence Infrastructure)
+```
+
+---
+
+## 🔬 Research Qualification & Ablation Audit (Phase B.6)
+
+During Phase B.6, an experimental second-stage **Blockchain Shadow Re-Ranker V1** was ablated against the official production baseline:
+- **Baseline (Model B — Official V7 Features)**: 33.60% Top-3 Recall
+- **Candidate (Model C — V7 + Fabric Consortium Signals)**: 33.67% Top-3 Recall
+- **Incremental Gain**: +0.07 percentage points
+- **Pre-Registered Promotion Gate**: `>= +1.0 pp Top-3 Gain`
+- **Qualification Decision**: **DID NOT MEET PROMOTION GATE**
+
+Following scientific integrity standards, the promotion gate was not relaxed. The experimental re-ranker remains inactive, and the validated official **cashout-location-xgb-v7-compat** model remains authoritative in production. Consortium blockchain signals function as operational intelligence and immutable audit infrastructure.
+
+---
+
+## ⚖️ Explainability (Phase B.7 LIME)
+
+LIME provides a non-blocking, on-demand local surrogate explanation for official predictions:
+- Explains feature contributions for Top-3 candidate locations without modifying probabilities or rankings.
+- Conservative Fidelity Policy:
+  - $R^2 \ge 0.70$: `HIGH_FIDELITY`
+  - $0.40 \le R^2 < 0.70$: `MODERATE_FIDELITY`
+  - $R^2 < 0.40$: `LOW_FIDELITY`
+- Explicit Disclaimer: *LIME provides a local approximation of model behavior and does not prove causality or criminal activity.*
+
+---
+
+## 🔒 Security, Compliance & Judge-Safe Claims
+
+### Approved Scientific Statement:
+> "We trained our own XGBoost-based cash-out location prediction pipeline on controlled synthetic Delhi cybercrime data. Hyperledger Fabric provides a permissioned multi-organization intelligence and tamper-evident audit layer. Verified consortium signals can be converted into geo-risk features. We experimentally tested those features in a second-stage shadow ranker, but it did not meet our pre-defined promotion threshold (+1.0 pp Top-3), so we retained the validated V7 production model. LIME provides local explanations for the official prediction on demand without altering the prediction itself."
+
+### Ground Truth & Limitations:
+- **Dataset**: Controlled synthetic prototype data modeled after Delhi NCT cybercrime topology. No real NCRP production data or victim PII is used.
+- **Consortium**: Simulated multi-bank/LEA consortium nodes (BankA, BankB, BankC, I4C, LEA). No live bank API keys or customer credentials.
+- **Explainability**: LIME is a local surrogate approximation, not proof of criminal intent or causal proof.
+- **Accuracy Claim**: We do NOT claim that blockchain improved production ML accuracy, as B.6 did not qualify for promotion.

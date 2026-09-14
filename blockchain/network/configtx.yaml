@@ -1,0 +1,220 @@
+# ---------------------------------------------------------------------------
+# CyberShield AI — Hyperledger Fabric Channel & Consortium Configuration
+# Channel: cyber-intelligence
+# ---------------------------------------------------------------------------
+
+Organizations:
+  - &OrdererOrg
+    Name: OrdererMSP
+    ID: OrdererMSP
+    MSPDir: organizations/ordererOrganizations/cybershield.net/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Writers:
+        Type: Signature
+        Rule: "OR('OrdererMSP.member')"
+      Admins:
+        Type: Signature
+        Rule: "OR('OrdererMSP.admin')"
+    OrdererEndpoints:
+      - orderer.cybershield.net:7050
+
+  - &BankA
+    Name: BankAMSP
+    ID: BankAMSP
+    MSPDir: organizations/peerOrganizations/banka.cybershield.net/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('BankAMSP.admin', 'BankAMSP.peer', 'BankAMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('BankAMSP.admin', 'BankAMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('BankAMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('BankAMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.banka.cybershield.net
+        Port: 7051
+
+  - &BankB
+    Name: BankBMSP
+    ID: BankBMSP
+    MSPDir: organizations/peerOrganizations/bankb.cybershield.net/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('BankBMSP.admin', 'BankBMSP.peer', 'BankBMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('BankBMSP.admin', 'BankBMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('BankBMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('BankBMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.bankb.cybershield.net
+        Port: 8051
+
+  - &BankC
+    Name: BankCMSP
+    ID: BankCMSP
+    MSPDir: organizations/peerOrganizations/bankc.cybershield.net/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('BankCMSP.admin', 'BankCMSP.peer', 'BankCMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('BankCMSP.admin', 'BankCMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('BankCMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('BankCMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.bankc.cybershield.net
+        Port: 9051
+
+  - &I4C
+    Name: I4CMSP
+    ID: I4CMSP
+    MSPDir: organizations/peerOrganizations/i4c.cybershield.net/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('I4CMSP.admin', 'I4CMSP.peer', 'I4CMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('I4CMSP.admin', 'I4CMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('I4CMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('I4CMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.i4c.cybershield.net
+        Port: 10051
+
+  - &LEA
+    Name: LEAMSP
+    ID: LEAMSP
+    MSPDir: organizations/peerOrganizations/lea.cybershield.net/msp
+    Policies:
+      Readers:
+        Type: Signature
+        Rule: "OR('LEAMSP.admin', 'LEAMSP.peer', 'LEAMSP.client')"
+      Writers:
+        Type: Signature
+        Rule: "OR('LEAMSP.admin', 'LEAMSP.client')"
+      Admins:
+        Type: Signature
+        Rule: "OR('LEAMSP.admin')"
+      Endorsement:
+        Type: Signature
+        Rule: "OR('LEAMSP.peer')"
+    AnchorPeers:
+      - Host: peer0.lea.cybershield.net
+        Port: 11051
+
+Capabilities:
+  Channel: &ChannelCapabilities
+    V2_0: true
+  Orderer: &OrdererCapabilities
+    V2_0: true
+  Application: &ApplicationCapabilities
+    V2_5: true
+
+Application: &ApplicationDefaults
+  Organizations:
+  Policies:
+    LifecycleEndorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Endorsement:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Endorsement"
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ApplicationCapabilities
+
+
+Orderer: &OrdererDefaults
+  OrdererType: etcdraft
+  Addresses:
+    - orderer.cybershield.net:7050
+  BatchTimeout: 1s
+  BatchSize:
+    MaxMessageCount: 50
+    AbsoluteMaxBytes: 10 MB
+    PreferredMaxBytes: 2 MB
+  Organizations:
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+    BlockValidation:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+
+Channel: &ChannelDefaults
+  Policies:
+    Readers:
+      Type: ImplicitMeta
+      Rule: "ANY Readers"
+    Writers:
+      Type: ImplicitMeta
+      Rule: "ANY Writers"
+    Admins:
+      Type: ImplicitMeta
+      Rule: "MAJORITY Admins"
+  Capabilities:
+    <<: *ChannelCapabilities
+
+Profiles:
+  CyberIntelligenceGenesis:
+    <<: *ChannelDefaults
+    Orderer:
+      <<: *OrdererDefaults
+      OrdererType: etcdraft
+      EtcdRaft:
+        Consenters:
+          - Host: orderer.cybershield.net
+            Port: 7050
+            ClientTLSCert: organizations/ordererOrganizations/cybershield.net/orderers/orderer.cybershield.net/tls/server.crt
+            ServerTLSCert: organizations/ordererOrganizations/cybershield.net/orderers/orderer.cybershield.net/tls/server.crt
+      Organizations:
+        - *OrdererOrg
+      Capabilities: *OrdererCapabilities
+    Application:
+      <<: *ApplicationDefaults
+      Organizations:
+        - *BankA
+        - *BankB
+        - *BankC
+        - *I4C
+        - *LEA
+      Capabilities: *ApplicationCapabilities

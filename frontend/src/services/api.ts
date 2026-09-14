@@ -115,6 +115,10 @@ export const api = {
     const res = await apiClient.get<Explanation>(`/predictions/${predictionId}/explanation`);
     return res.data;
   },
+  verifyPredictionAudit: async (predictionId: number) => {
+    const res = await apiClient.get<any>(`/predictions/${predictionId}/audit-verification`);
+    return res.data;
+  },
 
   // Graphs
   getGraph: async (complaintId: string | number) => {

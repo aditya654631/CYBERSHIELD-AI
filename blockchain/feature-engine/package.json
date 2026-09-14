@@ -1,0 +1,27 @@
+{
+  "name": "cybershield-blockchain-feature-engine",
+  "version": "1.0.0",
+  "description": "Deterministic, leakage-safe feature engine deriving candidate-cluster features from Hyperledger Fabric geo-intelligence signals",
+  "main": "src/feature-engine.js",
+  "scripts": {
+    "test": "mocha tests/ --recursive --timeout 20000",
+    "smoke": "node scripts/feature-engine-smoke-test.js",
+    "demo": "node scripts/demo-features.js"
+  },
+  "keywords": [
+    "hyperledger-fabric",
+    "feature-engine",
+    "geointelligence",
+    "cybershield"
+  ],
+  "author": "CyberShield AI Team",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "chai": "^4.4.1",
+    "mocha": "^10.4.0",
+    "sinon": "^17.0.1"
+  }
+}

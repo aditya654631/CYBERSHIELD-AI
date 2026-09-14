@@ -20,9 +20,14 @@ def get_model_performance():
         except Exception as e:
             print(f"[ModelRoutes] Could not read metadata from {meta_path}: {e}")
 
+    from backend.app.services.prediction_service import prediction_service
+    provider = prediction_service.ml_provider
+    active_loc_model = provider.model_version if provider else "cashout-location-xgb-v7-compat"
+    active_time_model = provider.time_model_version if provider else "cashout-time-xgb-v3"
+
     if metadata and "metrics" in metadata:
         m = metadata["metrics"]
-        model_ver = metadata.get("model_version", "cashout-location-xgb-v2")
+        model_ver = active_loc_model
         model_cls = metadata.get("model_class_location", "xgboost.XGBClassifier")
         train_samples = metadata.get("training_complaints", 14000)
         val_samples = metadata.get("validation_complaints", 3000)
@@ -56,9 +61,15 @@ def get_model_performance():
 
         return {
             "prediction_mode": "trained_ml",
-            "current_prediction_mode": "Trained ML (XGBoost v2 + Platt Calibration)",
+            "current_prediction_mode": "Trained ML (XGBoost v7-compat + Platt Calibration)",
             "model_version": model_ver,
             "provider_version": model_ver,
+            "official_production_model": active_loc_model,
+            "location_model_version": active_loc_model,
+            "time_model_version": active_time_model,
+            "research_experiment": "Blockchain Shadow Re-Ranker V1",
+            "research_status": "DID NOT MEET PROMOTION GATE",
+            "research_details": "Evaluated under pre-registered gate (Model C Top-3 - Model B Top-3 >= +1.0 pp). Observed incremental gain was +0.07 pp. Shadow model is not active in production runtime. Official V7-compat remains authoritative.",
             "dataset_type": metadata.get("dataset_type", "domain_meaningful_synthetic_v2"),
             "model_class": model_cls,
             "calibrator_class": metadata.get("calibrator_class", "sklearn.linear_model.LogisticRegression (Platt Scaling on Validation)"),

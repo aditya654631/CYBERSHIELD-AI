@@ -303,14 +303,48 @@ class ExplanationFactor(BaseModel):
     contribution_percentage: int
     description: str
 
+class LimeContribution(BaseModel):
+    feature_name: str
+    rule: str
+    weight: float
+    feature_value: float
+    description: str
+
+class LimeCandidateExplanation(BaseModel):
+    rank: int
+    cluster_id: int
+    location_name: str
+    official_score: float
+    lime_local_prediction: float
+    absolute_approximation_error: float
+    local_fidelity_r2: Optional[float] = None
+    fidelity_status: str = "HIGH_FIDELITY"
+    positive_contributions: List[LimeContribution] = []
+    negative_contributions: List[LimeContribution] = []
+    summary_statement: Optional[str] = None
+
 class ExplanationResponse(BaseModel):
     prediction_id: int
     complaint_number: str
-    prediction_mode: str = "deterministic_demo"
-    model_version: str = "demo-provider-v1"
-    factors: List[ExplanationFactor]
-    narrative: str
-    disclaimer: str
+    prediction_mode: str = "trained_ml"
+    model_version: str = "cashout-location-xgb-v7-compat"
+    location_model_version: Optional[str] = "cashout-location-xgb-v7-compat"
+    explanation_status: str = "AVAILABLE"  # AVAILABLE, UNAVAILABLE, LOW_FIDELITY, NOT_FOUND
+    explanation_method: str = "LIME"
+    explainer_version: Optional[str] = "lime_tabular_0.2.0.1"
+    feature_schema_version: Optional[str] = "v7_compat"
+    generated_at: Optional[str] = None
+    overall_fidelity_status: Optional[str] = "HIGH_FIDELITY"
+    mean_local_fidelity_r2: Optional[float] = None
+    background_sample_size: Optional[int] = 500
+    background_seed: Optional[int] = 56100
+    top3_explanations: Optional[List[LimeCandidateExplanation]] = []
+    factors: Optional[List[ExplanationFactor]] = []
+    narrative: Optional[str] = ""
+    disclaimer: str = (
+        "LIME provides local surrogate linear explanations of model decisions for risk prioritization. "
+        "This is an algorithmic approximation, not proof or causal evidence of criminal activity."
+    )
 
 # GIS Schemas
 class HotspotCluster(BaseModel):

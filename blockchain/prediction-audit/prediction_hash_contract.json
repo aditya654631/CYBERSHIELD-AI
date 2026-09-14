@@ -1,0 +1,77 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "CyberShield Prediction Audit Hash Contract",
+  "version": "prediction-audit-v1",
+  "description": "Defines the canonical serialization, hashing, and audit anchoring contract for CyberShield AI predictions on Hyperledger Fabric.",
+  "canonicalization_rules": {
+    "key_sorting": "Lexicographical order (alphabetical ASC) for all JSON object keys recursively.",
+    "string_encoding": "UTF-8 without BOM.",
+    "float_precision": "Float probabilities and coordinates rounded or formatted to exactly 6 decimal places (e.g., 0.852341), or standard JSON numeric if integer.",
+    "timestamp_normalization": "ISO-8601 UTC with Z suffix (e.g., 2026-09-14T06:30:00.000Z). Timestamps without timezone are assumed UTC.",
+    "whitespace_rule": "No indentation, no whitespace around separators (compact JSON: separators=(',', ':')).",
+    "top3_ordering": "Top-3 locations must strictly be ordered by rank ascending: [rank 1, rank 2, rank 3]. Swapping candidate order must alter the canonical hash."
+  },
+  "hash_algorithm": {
+    "algorithm": "SHA-256",
+    "encoding": "hexadecimal",
+    "casing": "lowercase",
+    "length": 64
+  },
+  "privacy_reference_method": {
+    "complaint_reference": "HMAC-SHA256 or SHA-256 of complaint identifier with system salt. Never expose raw victim PII, phone, account, or complaint description.",
+    "formula": "SHA256('COMPLAINT_REF:' + complaint_number)"
+  },
+  "canonical_payload_fields": [
+    "complaint_reference_hash",
+    "location_model_version",
+    "ordered_top3",
+    "prediction_created_at",
+    "prediction_id",
+    "prediction_mode",
+    "time_model_version",
+    "time_window"
+  ],
+  "ordered_top3_fields": [
+    "cluster_id",
+    "probability",
+    "rank"
+  ],
+  "time_window_fields": [
+    "window_end",
+    "window_label",
+    "window_start"
+  ],
+  "prohibited_fields": [
+    "victim_name",
+    "victim_phone",
+    "phone",
+    "phone_number",
+    "mobile",
+    "account_number",
+    "raw_account_number",
+    "bank_account",
+    "upi_id",
+    "vpa",
+    "aadhaar",
+    "pan",
+    "email",
+    "password",
+    "jwt",
+    "token",
+    "raw_transaction_history",
+    "complaint_text",
+    "raw_complaint",
+    "description"
+  ],
+  "idempotency_policy": {
+    "identical_replay": "Same prediction_id and identical prediction_hash returns success (idempotent replay, existing anchor preserved).",
+    "tamper_conflict": "Same prediction_id with different prediction_hash is rejected with an immutable tamper conflict error."
+  },
+  "verification_procedure": {
+    "step_1": "Query persisted Prediction and PredictionLocation records from database.",
+    "step_2": "Assemble canonical audit payload matching this schema.",
+    "step_3": "Compute SHA-256 hex digest of the canonical UTF-8 JSON.",
+    "step_4": "Fetch anchored record from Hyperledger Fabric chaincode 'prediction-audit' via function 'GetPredictionAnchor' or evaluate 'VerifyPredictionHash'.",
+    "step_5": "Compare computed hash with ledger hash. If identical => VERIFIED. If different => HASH_MISMATCH (tamper detected)."
+  }
+}

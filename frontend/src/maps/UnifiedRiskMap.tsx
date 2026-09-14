@@ -338,7 +338,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
               <span style="color:#64748B;">Operational Window:</span>
               <span style="font-weight:600; color:#D97706;">${escapeMapText(predictionWindow(prediction))}</span>
             </div>
-            <div style="margin-top:4px;">${escapeMapText(prediction?.score_label || 'Model score')}: <strong>${modelScore(loc)}</strong> (prototype estimate)</div>
+            <div style="margin-top:4px;">${escapeMapText('Model ranking score')}: <strong>${modelScore(loc)}</strong> (prototype estimate)</div>
             ${isTop1 ? `
             <div style="margin-top:6px; padding-top:4px; border-top:1px solid #E2E8F0; font-size:10px; color:#2563EB; font-weight:500;">
               Tactical bands: 1 km critical / 2.5 km priority / 5 km context

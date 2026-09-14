@@ -35,7 +35,7 @@ export const modelScore = (location: PredictionLocationItem): string => {
 export const predictionScoreNote = (prediction: Prediction): string =>
   prediction.prediction_mode === 'deterministic_demo'
     ? 'Demo scores are preset scenario values, not a measured chance of cash-out.'
-    : prediction.score_note || 'Scores come from a model trained on synthetic Delhi data. They rank candidate locations, are not verified real-world probabilities, and need not sum to 100%.';
+    : 'Scores are relative model ranking scores used to compare candidate cash-out zones. They are not literal probabilities of withdrawal and do not need to sum to 100%.';
 
 export const predictionWindow = (prediction?: Prediction | null): string => {
   if (!prediction) return 'Time estimate unavailable';

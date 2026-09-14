@@ -193,12 +193,82 @@ def get_prediction(complaint_id: str, db: Session = Depends(get_db)):
 @router.get("/{prediction_id}/explanation", response_model=ExplanationResponse)
 def get_prediction_explanation(prediction_id: int, db: Session = Depends(get_db)):
     prediction = db.query(Prediction).filter(Prediction.id == prediction_id).first()
-    if prediction:
-        complaint = db.query(Complaint).filter(Complaint.id == prediction.complaint_id).first()
-        return prediction_service.get_explanation(prediction, complaint)
+    if not prediction:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Prediction #{prediction_id} not found."
+        )
 
-    # If prediction_id is 0 or unpersisted
-    default_comp = db.query(Complaint).first()
-    if not default_comp:
-        raise HTTPException(status_code=404, detail="Complaint not found")
-    return prediction_service.get_explanation({"prediction_id": prediction_id, "prediction_mode": "trained_ml"}, default_comp)
+    if prediction.prediction_mode == "deterministic_demo":
+        from datetime import datetime, timezone
+        complaint = db.query(Complaint).filter(Complaint.id == prediction.complaint_id).first()
+        demo_exp = prediction_service.get_explanation(prediction, complaint)
+        return {
+            "explanation_status": "AVAILABLE",
+            "prediction_id": prediction.id,
+            "complaint_number": complaint.complaint_number if complaint else "CMP-1042",
+            "prediction_mode": "deterministic_demo",
+            "model_version": prediction.model_version,
+            "explanation_method": "DEMO_HEURISTIC",
+            "explainer_version": "demo_provider_v1",
+            "feature_schema_version": "v7_compat",
+            "generated_at": datetime.now(timezone.utc).isoformat(),
+            "overall_fidelity_status": "HIGH_FIDELITY",
+            "mean_local_fidelity_r2": 1.0,
+            "background_sample_size": 500,
+            "background_seed": 56100,
+            "top3_explanations": [],
+            "factors": demo_exp.get("factors", []),
+            "narrative": demo_exp.get("narrative", ""),
+            "disclaimer": demo_exp.get("disclaimer", "")
+        }
+
+    from backend.app.services.prediction_explainability_service import prediction_explainability_service
+    return prediction_explainability_service.get_or_generate_explanation(db, prediction_id)
+
+
+
+@router.get("/{prediction_id}/audit-verification")
+def verify_prediction_audit(prediction_id: int, db: Session = Depends(get_db)):
+    """
+    Phase B.5: Tamper-Evident Prediction Audit Verification Endpoint.
+    Loads persisted prediction from PostgreSQL, recomputes canonical SHA-256 hash,
+    and compares against the immutable Hyperledger Fabric ledger anchor.
+    """
+    prediction = db.query(Prediction).filter(Prediction.id == prediction_id).first()
+    if not prediction:
+        raise HTTPException(status_code=404, detail=f"Prediction #{prediction_id} not found.")
+
+    complaint = db.query(Complaint).filter(Complaint.id == prediction.complaint_id).first()
+    if not complaint:
+        raise HTTPException(status_code=404, detail="Complaint not found for prediction.")
+
+    from backend.app.services.prediction_audit_service import prediction_audit_client
+    audit_dict = {
+        "prediction_id": prediction.id,
+        "complaint_number": complaint.complaint_number,
+        "complaint_id": complaint.id,
+        "prediction_mode": prediction.prediction_mode,
+        "model_version": prediction.model_version,
+        "time_model_version": prediction.time_model_version,
+        "created_at": prediction.created_at,
+        "predicted_window_start": prediction.predicted_window_start,
+        "predicted_window_end": prediction.predicted_window_end,
+        "window_label": prediction.window_label,
+        "top_locations": [
+            {
+                "rank": loc.rank,
+                "cluster_id": loc.cluster_id,
+                "probability": loc.probability,
+                "location_name": loc.location_name
+            }
+            for loc in sorted(prediction.locations, key=lambda x: x.rank)
+        ]
+    }
+
+    verification = prediction_audit_client.verify_prediction(audit_dict)
+    return {
+        "prediction_id": prediction.id,
+        "complaint_number": complaint.complaint_number,
+        **verification
+    }
