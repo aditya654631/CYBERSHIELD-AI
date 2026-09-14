@@ -1,0 +1,419 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BlockchainFeatureContract",
+  "version": "blockchain-feature-schema-v1",
+  "description": "Frozen feature contract specification for Hyperledger Fabric verified geo-intelligence signals",
+  "provenance_metadata": {
+    "source": "hyperledger_fabric",
+    "channel": "cyber-intelligence",
+    "chaincode": "geo-intelligence",
+    "required_inputs": ["cluster_id", "reference_timestamp"],
+    "optional_inputs": ["opaque_subject_ref"]
+  },
+  "features": {
+    "verified_cashouts_1h": {
+      "type": "integer",
+      "window": "1h",
+      "event_types": ["ATM_WITHDRAWAL_CONFIRMED"],
+      "formula": "count(signals where event_type == 'ATM_WITHDRAWAL_CONFIRMED' and age <= 1h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "verified_cashouts_6h": {
+      "type": "integer",
+      "window": "6h",
+      "event_types": ["ATM_WITHDRAWAL_CONFIRMED"],
+      "formula": "count(signals where event_type == 'ATM_WITHDRAWAL_CONFIRMED' and age <= 6h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "verified_cashouts_24h": {
+      "type": "integer",
+      "window": "24h",
+      "event_types": ["ATM_WITHDRAWAL_CONFIRMED"],
+      "formula": "count(signals where event_type == 'ATM_WITHDRAWAL_CONFIRMED' and age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "withdrawal_attempts_1h": {
+      "type": "integer",
+      "window": "1h",
+      "event_types": ["ATM_WITHDRAWAL_ATTEMPT"],
+      "formula": "count(signals where event_type == 'ATM_WITHDRAWAL_ATTEMPT' and age <= 1h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "withdrawal_attempts_6h": {
+      "type": "integer",
+      "window": "6h",
+      "event_types": ["ATM_WITHDRAWAL_ATTEMPT"],
+      "formula": "count(signals where event_type == 'ATM_WITHDRAWAL_ATTEMPT' and age <= 6h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "withdrawal_attempts_24h": {
+      "type": "integer",
+      "window": "24h",
+      "event_types": ["ATM_WITHDRAWAL_ATTEMPT"],
+      "formula": "count(signals where event_type == 'ATM_WITHDRAWAL_ATTEMPT' and age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "branch_cashouts_6h": {
+      "type": "integer",
+      "window": "6h",
+      "event_types": ["BRANCH_CASHOUT_CONFIRMED"],
+      "formula": "count(signals where event_type == 'BRANCH_CASHOUT_CONFIRMED' and age <= 6h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "branch_cashouts_24h": {
+      "type": "integer",
+      "window": "24h",
+      "event_types": ["BRANCH_CASHOUT_CONFIRMED"],
+      "formula": "count(signals where event_type == 'BRANCH_CASHOUT_CONFIRMED' and age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "mule_activity_6h": {
+      "type": "integer",
+      "window": "6h",
+      "event_types": ["MULE_ACCOUNT_ACTIVITY"],
+      "formula": "count(signals where event_type == 'MULE_ACCOUNT_ACTIVITY' and age <= 6h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "mule_activity_24h": {
+      "type": "integer",
+      "window": "24h",
+      "event_types": ["MULE_ACCOUNT_ACTIVITY"],
+      "formula": "count(signals where event_type == 'MULE_ACCOUNT_ACTIVITY' and age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "lea_confirmations_6h": {
+      "type": "integer",
+      "window": "6h",
+      "event_types": ["LEA_CONFIRMED_CLUSTER"],
+      "formula": "count(signals where event_type == 'LEA_CONFIRMED_CLUSTER' and age <= 6h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "lea_confirmations_24h": {
+      "type": "integer",
+      "window": "24h",
+      "event_types": ["LEA_CONFIRMED_CLUSTER"],
+      "formula": "count(signals where event_type == 'LEA_CONFIRMED_CLUSTER' and age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "distinct_orgs_1h": {
+      "type": "integer",
+      "window": "1h",
+      "formula": "distinct_count(organization_msp for active signals with age <= 1h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "distinct_orgs_6h": {
+      "type": "integer",
+      "window": "6h",
+      "formula": "distinct_count(organization_msp for active signals with age <= 6h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "distinct_orgs_24h": {
+      "type": "integer",
+      "window": "24h",
+      "formula": "distinct_count(organization_msp for active signals with age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "distinct_banks_1h": {
+      "type": "integer",
+      "window": "1h",
+      "formula": "distinct_count(organization_msp where org in [BankAMSP, BankBMSP, BankCMSP] and age <= 1h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "distinct_banks_6h": {
+      "type": "integer",
+      "window": "6h",
+      "formula": "distinct_count(organization_msp where org in [BankAMSP, BankBMSP, BankCMSP] and age <= 6h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "distinct_banks_24h": {
+      "type": "integer",
+      "window": "24h",
+      "formula": "distinct_count(organization_msp where org in [BankAMSP, BankBMSP, BankCMSP] and age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "multi_org_attestation_1h": {
+      "type": "integer",
+      "window": "1h",
+      "formula": "distinct_orgs_1h",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "multi_org_attestation_6h": {
+      "type": "integer",
+      "window": "6h",
+      "formula": "distinct_orgs_6h",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "multi_org_attestation_24h": {
+      "type": "integer",
+      "window": "24h",
+      "formula": "distinct_orgs_24h",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "has_multi_org_attestation_1h": {
+      "type": "integer_boolean",
+      "window": "1h",
+      "formula": "1 if distinct_orgs_1h >= 2 else 0",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "has_multi_org_attestation_6h": {
+      "type": "integer_boolean",
+      "window": "6h",
+      "formula": "1 if distinct_orgs_6h >= 2 else 0",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "has_multi_org_attestation_24h": {
+      "type": "integer_boolean",
+      "window": "24h",
+      "formula": "1 if distinct_orgs_24h >= 2 else 0",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "mean_signal_confidence_1h": {
+      "type": "float",
+      "window": "1h",
+      "formula": "mean(confidence for active signals with age <= 1h)",
+      "missing_value": 0.0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "mean_signal_confidence_6h": {
+      "type": "float",
+      "window": "6h",
+      "formula": "mean(confidence for active signals with age <= 6h)",
+      "missing_value": 0.0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "mean_signal_confidence_24h": {
+      "type": "float",
+      "window": "24h",
+      "formula": "mean(confidence for active signals with age <= 24h)",
+      "missing_value": 0.0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "max_signal_confidence_1h": {
+      "type": "float",
+      "window": "1h",
+      "formula": "max(confidence for active signals with age <= 1h)",
+      "missing_value": 0.0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "max_signal_confidence_6h": {
+      "type": "float",
+      "window": "6h",
+      "formula": "max(confidence for active signals with age <= 6h)",
+      "missing_value": 0.0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "max_signal_confidence_24h": {
+      "type": "float",
+      "window": "24h",
+      "formula": "max(confidence for active signals with age <= 24h)",
+      "missing_value": 0.0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "latest_signal_age_minutes": {
+      "type": "float",
+      "window": "unbounded",
+      "formula": "min(refTime - event_timestamp) / 60000 for all active signals; -1 if none",
+      "missing_value": -1,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "latest_verified_cashout_age_minutes": {
+      "type": "float",
+      "window": "unbounded",
+      "formula": "min(refTime - event_timestamp) / 60000 for ATM_WITHDRAWAL_CONFIRMED; -1 if none",
+      "missing_value": -1,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "latest_attempt_age_minutes": {
+      "type": "float",
+      "window": "unbounded",
+      "formula": "min(refTime - event_timestamp) / 60000 for ATM_WITHDRAWAL_ATTEMPT; -1 if none",
+      "missing_value": -1,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "latest_lea_confirmation_age_minutes": {
+      "type": "float",
+      "window": "unbounded",
+      "formula": "min(refTime - event_timestamp) / 60000 for LEA_CONFIRMED_CLUSTER; -1 if none",
+      "missing_value": -1,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "cluster_signal_count_7d": {
+      "type": "integer",
+      "window": "7d",
+      "formula": "count(active signals where age <= 7d)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "cluster_signal_count_30d": {
+      "type": "integer",
+      "window": "30d",
+      "formula": "count(active signals where age <= 30d)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "cluster_active_days_7d": {
+      "type": "integer",
+      "window": "7d",
+      "formula": "count(distinct calendar days with active signals within 7d)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "cluster_active_days_30d": {
+      "type": "integer",
+      "window": "30d",
+      "formula": "count(distinct calendar days with active signals within 30d)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "cluster_recurrence_rate_7d": {
+      "type": "float",
+      "window": "7d",
+      "formula": "cluster_active_days_7d / 7.0",
+      "missing_value": 0.0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "cluster_recurrence_rate_30d": {
+      "type": "float",
+      "window": "30d",
+      "formula": "cluster_active_days_30d / 30.0",
+      "missing_value": 0.0,
+      "privacy_classification": "NON_PII_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "correction_count_24h": {
+      "type": "integer",
+      "window": "24h",
+      "formula": "count(signals where status == 'CORRECTED' or event_type == 'SIGNAL_CORRECTION' and age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_METADATA",
+      "future_ranker_availability": "GOVERNANCE_AUDIT"
+    },
+    "revocation_count_24h": {
+      "type": "integer",
+      "window": "24h",
+      "formula": "count(signals where status == 'REVOKED' or event_type == 'SIGNAL_REVOKED' and age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "NON_PII_METADATA",
+      "future_ranker_availability": "GOVERNANCE_AUDIT"
+    },
+    "active_signal_ratio_24h": {
+      "type": "float",
+      "window": "24h",
+      "formula": "active_signals_24h / total_signals_24h; 1.0 if total == 0",
+      "missing_value": 1.0,
+      "privacy_classification": "NON_PII_METADATA",
+      "future_ranker_availability": "GOVERNANCE_AUDIT"
+    },
+    "subject_features_available": {
+      "type": "integer_boolean",
+      "window": "metadata",
+      "formula": "1 if opaque_subject_ref is provided and active signals found, else 0",
+      "missing_value": 0,
+      "privacy_classification": "OPAQUE_TOKEN_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "subject_signal_count_1h": {
+      "type": "integer",
+      "window": "1h",
+      "formula": "count(subject signals where age <= 1h)",
+      "missing_value": 0,
+      "privacy_classification": "OPAQUE_TOKEN_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "subject_signal_count_6h": {
+      "type": "integer",
+      "window": "6h",
+      "formula": "count(subject signals where age <= 6h)",
+      "missing_value": 0,
+      "privacy_classification": "OPAQUE_TOKEN_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "subject_signal_count_24h": {
+      "type": "integer",
+      "window": "24h",
+      "formula": "count(subject signals where age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "OPAQUE_TOKEN_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "subject_distinct_clusters_24h": {
+      "type": "integer",
+      "window": "24h",
+      "formula": "distinct_count(cluster_id for subject signals where age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "OPAQUE_TOKEN_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    },
+    "subject_distinct_orgs_24h": {
+      "type": "integer",
+      "window": "24h",
+      "formula": "distinct_count(organization_msp for subject signals where age <= 24h)",
+      "missing_value": 0,
+      "privacy_classification": "OPAQUE_TOKEN_AGGREGATE",
+      "future_ranker_availability": "STAGE_2_FEATURE"
+    }
+  }
+}
