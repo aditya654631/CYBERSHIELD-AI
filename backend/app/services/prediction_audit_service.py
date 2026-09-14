@@ -141,6 +141,14 @@ class PredictionAuditClient:
     def __init__(self, base_url: str = GATEWAY_BASE_URL, timeout_seconds: float = 4.0):
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout_seconds
+        self.auth_token = os.environ.get("FABRIC_GATEWAY_TOKEN", "").strip()
+
+    def _get_headers(self) -> Dict[str, str]:
+        headers = {"Content-Type": "application/json"}
+        if self.auth_token:
+            headers["Authorization"] = f"Bearer {self.auth_token}"
+            headers["X-API-Key"] = self.auth_token
+        return headers
 
     def anchor_prediction_safe(self, prediction_dict: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -173,7 +181,7 @@ class PredictionAuditClient:
 
         try:
             url = f"{self.base_url}/prediction-audit/anchor"
-            resp = requests.post(url, json=payload, timeout=self.timeout)
+            resp = requests.post(url, json=payload, headers=self._get_headers(), timeout=self.timeout)
             if resp.status_code == 200:
                 data = resp.json()
                 logger.info(f"[PredictionAuditClient] Prediction #{canonical['prediction_id']} anchored! TxID: {data.get('txId')}")
@@ -218,7 +226,7 @@ class PredictionAuditClient:
 
         try:
             url = f"{self.base_url}/prediction-audit/{pred_id}/verify-hash"
-            resp = requests.post(url, json={"candidate_hash": candidate_hash}, timeout=self.timeout)
+            resp = requests.post(url, json={"candidate_hash": candidate_hash}, headers=self._get_headers(), timeout=self.timeout)
             if resp.status_code == 200:
                 res_data = resp.json()
                 return {

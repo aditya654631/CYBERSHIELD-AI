@@ -22,6 +22,44 @@ app.get('/health', (req, res) => {
     });
 });
 
+// Service token authentication middleware
+const authenticateService = (req, res, next) => {
+    const requiredToken = process.env.GATEWAY_AUTH_TOKEN;
+    // If no token is configured in environment, allow (dev mode)
+    if (!requiredToken || requiredToken.trim() === '') {
+        return next();
+    }
+
+    // Public health checks
+    const p = req.path;
+    if (p === '/health' || p.endsWith('/health')) {
+        return next();
+    }
+
+    // Check X-API-Key or Authorization Bearer header
+    const apiKey = req.headers['x-api-key'];
+    let bearerToken = null;
+    const authHeader = req.headers['authorization'];
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        bearerToken = authHeader.substring(7).trim();
+    }
+
+    const suppliedToken = apiKey || bearerToken;
+    if (!suppliedToken || suppliedToken !== requiredToken) {
+        return res.status(401).json({
+            success: false,
+            error: {
+                code: 'UNAUTHORIZED',
+                message: 'Invalid or missing Gateway service authentication token'
+            }
+        });
+    }
+
+    next();
+};
+
+app.use(authenticateService);
+
 // Mount routes
 const gatewayRouter = createRouter(geoService, auditService);
 app.use('/api/v1/gateway', gatewayRouter);

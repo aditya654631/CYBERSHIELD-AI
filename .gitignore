@@ -51,3 +51,6 @@ ml/research_backup/
 # Blockchain Generated Crypto & Artifacts
 blockchain/network/organizations/
 blockchain/network/channel-artifacts/
+
+# Scratch & Temporary Testing Files
+scratch/
