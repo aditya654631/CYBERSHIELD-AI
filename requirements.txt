@@ -17,3 +17,5 @@ python-dotenv>=1.0.0
 psycopg[binary]>=3.1.18
 alembic>=1.13.0
 xgboost==3.4.1
+lime>=0.2.0.1
+requests>=2.31.0

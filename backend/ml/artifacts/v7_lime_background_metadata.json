@@ -1,0 +1,13 @@
+{
+  "background_sample_size": 500,
+  "feature_count": 47,
+  "feature_schema_version": "v7_compat",
+  "source": "synthetic_delhi_v6_2_train_partition",
+  "seed": 56100,
+  "case_count": 20,
+  "candidates_per_case": 25,
+  "target_labels_included": false,
+  "holdout_seeds_used": false,
+  "real_ncrp_data_used": false,
+  "sha256_npy": "4f834a73beb737991c7210c533093e0fa3247d7cee47249513361a792eb2da74"
+}
