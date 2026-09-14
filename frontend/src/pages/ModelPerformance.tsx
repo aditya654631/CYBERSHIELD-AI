@@ -138,16 +138,16 @@ export const ModelPerformance: React.FC = () => {
             <span className="text-slate-900 font-semibold">{data.training_samples?.toLocaleString()} cases</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500">Geographic Focus:</span>
-            <span className="text-blue-700 font-bold">{data.geographic_focus || 'Delhi NCT Pilot (60 Clusters)'}</span>
+            <span className="text-slate-500">Active Cash-Out Clusters:</span>
+            <span className="text-slate-900 font-semibold">{data.active_clusters_count ?? 60} Clusters</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-slate-500">Active Cash-Out Clusters:</span>
-            <span className="text-slate-900 font-semibold">{data.cluster_count ?? 60} ATM/Branch Zones</span>
+            <span className="text-slate-500">Atm Coverage:</span>
+            <span className="text-slate-900 font-semibold">{data.atm_coverage_count?.toLocaleString() ?? '1,200+'} Terminals</span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Validation Split:</span>
-            <span className="text-slate-800">{data.test_samples?.toLocaleString()} cases (20% Holdout)</span>
+            <span className="text-slate-900">{data.dataset_split}</span>
           </div>
           {data.cold_start_test_samples && (
             <div className="flex items-center justify-between">
@@ -155,6 +155,46 @@ export const ModelPerformance: React.FC = () => {
               <span className="text-slate-800">{data.cold_start_test_samples?.toLocaleString()} cases</span>
             </div>
           )}
+        </div>
+      </div>
+
+      {/* RESEARCH & ABLATION STATUS CARD (B.6 Qualification Audit) */}
+      <div className="p-4 rounded-lg bg-slate-50 border border-slate-200 text-xs space-y-2 shadow-xs">
+        <div className="flex items-center justify-between pb-1 border-b border-slate-200">
+          <div className="flex items-center space-x-2">
+            <Layers className="w-4 h-4 text-slate-700" />
+            <span className="text-[#173A63] font-bold uppercase tracking-wider text-[11px]">
+              RESEARCH PIPELINE & ABLATION AUDIT (PHASE B.6)
+            </span>
+          </div>
+          <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-100 text-amber-900 border border-amber-300">
+            RESEARCH ONLY • NOT ACTIVE IN PRODUCTION
+          </span>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1">
+          <div>
+            <span className="text-slate-500 block text-[11px]">Official Production Model:</span>
+            <span className="font-mono font-bold text-blue-800 text-xs">cashout-location-xgb-v7-compat</span>
+            <span className="block text-[10px] text-emerald-700 font-medium mt-0.5">Active runtime inference engine</span>
+          </div>
+          <div>
+            <span className="text-slate-500 block text-[11px]">Research Candidate:</span>
+            <span className="font-mono font-bold text-slate-800 text-xs">Blockchain Shadow Re-Ranker V1</span>
+            <span className="block text-[10px] text-slate-600 mt-0.5">Evaluated in Phase B.6 ablation study</span>
+          </div>
+          <div>
+            <span className="text-slate-500 block text-[11px]">Promotion Qualification Decision:</span>
+            <span className="font-bold text-amber-800 text-xs block">DID NOT MEET PROMOTION GATE</span>
+            <span className="block text-[10px] text-slate-600 mt-0.5">
+              Gate (+1.0 pp Top-3) not met (+0.07 pp observed). Retained validated V7 model.
+            </span>
+          </div>
+        </div>
+        <div className="mt-2 pt-2 border-t border-slate-200 text-[11px] text-slate-600 flex items-start space-x-2">
+          <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
+          <span>
+            <strong>Consortium Governance:</strong> Hyperledger Fabric operates exclusively as a verified multi-organization intelligence ledger (BankA, BankB, BankC, I4C, LEA) and tamper-evident prediction audit anchor. Blockchain signals do not alter official production rankings.
+          </span>
         </div>
       </div>
 

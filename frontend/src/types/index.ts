@@ -158,12 +158,59 @@ export interface ExplanationFactor {
   description: string;
 }
 
+export interface LimeContribution {
+  feature_name: string;
+  rule: string;
+  weight: number;
+  feature_value: number;
+  description: string;
+}
+
+export interface LimeCandidateExplanation {
+  rank: number;
+  cluster_id: number;
+  location_name: string;
+  official_score: number;
+  lime_local_prediction: number;
+  absolute_approximation_error: number;
+  local_fidelity_r2?: number;
+  fidelity_status: string;
+  positive_contributions: LimeContribution[];
+  negative_contributions: LimeContribution[];
+  summary_statement?: string;
+}
+
 export interface Explanation {
   prediction_id: number;
   complaint_number: string;
+  prediction_mode?: string;
+  model_version?: string;
+  location_model_version?: string;
+  explanation_status?: string;
+  explanation_method?: string;
+  explainer_version?: string;
+  feature_schema_version?: string;
+  generated_at?: string;
+  overall_fidelity_status?: string;
+  mean_local_fidelity_r2?: number;
+  background_sample_size?: number;
+  background_seed?: number;
+  top3_explanations?: LimeCandidateExplanation[];
   factors: ExplanationFactor[];
   narrative: string;
   disclaimer: string;
+}
+
+export interface PredictionAuditVerification {
+  prediction_id: number;
+  complaint_number: string;
+  verified: boolean;
+  status: 'VERIFIED' | 'HASH_MISMATCH' | 'ANCHOR_NOT_FOUND' | 'FABRIC_UNAVAILABLE' | string;
+  computed_hash?: string;
+  ledger_hash?: string;
+  fabric_tx_id?: string;
+  anchored_at?: string;
+  error?: string;
 }
 
 export interface CytoscapeNodeData {
@@ -419,7 +466,15 @@ export interface ModelPerformanceData {
   cold_start_recall_at_3?: string;
   time_MAE_minutes: string;
   time_median_absolute_error: string;
-  time_window_coverage: string;
+  time_window_coverage?: string;
+  active_clusters_count?: number;
+  atm_coverage_count?: number;
+  official_production_model?: string;
+  research_experiment?: string;
+  research_status?: string;
+  promotion_gate?: string;
+  research_ablation_gain?: string;
+  research_decision_rationale?: string;
   metrics_comparison: MetricComparisonItem[];
   feature_importances: FeatureImportanceItem[];
 }
