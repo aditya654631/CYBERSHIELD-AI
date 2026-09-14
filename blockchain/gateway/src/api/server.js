@@ -3,6 +3,7 @@
 require('dotenv').config();
 const express = require('express');
 const GeoIntelligenceService = require('../services/geo-intelligence-service');
+const PredictionAuditService = require('../services/prediction-audit-service');
 const createRouter = require('./routes');
 const { GatewayError } = require('../utils/errors');
 
@@ -10,6 +11,7 @@ const app = express();
 app.use(express.json());
 
 const geoService = new GeoIntelligenceService('I4C');
+const auditService = new PredictionAuditService('I4C', 'LEA');
 
 // Root process health check
 app.get('/health', (req, res) => {
@@ -21,12 +23,13 @@ app.get('/health', (req, res) => {
 });
 
 // Mount routes
-const gatewayRouter = createRouter(geoService);
+const gatewayRouter = createRouter(geoService, auditService);
 app.use('/api/v1/gateway', gatewayRouter);
 app.use('/api/v1', gatewayRouter);
 
 // Centralized error handling
 app.use((err, req, res, next) => {
+    console.error('[Gateway Error]', err);
     const statusCode = err.statusCode || 500;
     const code = err.code || 'INTERNAL_SERVER_ERROR';
 
@@ -52,6 +55,7 @@ if (require.main === module) {
     const shutdown = async () => {
         console.log('[CyberShield Fabric Gateway] Shutting down...');
         await geoService.closeAll();
+        await auditService.closeAll();
         if (server) {
             server.close(() => process.exit(0));
         } else {
@@ -65,5 +69,6 @@ if (require.main === module) {
 
 module.exports = {
     app,
-    geoService
+    geoService,
+    auditService
 };

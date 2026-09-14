@@ -240,4 +240,72 @@ describe('CyberShield Fabric Gateway Test Suite', () => {
             expect(res.body.history).to.have.length(2);
         });
     });
+
+    describe('6. Prediction Audit API Routes', () => {
+        let app;
+        let mockGeoService;
+        let mockAuditService;
+
+        beforeEach(() => {
+            mockGeoService = sinon.stub();
+            mockAuditService = {
+                anchorPrediction: sinon.stub(),
+                getPredictionAnchor: sinon.stub(),
+                verifyPredictionHash: sinon.stub(),
+                verifyPersistedPrediction: sinon.stub(),
+                getAnchorHistory: sinon.stub()
+            };
+            app = express();
+            app.use(express.json());
+            const router = createRouter(mockGeoService, mockAuditService);
+            app.use('/api/v1', router);
+        });
+
+        it('POST /api/v1/prediction-audit/anchor should anchor prediction successfully', async () => {
+            mockAuditService.anchorPrediction.resolves({
+                success: true,
+                txId: 'tx-anchor-1',
+                status: 'COMMITTED',
+                prediction_id: 101,
+                prediction_hash: 'abc123hash'
+            });
+
+            const res = await request(app)
+                .post('/api/v1/prediction-audit/anchor')
+                .send({ prediction_id: 101 });
+
+            expect(res.status).to.equal(200);
+            expect(res.body.success).to.equal(true);
+            expect(res.body.prediction_id).to.equal(101);
+            expect(res.body.status).to.equal('COMMITTED');
+        });
+
+        it('GET /api/v1/prediction-audit/:predictionId should retrieve anchor', async () => {
+            mockAuditService.getPredictionAnchor.withArgs('101').resolves({
+                prediction_id: 101,
+                prediction_hash: 'abc123hash',
+                status: 'ANCHORED'
+            });
+
+            const res = await request(app).get('/api/v1/prediction-audit/101');
+            expect(res.status).to.equal(200);
+            expect(res.body.anchor.prediction_id).to.equal(101);
+        });
+
+        it('POST /api/v1/prediction-audit/:predictionId/verify-hash should verify candidate hash', async () => {
+            mockAuditService.verifyPredictionHash.withArgs('101', 'candidate123').resolves({
+                prediction_id: 101,
+                verified: true,
+                status: 'VERIFIED'
+            });
+
+            const res = await request(app)
+                .post('/api/v1/prediction-audit/101/verify-hash')
+                .send({ candidate_hash: 'candidate123' });
+
+            expect(res.status).to.equal(200);
+            expect(res.body.verified).to.equal(true);
+            expect(res.body.status).to.equal('VERIFIED');
+        });
+    });
 });

@@ -28,6 +28,10 @@ function resolveKeyFile(keystoreDir) {
 const NETWORK_DIR = resolveNetworkDir();
 const PEER_ORGS_DIR = path.join(NETWORK_DIR, 'organizations', 'peerOrganizations');
 
+function resolvePeerHost() {
+    return process.env.FABRIC_PEER_HOST || '127.0.0.1';
+}
+
 const ORGANIZATIONS = {
     BankA: {
         orgName: 'BankA',
@@ -36,7 +40,7 @@ const ORGANIZATIONS = {
         peerHostAlias: 'peer0.banka.cybershield.net',
         defaultPort: 7051,
         get peerEndpoint() {
-            return process.env.BANKA_PEER_ENDPOINT || `localhost:${this.defaultPort}`;
+            return process.env.BANKA_PEER_ENDPOINT || `${resolvePeerHost()}:${this.defaultPort}`;
         },
         get tlsCaCertPath() {
             return path.join(PEER_ORGS_DIR, this.domain, 'peers', this.peerHostAlias, 'tls', 'ca.crt');
@@ -64,7 +68,7 @@ const ORGANIZATIONS = {
         peerHostAlias: 'peer0.bankb.cybershield.net',
         defaultPort: 8051,
         get peerEndpoint() {
-            return process.env.BANKB_PEER_ENDPOINT || `localhost:${this.defaultPort}`;
+            return process.env.BANKB_PEER_ENDPOINT || `${resolvePeerHost()}:${this.defaultPort}`;
         },
         get tlsCaCertPath() {
             return path.join(PEER_ORGS_DIR, this.domain, 'peers', this.peerHostAlias, 'tls', 'ca.crt');
@@ -89,7 +93,7 @@ const ORGANIZATIONS = {
         peerHostAlias: 'peer0.bankc.cybershield.net',
         defaultPort: 9051,
         get peerEndpoint() {
-            return process.env.BANKC_PEER_ENDPOINT || `localhost:${this.defaultPort}`;
+            return process.env.BANKC_PEER_ENDPOINT || `${resolvePeerHost()}:${this.defaultPort}`;
         },
         get tlsCaCertPath() {
             return path.join(PEER_ORGS_DIR, this.domain, 'peers', this.peerHostAlias, 'tls', 'ca.crt');
@@ -114,7 +118,7 @@ const ORGANIZATIONS = {
         peerHostAlias: 'peer0.i4c.cybershield.net',
         defaultPort: 10051,
         get peerEndpoint() {
-            return process.env.I4C_PEER_ENDPOINT || `localhost:${this.defaultPort}`;
+            return process.env.I4C_PEER_ENDPOINT || `${resolvePeerHost()}:${this.defaultPort}`;
         },
         get tlsCaCertPath() {
             return path.join(PEER_ORGS_DIR, this.domain, 'peers', this.peerHostAlias, 'tls', 'ca.crt');
@@ -139,7 +143,7 @@ const ORGANIZATIONS = {
         peerHostAlias: 'peer0.lea.cybershield.net',
         defaultPort: 11051,
         get peerEndpoint() {
-            return process.env.LEA_PEER_ENDPOINT || `localhost:${this.defaultPort}`;
+            return process.env.LEA_PEER_ENDPOINT || `${resolvePeerHost()}:${this.defaultPort}`;
         },
         get tlsCaCertPath() {
             return path.join(PEER_ORGS_DIR, this.domain, 'peers', this.peerHostAlias, 'tls', 'ca.crt');

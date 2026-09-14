@@ -234,6 +234,45 @@ class PredictionPersistenceService:
                 f"[Persistence] Successfully persisted Prediction #{prediction.id} with "
                 f"3 Top-Locations for complaint {complaint.complaint_number}"
             )
+
+            # Phase B.5: Additive Non-Blocking Blockchain Prediction Audit Anchoring
+            # Executed only AFTER successful database persistence commit
+            try:
+                from backend.app.services.prediction_audit_service import prediction_audit_client
+                audit_dict = {
+                    "prediction_id": prediction.id,
+                    "complaint_number": complaint.complaint_number,
+                    "complaint_id": complaint.id,
+                    "prediction_mode": prediction.prediction_mode,
+                    "model_version": prediction.model_version,
+                    "time_model_version": prediction.time_model_version,
+                    "created_at": prediction.created_at,
+                    "predicted_window_start": prediction.predicted_window_start,
+                    "predicted_window_end": prediction.predicted_window_end,
+                    "window_label": prediction.window_label,
+                    "top_locations": [
+                        {
+                            "rank": loc.rank,
+                            "cluster_id": loc.cluster_id,
+                            "probability": loc.probability,
+                            "location_name": loc.location_name
+                        }
+                        for loc in sorted(prediction.locations, key=lambda x: x.rank)
+                    ]
+                }
+                anchor_res = prediction_audit_client.anchor_prediction_safe(audit_dict)
+                # Store truthful anchor status in result_metadata without changing schema
+                current_meta = dict(prediction.result_metadata or {})
+                current_meta["audit_anchor"] = anchor_res
+                prediction.result_metadata = current_meta
+                db.commit()
+                db.refresh(prediction)
+            except Exception as anchor_exc:
+                logger.warning(
+                    f"[Persistence] Prediction #{prediction.id} persisted, but audit anchor attempt encountered error: {anchor_exc}. "
+                    f"Prediction remains fully valid (non-blocking failure isolation)."
+                )
+
             return prediction
 
         except Exception as exc:

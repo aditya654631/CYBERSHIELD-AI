@@ -2,7 +2,7 @@
 
 const express = require('express');
 
-function createRouter(geoService) {
+function createRouter(geoService, auditService = null) {
     const router = express.Router();
 
     // Health endpoint (Fabric-verified)
@@ -103,6 +103,95 @@ function createRouter(geoService) {
             res.json({
                 success: true,
                 signal
+            });
+        } catch (err) {
+            next(err);
+        }
+    });
+
+    // =========================================================================
+    // PREDICTION AUDIT ENDPOINTS
+    // =========================================================================
+
+    // Anchor a prediction
+    router.post('/prediction-audit/anchor', async (req, res, next) => {
+        try {
+            if (!auditService) {
+                return res.status(501).json({ success: false, error: 'Prediction audit service not configured' });
+            }
+            const result = await auditService.anchorPrediction(req.body);
+            res.json({
+                success: true,
+                ...result
+            });
+        } catch (err) {
+            next(err);
+        }
+    });
+
+    // Get anchor by prediction ID
+    router.get('/prediction-audit/:predictionId', async (req, res, next) => {
+        try {
+            if (!auditService) {
+                return res.status(501).json({ success: false, error: 'Prediction audit service not configured' });
+            }
+            const { predictionId } = req.params;
+            const anchor = await auditService.getPredictionAnchor(predictionId);
+            res.json({
+                success: true,
+                anchor
+            });
+        } catch (err) {
+            next(err);
+        }
+    });
+
+    // Verify a candidate hash against ledger
+    router.post('/prediction-audit/:predictionId/verify-hash', async (req, res, next) => {
+        try {
+            if (!auditService) {
+                return res.status(501).json({ success: false, error: 'Prediction audit service not configured' });
+            }
+            const { predictionId } = req.params;
+            const { candidate_hash } = req.body;
+            const verification = await auditService.verifyPredictionHash(predictionId, candidate_hash);
+            res.json({
+                success: true,
+                ...verification
+            });
+        } catch (err) {
+            next(err);
+        }
+    });
+
+    // Full verification from raw prediction data
+    router.post('/prediction-audit/verify-prediction', async (req, res, next) => {
+        try {
+            if (!auditService) {
+                return res.status(501).json({ success: false, error: 'Prediction audit service not configured' });
+            }
+            const verification = await auditService.verifyPersistedPrediction(req.body);
+            res.json({
+                success: true,
+                ...verification
+            });
+        } catch (err) {
+            next(err);
+        }
+    });
+
+    // History for prediction anchor
+    router.get('/prediction-audit/:predictionId/history', async (req, res, next) => {
+        try {
+            if (!auditService) {
+                return res.status(501).json({ success: false, error: 'Prediction audit service not configured' });
+            }
+            const { predictionId } = req.params;
+            const history = await auditService.getAnchorHistory(predictionId);
+            res.json({
+                success: true,
+                prediction_id: Number(predictionId),
+                history
             });
         } catch (err) {
             next(err);
