@@ -139,7 +139,7 @@ def test_positive_and_negative_contributions(db, sample_v7_prediction):
 
 
 def test_fidelity_calculation_and_low_fidelity_behavior(db, sample_v7_prediction):
-    """4. Verify local fidelity R^2, local prediction, absolute error, and LOW_FIDELITY flagging."""
+    """4. Verify local fidelity R^2, local prediction, absolute error, and conservative LOW_FIDELITY flagging."""
     res = prediction_explainability_service.get_or_generate_explanation(db, sample_v7_prediction.id)
     top3 = res["top3_explanations"]
 
@@ -147,16 +147,17 @@ def test_fidelity_calculation_and_low_fidelity_behavior(db, sample_v7_prediction
         assert "lime_local_prediction" in cand_exp
         assert "absolute_approximation_error" in cand_exp
         assert "local_fidelity_r2" in cand_exp
-        assert cand_exp["fidelity_status"] in ("HIGH_FIDELITY", "LOW_FIDELITY")
+        assert cand_exp["fidelity_status"] in ("HIGH_FIDELITY", "MODERATE_FIDELITY", "LOW_FIDELITY")
 
         calc_err = abs(cand_exp["official_score"] - cand_exp["lime_local_prediction"])
         assert abs(calc_err - cand_exp["absolute_approximation_error"]) < 1e-3
 
-    # Test forced low fidelity trigger logic directly
-    dummy_low_fid = copy.deepcopy(top3[0])
-    dummy_low_fid["local_fidelity_r2"] = 0.01  # below 0.05
-    status = "HIGH_FIDELITY" if (dummy_low_fid["local_fidelity_r2"] >= 0.05 and dummy_low_fid["absolute_approximation_error"] <= 0.15) else "LOW_FIDELITY"
-    assert status == "LOW_FIDELITY"
+    # Test conservative classification thresholds directly
+    assert prediction_explainability_service.classify_fidelity(0.75, 0.05) == "HIGH_FIDELITY"
+    assert prediction_explainability_service.classify_fidelity(0.55, 0.10) == "MODERATE_FIDELITY"
+    assert prediction_explainability_service.classify_fidelity(0.20, 0.01) == "LOW_FIDELITY"
+    assert prediction_explainability_service.classify_fidelity(0.80, 0.30) == "LOW_FIDELITY"  # high error diagnostic degrades
+
 
 
 def test_deterministic_repeat(db, sample_v7_prediction):

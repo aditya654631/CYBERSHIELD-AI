@@ -179,6 +179,59 @@ class PredictionExplainabilityService:
             logger.exception("Error extracting candidate features for complaint %s: %s", complaint.complaint_number, e)
             return None, None, str(e)
 
+    @staticmethod
+    def classify_fidelity(r2_score: float, abs_error: float) -> str:
+        """
+        Conservative fidelity classification for local surrogate LIME explanations:
+        - R² >= 0.70 (and |err| <= 0.15): HIGH_FIDELITY
+        - 0.40 <= R² < 0.70 (and |err| <= 0.25): MODERATE_FIDELITY
+        - R² < 0.40 or |err| > 0.25: LOW_FIDELITY
+
+        Absolute approximation error is retained as a separate diagnostic.
+        """
+        if r2_score >= 0.70 and abs_error <= 0.15:
+            return "HIGH_FIDELITY"
+        elif r2_score >= 0.40 and abs_error <= 0.25:
+            return "MODERATE_FIDELITY"
+        else:
+            return "LOW_FIDELITY"
+
+    def _apply_conservative_fidelity_classification(self, exp_payload: Dict[str, Any]) -> None:
+        """Applies conservative fidelity rules across candidate and overall levels."""
+        top3 = exp_payload.get("top3_explanations", [])
+        if not top3:
+            return
+
+        any_low = False
+        any_mod = False
+        r2_vals = []
+        for cand in top3:
+            r2 = float(cand.get("local_fidelity_r2", 0.0) or 0.0)
+            err = float(cand.get("absolute_approximation_error", 0.0) or 0.0)
+            status = self.classify_fidelity(r2, err)
+            cand["fidelity_status"] = status
+            r2_vals.append(r2)
+            if status == "LOW_FIDELITY":
+                any_low = True
+            elif status == "MODERATE_FIDELITY":
+                any_mod = True
+
+        mean_r2 = float(np.mean(r2_vals)) if r2_vals else 0.0
+        exp_payload["mean_local_fidelity_r2"] = round(mean_r2, 4)
+
+        if any_low or mean_r2 < 0.40:
+            overall = "LOW_FIDELITY"
+            exp_status = "LOW_FIDELITY"
+        elif any_mod or mean_r2 < 0.70:
+            overall = "MODERATE_FIDELITY"
+            exp_status = "AVAILABLE"
+        else:
+            overall = "HIGH_FIDELITY"
+            exp_status = "AVAILABLE"
+
+        exp_payload["overall_fidelity_status"] = overall
+        exp_payload["explanation_status"] = exp_status
+
     def explain_candidate(
         self,
         candidate_vector: np.ndarray,
@@ -220,8 +273,8 @@ class PredictionExplainabilityService:
         r2_score = float(exp.score) if exp.score is not None and not np.isnan(exp.score) else 0.0
         abs_error = abs(float(official_score) - local_pred)
 
-        # Fidelity check
-        fidelity_status = "HIGH_FIDELITY" if (r2_score >= 0.05 and abs_error <= 0.15) else "LOW_FIDELITY"
+        # Conservative fidelity check
+        fidelity_status = self.classify_fidelity(r2_score, abs_error)
 
         pos_contribs = []
         neg_contribs = []
@@ -316,6 +369,14 @@ class PredictionExplainabilityService:
         # Check existing result_metadata cache
         cached_exp = (prediction.result_metadata or {}).get("explainability") if prediction.result_metadata else None
         if isinstance(cached_exp, dict) and cached_exp.get("explanation_status") in ("AVAILABLE", "LOW_FIDELITY"):
+            self._apply_conservative_fidelity_classification(cached_exp)
+            try:
+                current_meta = dict(prediction.result_metadata or {})
+                current_meta["explainability"] = cached_exp
+                prediction.result_metadata = current_meta
+                db.commit()
+            except Exception:
+                db.rollback()
             return cached_exp
 
         # Check model applicability
@@ -326,6 +387,7 @@ class PredictionExplainabilityService:
                 "complaint_number": c_num,
                 "prediction_mode": prediction.prediction_mode,
                 "model_version": prediction.model_version,
+                "location_model_version": prediction.model_version,
                 "message": f"LIME tabular explanation is only calibrated for official cashout-location-xgb-v7-compat. Active model is {prediction.model_version}."
             }
 
@@ -337,6 +399,7 @@ class PredictionExplainabilityService:
                 "complaint_number": c_num,
                 "prediction_mode": prediction.prediction_mode,
                 "model_version": prediction.model_version,
+                "location_model_version": prediction.model_version,
                 "message": f"LIME explainer engine unavailable: {self._init_error}"
             }
 
@@ -354,6 +417,7 @@ class PredictionExplainabilityService:
                 "complaint_number": c_num,
                 "prediction_mode": prediction.prediction_mode,
                 "model_version": prediction.model_version,
+                "location_model_version": prediction.model_version,
                 "message": "Persisted official prediction has fewer than 3 locations."
             }
 
@@ -369,11 +433,11 @@ class PredictionExplainabilityService:
                     "complaint_number": c_num,
                     "prediction_mode": prediction.prediction_mode,
                     "model_version": prediction.model_version,
+                    "location_model_version": prediction.model_version,
                     "message": f"Could not construct candidate feature vector: {err}"
                 }
 
             top3_exps = []
-            any_low_fidelity = False
 
             for loc in top3_locs:
                 cid = int(loc.cluster_id)
@@ -384,6 +448,7 @@ class PredictionExplainabilityService:
                         "complaint_number": c_num,
                         "prediction_mode": prediction.prediction_mode,
                         "model_version": prediction.model_version,
+                        "location_model_version": prediction.model_version,
                         "message": f"Cluster ID {cid} (Rank {loc.rank}) not found in generated candidate pool."
                     }
 
@@ -398,13 +463,6 @@ class PredictionExplainabilityService:
                     num_samples=1000
                 )
                 top3_exps.append(cand_exp)
-                if cand_exp.get("fidelity_status") == "LOW_FIDELITY":
-                    any_low_fidelity = True
-
-            overall_fidelity_status = "LOW_FIDELITY" if any_low_fidelity else "HIGH_FIDELITY"
-            explanation_status = "LOW_FIDELITY" if any_low_fidelity else "AVAILABLE"
-
-            mean_r2 = float(np.mean([e["local_fidelity_r2"] for e in top3_exps]))
 
             # Format backward-compatible factors from Rank 1
             rank1_exp = top3_exps[0]
@@ -419,14 +477,8 @@ class PredictionExplainabilityService:
                     "description": c["description"]
                 })
 
-            narrative = (
-                f"Prediction #{prediction.id} explained via {self.explainer_version} (LIME tabular). "
-                f"Factors that contributed to candidate rankings include base model score, corridor proximity, "
-                f"and historical cluster priors. Local approximation fidelity R² = {mean_r2:.4f} ({overall_fidelity_status})."
-            )
-
             response_payload = {
-                "explanation_status": explanation_status,
+                "explanation_status": "AVAILABLE",
                 "prediction_id": prediction.id,
                 "complaint_number": c_num,
                 "prediction_mode": prediction.prediction_mode,
@@ -436,18 +488,28 @@ class PredictionExplainabilityService:
                 "explainer_version": self.explainer_version,
                 "feature_schema_version": self.feature_schema_version,
                 "generated_at": datetime.now(timezone.utc).isoformat(),
-                "overall_fidelity_status": overall_fidelity_status,
-                "mean_local_fidelity_r2": round(mean_r2, 4),
+                "overall_fidelity_status": "LOW_FIDELITY",
+                "mean_local_fidelity_r2": 0.0,
                 "background_sample_size": int(self.background_metadata.get("background_sample_size", 500)),
                 "background_seed": int(self.background_metadata.get("seed", 56100)),
                 "top3_explanations": top3_exps,
                 "factors": compat_factors,
-                "narrative": narrative,
+                "narrative": "",
                 "disclaimer": (
                     "LIME provides local surrogate linear explanations of model decisions for risk prioritization. "
                     "This is an algorithmic approximation, not proof or causal evidence of criminal activity."
                 )
             }
+
+            self._apply_conservative_fidelity_classification(response_payload)
+
+            mean_r2 = response_payload["mean_local_fidelity_r2"]
+            overall_status = response_payload["overall_fidelity_status"]
+            response_payload["narrative"] = (
+                f"Prediction #{prediction.id} explained via {self.explainer_version} (LIME tabular). "
+                f"Factors that contributed to candidate rankings include base model score, corridor proximity, "
+                f"and historical cluster priors. Local approximation fidelity R² = {mean_r2:.4f} ({overall_status})."
+            )
 
             # Safely cache into result_metadata without creating new rows or altering audit hash contract
             try:
