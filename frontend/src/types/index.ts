@@ -216,7 +216,7 @@ export interface PredictionAuditVerification {
 export interface CytoscapeNodeData {
   id: string;
   label: string;
-  node_type: 'victim' | 'account' | 'mule' | 'atm' | 'cluster' | 'bank';
+  node_type: 'victim' | 'account' | 'mule' | 'atm' | 'cluster' | 'bank' | 'intermediary' | 'sink';
   masked_id: string;
   bank: string;
   risk_score: number;
@@ -225,6 +225,13 @@ export interface CytoscapeNodeData {
   connections_count: number;
   previous_complaints: number;
   is_hotspot: boolean;
+  is_source?: boolean;
+  is_sink?: boolean;
+  is_intermediary?: boolean;
+  risk_band?: string;
+  display_label?: string;
+  hop_level?: number;
+  pattern_flags?: Record<string, any>;
 }
 
 export interface CytoscapeEdgeData {
@@ -235,6 +242,12 @@ export interface CytoscapeEdgeData {
   channel: string;
   hop: number;
   is_suspicious: boolean;
+  label?: string;
+  timestamp?: string;
+  reference?: string;
+  total_amount?: number;
+  transaction_count?: number;
+  pattern_flags?: Record<string, any>;
 }
 
 export interface GraphData {

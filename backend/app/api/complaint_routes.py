@@ -6,7 +6,8 @@ from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from backend.app.models.db import get_db
 from backend.app.models.models import Complaint, Account, Transaction, ComplaintAccount, User, Prediction, Alert
-from backend.app.schemas.schemas import ComplaintCreate, ComplaintResponse
+from backend.app.schemas.schemas import ComplaintCreate, ComplaintResponse, GraphDataResponse
+from backend.app.services.graph_service import build_complaint_graph
 from backend.app.auth.security import get_current_user
 from backend.app.services.audit_service import log_audit
 from backend.app.services.scenario_linking_service import (
@@ -469,3 +470,15 @@ def get_complaint(id: str, db: Session = Depends(get_db)):
 
     _enrich_complaint_response(db, complaint)
     return complaint
+
+@router.get("/{id}/graph", response_model=GraphDataResponse)
+def get_complaint_graph(id: str, db: Session = Depends(get_db)):
+    if id.isdigit():
+        complaint = db.query(Complaint).filter(Complaint.id == int(id)).first()
+    else:
+        complaint = db.query(Complaint).filter(Complaint.complaint_number == id).first()
+
+    if not complaint:
+        raise HTTPException(status_code=404, detail="Complaint not found")
+
+    return build_complaint_graph(db, complaint.id)

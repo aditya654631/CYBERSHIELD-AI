@@ -207,6 +207,9 @@ class CytoscapeEdgeData(BaseModel):
     min_hop: Optional[int] = None
     max_hop: Optional[int] = None
     pattern_flags: Optional[Dict[str, Any]] = None
+    timestamp: Optional[str] = None
+    reference: Optional[str] = None
+    label: Optional[str] = None
 
     class Config:
         from_attributes = True

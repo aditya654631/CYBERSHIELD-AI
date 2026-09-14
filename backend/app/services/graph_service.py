@@ -1,22 +1,27 @@
 """
 CyberShield AI — Dynamic NetworkX Transaction Graph Service
-Phase 1 Step 7: Fully Dynamic NetworkX Transaction Graph
+Phase 1 Step 7: Fully Dynamic NetworkX Transaction Graph (Enhanced Multi-Hop & Cash-Out Pipeline)
 
 Computes data-driven topological, flow, branching, centrality, and pattern metrics
 directly from the Step-6 Transaction Context Resolver without hardcoded values,
 without database writes, and with zero target-label leakage.
 
-Thresholds:
-- Centralized prototype-configurable analytical heuristic thresholds (NOT learned/guilt-determining).
+Features:
+- Case-Scoped Recursive Traversal: Traverses up to MAX_HOPS=3 strictly attributable
+  to the complaint/scenario context without cross-case bleed.
+- Attributed Terminal Cash-Out Nodes: Persisted Withdrawal records on recipient accounts
+  render privacy-safe ATM endpoints with zero account PII leakage.
+- Independent from ML prediction pipeline and model weights.
 """
 
 import collections
+import datetime
 import statistics
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Set, Tuple
 import networkx as nx
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from backend.app.models.models import Complaint, Transaction, Account, ComplaintAccount
+from backend.app.models.models import Complaint, Transaction, Account, ComplaintAccount, Withdrawal, ATMLocation
 from backend.app.services.transaction_context_service import resolve_transaction_context
 
 # ==============================================================================
@@ -29,11 +34,13 @@ HIGH_BRANCHING_OUT_DEGREE = 3
 HIGH_VALUE_FLOW_THRESHOLD = 100000.0         # INR 100,000
 MULTI_HOP_THRESHOLD = 3
 HIGH_CENTRALITY_THRESHOLD = 0.20
+MAX_RECURSIVE_HOPS = 3
 
 
 def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
     """
-    Builds a fully data-driven NetworkX directed transaction graph from Step-6 context.
+    Builds a fully data-driven NetworkX directed transaction graph from Step-6 context
+    with case-scoped recursive multi-hop traversal and attributed cash-out endpoints.
 
     Returns Cytoscape-compatible structure:
         - nodes: List[CytoscapeNode]
@@ -45,23 +52,93 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         return _empty_graph_response()
 
     context = resolve_transaction_context(db, complaint)
-    transactions: List[Transaction] = context["transactions"]
+    seed_transactions: List[Transaction] = list(context.get("transactions") or [])
 
-    if not transactions:
+    if not seed_transactions:
+        # Fallback to direct complaint transactions if unlinked but present
+        seed_transactions = db.query(Transaction).filter(
+            Transaction.complaint_id == complaint.id
+        ).order_by(Transaction.timestamp.asc(), Transaction.id.asc()).all()
+
+    if not seed_transactions:
         return _empty_graph_response()
 
-    # Total amount = sum of unique constituent transactions in context (no double counting)
+    # --------------------------------------------------------------------------
+    # 1. CASE-SCOPED RECURSIVE TRAVERSAL
+    # Scoping Rule:
+    # 1. Target Case Boundaries: complaint.id and any linked scenario ID from context.
+    # 2. Associated Accounts: Accounts linked via ComplaintAccount for this case.
+    # 3. Frontier Expansion: For each hop up to MAX_RECURSIVE_HOPS=3, follow outgoing transactions
+    #    from recipient accounts ONLY if:
+    #      (a) Transaction.complaint_id in target_complaint_ids, OR
+    #      (b) Sender in frontier AND Receiver in complaint_accounts AND
+    #          timestamp is within active incident timeframe [incident_time, reported_at + 2 days].
+    #    Transactions from unrelated complaints/cases are strictly excluded.
+    # --------------------------------------------------------------------------
+    target_complaint_ids: Set[int] = {complaint.id}
+    if context.get("source_scenario"):
+        scen = db.query(Complaint).filter(Complaint.complaint_number == context["source_scenario"]).first()
+        if scen:
+            target_complaint_ids.add(scen.id)
+
+    cas = db.query(ComplaintAccount).filter(ComplaintAccount.complaint_id == complaint.id).all()
+    complaint_account_ids: Set[int] = {ca.account_id for ca in cas}
+    complaint_victim_ids: Set[int] = {ca.account_id for ca in cas if ca.association_type in ["VICTIM", "SOURCE"]}
+
+    incident_cutoff = complaint.incident_time or complaint.reported_at
+    reported_cutoff = complaint.reported_at or datetime.datetime.utcnow()
+    window_end = (reported_cutoff + datetime.timedelta(days=2)) if reported_cutoff else None
+
+    all_transactions: List[Transaction] = list(seed_transactions)
+    visited_tx_ids: Set[int] = {tx.id for tx in seed_transactions}
+    current_hop_txs: List[Transaction] = list(seed_transactions)
+
+    for _ in range(2, MAX_RECURSIVE_HOPS + 1):
+        frontier_account_ids = {
+            tx.receiver_account_id for tx in current_hop_txs
+            if tx.receiver_account_id is not None
+        }
+        # Avoid looping back through victim/source accounts
+        frontier_account_ids = frontier_account_ids - complaint_victim_ids
+        if not frontier_account_ids:
+            break
+
+        candidate_outgoing = db.query(Transaction).filter(
+            Transaction.sender_account_id.in_(frontier_account_ids),
+            ~Transaction.id.in_(visited_tx_ids)
+        ).order_by(Transaction.timestamp.asc(), Transaction.id.asc()).all()
+
+        valid_next_txs = []
+        for ctx in candidate_outgoing:
+            is_attributable = False
+            if ctx.complaint_id in target_complaint_ids:
+                is_attributable = True
+            elif ctx.receiver_account_id in complaint_account_ids:
+                if incident_cutoff and window_end and incident_cutoff <= ctx.timestamp <= window_end:
+                    is_attributable = True
+
+            if is_attributable:
+                valid_next_txs.append(ctx)
+                visited_tx_ids.add(ctx.id)
+
+        if not valid_next_txs:
+            break
+
+        all_transactions.extend(valid_next_txs)
+        current_hop_txs = valid_next_txs
+
+    transactions = all_transactions
     total_amount = float(sum(tx.amount for tx in transactions))
 
     # Pre-fetch accounts for all senders and receivers
-    account_ids = set()
+    account_ids: Set[int] = set()
     for tx in transactions:
         account_ids.add(tx.sender_account_id)
         account_ids.add(tx.receiver_account_id)
 
     accounts = {acc.id: acc for acc in db.query(Account).filter(Account.id.in_(account_ids)).all()} if account_ids else {}
 
-    # Build NetworkX directed graph: one account = one node
+    # Build NetworkX directed graph for account nodes
     G = nx.DiGraph()
     for acc_id in accounts.keys():
         G.add_node(str(acc_id))
@@ -75,9 +152,7 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         pair_amount = float(sum(t.amount for t in tx_list))
         G.add_edge(u, v, weight=pair_amount, transactions=tx_list)
 
-    # 1. Source / Root Identification
-    # First prefer ComplaintAccount role indicating VICTIM or SOURCE
-    cas = db.query(ComplaintAccount).filter(ComplaintAccount.complaint_id == complaint.id).all()
+    # 2. Source / Root Identification
     victim_acc_ids = {str(ca.account_id) for ca in cas if ca.association_type in ["VICTIM", "SOURCE"] and str(ca.account_id) in G}
 
     if victim_acc_ids:
@@ -92,7 +167,7 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
             sources = sorted(list(G.nodes()))
             source_id_method = "ALL_NODES"
 
-    # 2. Structural Hop Distance (Shortest path from all valid source roots)
+    # 3. Structural Hop Distance (Shortest path from valid source roots)
     node_hop = {}
     for n in G.nodes():
         if n in sources:
@@ -112,7 +187,7 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         if expected_hop != tx.hop_number:
             hop_mismatches += 1
 
-    # 3. Flow and Transaction Grouping per Node
+    # 4. Flow and Transaction Grouping per Node
     node_incoming_amount = collections.defaultdict(float)
     node_outgoing_amount = collections.defaultdict(float)
     node_incoming_txs = collections.defaultdict(list)
@@ -124,7 +199,7 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         node_incoming_txs[str(tx.receiver_account_id)].append(tx)
         node_outgoing_txs[str(tx.sender_account_id)].append(tx)
 
-    # 4. Centrality Metrics (Computed genuine NetworkX metrics)
+    # 5. Centrality Metrics
     degree_centrality = nx.degree_centrality(G) if len(G) > 0 else {}
     betweenness_centrality = nx.betweenness_centrality(G) if len(G) > 0 else {}
     try:
@@ -132,22 +207,55 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
     except Exception:
         pagerank = {n: 0.0 for n in G.nodes()}
 
-    # 5. Temporal-Safe Previous Complaints Calculation
-    # Strictly count only complaints reported BEFORE current complaint cutoff
-    cutoff_time = complaint.reported_at or complaint.incident_time
+    # 6. Temporal-Safe Previous Complaints Calculation
     prev_complaints_map = collections.defaultdict(int)
-    if cutoff_time and account_ids:
+    if incident_cutoff and account_ids:
         rows = db.query(ComplaintAccount.account_id, func.count(Complaint.id)).join(
             Complaint, ComplaintAccount.complaint_id == Complaint.id
         ).filter(
             ComplaintAccount.account_id.in_(account_ids),
             Complaint.id != complaint.id,
-            Complaint.reported_at < cutoff_time
+            Complaint.reported_at < incident_cutoff
         ).group_by(ComplaintAccount.account_id).all()
         for aid, cnt in rows:
             prev_complaints_map[str(aid)] = cnt
 
-    # 6. Node-Level and Graph-Level Pattern Analysis
+    # 7. WITHDRAWAL ATTRIBUTION & CASH-OUT ENDPOINT RESOLUTION
+    # A cash-out endpoint is attributed to the complaint trail ONLY if:
+    # 1. Account Scope: Account received funds in the case-scoped transaction graph.
+    # 2. Causality: Withdrawal occurred at or after the incoming transaction credit.
+    # 3. Temporal Window: Withdrawal occurred within 72 hours of receiving funds.
+    # 4. Proportionality: Cumulative withdrawals <= total received funds * 1.05.
+    # Unrelated historical withdrawals outside this window/scope are strictly excluded.
+    non_source_acc_ids = [aid for aid in account_ids if str(aid) not in sources]
+    attributed_withdrawals: List[Withdrawal] = []
+    if non_source_acc_ids:
+        candidate_wdls = db.query(Withdrawal).filter(
+            Withdrawal.account_id.in_(non_source_acc_ids)
+        ).order_by(Withdrawal.timestamp.asc()).all()
+
+        for aid in non_source_acc_ids:
+            in_txs = [t for t in transactions if t.receiver_account_id == aid]
+            if not in_txs:
+                continue
+            amt_in = sum(float(t.amount) for t in in_txs)
+            min_in_time = min(t.timestamp for t in in_txs)
+            max_in_time = max(t.timestamp for t in in_txs)
+            max_window = max_in_time + datetime.timedelta(hours=72)
+
+            cumulative_wd = 0.0
+            for w in candidate_wdls:
+                if w.account_id != aid:
+                    continue
+                if w.timestamp < min_in_time or w.timestamp > max_window:
+                    continue
+                w_amt = float(w.amount)
+                if cumulative_wd + w_amt > (amt_in * 1.05) and cumulative_wd > 0:
+                    continue
+                cumulative_wd += w_amt
+                attributed_withdrawals.append(w)
+
+    # 8. Node-Level and Graph-Level Pattern Analysis
     graph_has_rapid_pass_through = False
     graph_has_rapid_fan_out = False
     intermediary_count = 0
@@ -186,7 +294,6 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
                         pass_through_delays.append((out_tx.timestamp - in_tx.timestamp).total_seconds())
 
         min_pass_through_sec = min(pass_through_delays) if pass_through_delays else None
-        median_pass_through_sec = statistics.median(pass_through_delays) if pass_through_delays else None
         node_rapid_pass_through = bool(min_pass_through_sec is not None and min_pass_through_sec <= RAPID_PASS_THROUGH_THRESHOLD_SECONDS)
         if node_rapid_pass_through:
             graph_has_rapid_pass_through = True
@@ -211,14 +318,24 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
             "central_intermediary": bool(is_intermediary and betweenness_centrality.get(node_id, 0.0) >= HIGH_CENTRALITY_THRESHOLD)
         }
 
+        # If node satisfies high-risk mule indicator heuristics, classify clearly
+        is_mule_candidate = bool(
+            not is_source and (
+                node_rapid_pass_through or
+                node_rapid_fan_out or
+                node_flags["central_intermediary"] or
+                (acc and float(acc.risk_score or 0.0) >= 0.70)
+            )
+        )
+        final_node_type = "mule" if (is_mule_candidate and is_sink) else node_type
+
         nodes_list.append({
             "data": {
                 "id": str(node_id),
                 "label": acc.holder_name if acc else f"Account {node_id}",
-                "node_type": node_type,
+                "node_type": final_node_type,
                 "masked_id": acc.masked_account if acc else f"ACC••••{str(node_id)[-4:]}",
                 "bank": acc.bank_name if acc else "Unknown Bank",
-                # account.risk_score exposed strictly for stored UI display, NOT used for graph intelligence
                 "risk_score": float(acc.risk_score or 0.0) if acc else 0.0,
                 "amount_received": amt_rec,
                 "amount_sent": amt_sent,
@@ -238,7 +355,7 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
             }
         })
 
-    # 7. Edge List (Deterministic sorting by first_timestamp asc then id asc)
+    # 9. Edge List (Deterministic sorting by first_timestamp asc then id asc)
     edges_list = []
     for (u, v), tx_list in edge_tx_map.items():
         sorted_txs = sorted(tx_list, key=lambda t: (t.timestamp, t.id))
@@ -253,6 +370,9 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
             "multi_hop_flow": bool(max_h >= MULTI_HOP_THRESHOLD)
         }
         is_suspicious_edge = bool(edge_flags["high_value_flow"] or edge_flags["multi_hop_flow"])
+
+        first_ts_str = sorted_txs[0].timestamp.strftime("%Y-%m-%d %H:%M:%S") if sorted_txs[0].timestamp else None
+        first_ref = sorted_txs[0].transaction_ref
 
         edges_list.append({
             "data": {
@@ -269,25 +389,98 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
                 "transaction_count": len(sorted_txs),
                 "transaction_ids": [t.id for t in sorted_txs],
                 "is_suspicious": is_suspicious_edge,
+                "timestamp": first_ts_str,
+                "reference": first_ref,
+                "label": f"{primary_channel} • ₹{edge_total_amount:,.0f}",
                 "pattern_flags": edge_flags
             },
             "_sort_key": (sorted_txs[0].timestamp, sorted_txs[0].id)
+        })
+
+    # 10. ATTACH CASH-OUT / WITHDRAWAL TERMINAL NODES AND EDGES
+    for w in attributed_withdrawals:
+        atm = db.query(ATMLocation).filter(ATMLocation.id == w.atm_id).first()
+        atm_node_id = f"atm-{w.id}"
+        parent_hop = node_hop.get(str(w.account_id), 1)
+        atm_hop = parent_hop + 1
+        w_ts_str = w.timestamp.strftime("%Y-%m-%d %H:%M:%S") if w.timestamp else None
+        w_amt = float(w.amount)
+
+        # Privacy-safe terminal ATM node: zero account numbers or personal details
+        nodes_list.append({
+            "data": {
+                "id": atm_node_id,
+                "label": f"{atm.bank_name} ATM ({atm.district})" if atm else "Cash-Out Terminal",
+                "node_type": "atm",
+                "masked_id": atm.atm_code if (atm and atm.atm_code) else f"ATM-{w.atm_id}",
+                "bank": atm.bank_name if atm else "ATM Terminal",
+                "risk_score": 0.0,
+                "amount_received": w_amt,
+                "amount_sent": 0.0,
+                "net_flow": w_amt,
+                "connections_count": 1,
+                "in_degree": 1,
+                "out_degree": 0,
+                "previous_complaints": 0,
+                "is_hotspot": False,
+                "hop_level": atm_hop,
+                "degree_centrality": 0.0,
+                "betweenness_centrality": 0.0,
+                "is_source": False,
+                "is_sink": True,
+                "is_intermediary": False,
+                "pattern_flags": {
+                    "is_cash_out_endpoint": True,
+                    "atm_locality": atm.district if atm else "Delhi",
+                    "atm_address": atm.address if atm else "Delhi ATM Terminal",
+                    "withdrawal_amount": w_amt,
+                    "withdrawal_timestamp": w_ts_str,
+                    "camera_flagged": bool(w.camera_flagged),
+                    "withdrawal_ref": f"WDL-DL-{w.id:06d}"
+                }
+            }
+        })
+
+        edges_list.append({
+            "data": {
+                "id": f"edge-{w.account_id}-{atm_node_id}",
+                "source": str(w.account_id),
+                "target": atm_node_id,
+                "amount": w_amt,
+                "total_amount": w_amt,
+                "channel": "ATM Cash-Out",
+                "channels": ["ATM Cash-Out"],
+                "hop": atm_hop,
+                "min_hop": atm_hop,
+                "max_hop": atm_hop,
+                "transaction_count": 1,
+                "transaction_ids": [],
+                "is_suspicious": bool(w.camera_flagged or w_amt >= 30000),
+                "timestamp": w_ts_str,
+                "reference": f"WDL-DL-{w.id:06d}",
+                "label": f"ATM Cash-Out • ₹{w_amt:,.0f}",
+                "pattern_flags": {
+                    "terminal_cash_out": True,
+                    "camera_flagged": bool(w.camera_flagged)
+                }
+            },
+            "_sort_key": (w.timestamp, w.id)
         })
 
     edges_list.sort(key=lambda e: e["_sort_key"])
     for e in edges_list:
         e.pop("_sort_key", None)
 
-    # 8. Graph-Level Metrics
+    # 11. Graph-Level Metrics
     out_degrees = [G.out_degree(n) for n in G.nodes()]
     branching_nodes = [n for n in G.nodes() if G.out_degree(n) > 1]
     active_out_degrees = [d for d in out_degrees if d > 0]
     branching_factor = round(sum(active_out_degrees) / len(active_out_degrees), 2) if active_out_degrees else 0.0
 
-    non_source_hops = [h for n, h in node_hop.items() if n not in sources]
-    min_hop = min(non_source_hops) if non_source_hops else (min(node_hop.values()) if node_hop else 0)
-    max_hop = max(node_hop.values()) if node_hop else 0
-    hop_distribution = dict(collections.Counter(node_hop.values()))
+    all_node_hops = [n["data"]["hop_level"] for n in nodes_list]
+    min_hop = min([h for h in all_node_hops if h > 0]) if any(h > 0 for h in all_node_hops) else 0
+    max_hop = max(all_node_hops) if all_node_hops else 0
+    hop_distribution = dict(collections.Counter(all_node_hops))
 
     graph_pattern_flags = {
         "rapid_pass_through": bool(graph_has_rapid_pass_through),
@@ -298,10 +491,15 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         "high_centrality_intermediary": bool(any(betweenness_centrality.get(n, 0.0) >= HIGH_CENTRALITY_THRESHOLD for n in G.nodes() if G.in_degree(n) > 0 and G.out_degree(n) > 0))
     }
 
-    # Count high-flow intermediary accounts (structural analytical metric, NOT account.risk_score)
-    high_flow_intermediary_nodes = sum(
+    # Defensible mule indicators count: only nodes satisfying specific pattern flags or risk
+    flagged_mule_nodes = sum(
         1 for n in nodes_list
-        if n["data"]["is_intermediary"] and (n["data"]["amount_sent"] >= HIGH_VALUE_FLOW_THRESHOLD or n["data"]["betweenness_centrality"] >= HIGH_CENTRALITY_THRESHOLD)
+        if not n["data"]["is_source"] and n["data"]["node_type"] not in ["victim", "atm"] and (
+            n["data"]["pattern_flags"].get("rapid_pass_through") or
+            n["data"]["pattern_flags"].get("rapid_fan_out") or
+            n["data"]["pattern_flags"].get("central_intermediary") or
+            n["data"].get("risk_score", 0.0) >= 0.70
+        )
     )
 
     metrics = {
@@ -321,13 +519,18 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         "connected_components": nx.number_weakly_connected_components(G) if len(G) > 0 else 0,
         "weakly_connected_components": nx.number_weakly_connected_components(G) if len(G) > 0 else 0,
         "strongly_connected_components": nx.number_strongly_connected_components(G) if len(G) > 0 else 0,
-        "high_risk_mule_nodes": high_flow_intermediary_nodes,
+        "high_risk_mule_nodes": flagged_mule_nodes,
+        "max_degree": max(dict(G.degree()).values()) if len(G) > 0 else 0.0,
+        "mean_degree": round(sum(dict(G.degree()).values()) / len(G), 2) if len(G) > 0 else 0.0,
+        "max_pagerank": max(pagerank.values()) if pagerank else 0.0,
+        "max_betweenness": max(betweenness_centrality.values()) if betweenness_centrality else 0.0,
         "degree_centrality": {k: round(v, 4) for k, v in degree_centrality.items()},
         "betweenness": {k: round(v, 4) for k, v in betweenness_centrality.items()},
         "pagerank": {k: round(v, 4) for k, v in pagerank.items()},
         "pattern_flags": graph_pattern_flags,
         "source_identification_method": source_id_method,
-        "hop_mismatches": hop_mismatches
+        "hop_mismatches": hop_mismatches,
+        "withdrawal_count": len(attributed_withdrawals)
     }
 
     return {
@@ -359,6 +562,10 @@ def _empty_graph_response() -> Dict[str, Any]:
             "weakly_connected_components": 0,
             "strongly_connected_components": 0,
             "high_risk_mule_nodes": 0,
+            "max_degree": 0.0,
+            "mean_degree": 0.0,
+            "max_pagerank": 0.0,
+            "max_betweenness": 0.0,
             "degree_centrality": {},
             "betweenness": {},
             "pagerank": {},
@@ -371,6 +578,7 @@ def _empty_graph_response() -> Dict[str, Any]:
                 "high_centrality_intermediary": False
             },
             "source_identification_method": "NONE",
-            "hop_mismatches": 0
+            "hop_mismatches": 0,
+            "withdrawal_count": 0
         }
     }
