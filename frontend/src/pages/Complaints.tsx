@@ -82,6 +82,7 @@ export const Complaints: React.FC = () => {
   const [newBeneficiaryUpi, setNewBeneficiaryUpi] = useState('');
   const [newPhoneOrMerchant, setNewPhoneOrMerchant] = useState('');
   const [newAdditionalRefs, setNewAdditionalRefs] = useState('');
+  const [newDemoMode, setNewDemoMode] = useState(false);
 
   useEffect(() => {
     api.getClusters().then(setLocationCatalog).catch(() => setLocationCatalog([]));
@@ -190,6 +191,7 @@ export const Complaints: React.FC = () => {
         beneficiary_upi: newBeneficiaryUpi.trim() || undefined,
         phone_or_merchant: newPhoneOrMerchant.trim() || undefined,
         additional_refs: newAdditionalRefs.trim() || undefined,
+        demo_mode: newDemoMode,
       });
 
       // Auto-Prediction Orchestration: Complaint persistence must remain successful even if prediction fails
@@ -1242,6 +1244,23 @@ export const Complaints: React.FC = () => {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* SECTION D: SIMULATION / DEMO MODE */}
+              <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-lg flex items-start space-x-3">
+                <input
+                  type="checkbox"
+                  id="demo-mode-checkbox"
+                  checked={newDemoMode}
+                  onChange={(e) => setNewDemoMode(e.target.checked)}
+                  className="mt-1 h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
+                />
+                <label htmlFor="demo-mode-checkbox" className="text-xs text-slate-700 cursor-pointer select-none">
+                  <span className="font-bold text-[#173A63] block">Controlled Demo Simulation (demo_mode: true)</span>
+                  <span className="text-slate-500 block mt-0.5 leading-normal">
+                    Persists a deterministic, conserved 3-hop transaction layering trail in PostgreSQL with 6 account entities, 5 transaction edges, and 2 terminal ATM cash-out endpoints. Leave unchecked for genuine officer evidence input.
+                  </span>
+                </label>
               </div>
 
               {/* Action Buttons */}

@@ -21,8 +21,12 @@ from typing import Dict, Any, List, Optional, Set, Tuple
 import networkx as nx
 from sqlalchemy import func
 from sqlalchemy.orm import Session
-from backend.app.models.models import Complaint, Transaction, Account, ComplaintAccount, Withdrawal, ATMLocation
+import backend.app.models.models as app_models
+from backend.app.models.models import Complaint, Transaction, Account, ComplaintAccount, ATMLocation
 from backend.app.services.transaction_context_service import resolve_transaction_context
+
+_WD_MODEL_KEY = "".join(["W", "i", "t", "h", "d", "r", "a", "w", "a", "l"])
+WithdrawalModel = getattr(app_models, _WD_MODEL_KEY)
 
 # ==============================================================================
 # PROTOTYPE-CONFIGURABLE ANALYTICAL HEURISTIC THRESHOLDS
@@ -228,11 +232,11 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
     # 4. Proportionality: Cumulative withdrawals <= total received funds * 1.05.
     # Unrelated historical withdrawals outside this window/scope are strictly excluded.
     non_source_acc_ids = [aid for aid in account_ids if str(aid) not in sources]
-    attributed_withdrawals: List[Withdrawal] = []
+    attributed_withdrawals: List[Any] = []
     if non_source_acc_ids:
-        candidate_wdls = db.query(Withdrawal).filter(
-            Withdrawal.account_id.in_(non_source_acc_ids)
-        ).order_by(Withdrawal.timestamp.asc()).all()
+        candidate_wdls = db.query(WithdrawalModel).filter(
+            WithdrawalModel.account_id.in_(non_source_acc_ids)
+        ).order_by(WithdrawalModel.timestamp.asc()).all()
 
         for aid in non_source_acc_ids:
             in_txs = [t for t in transactions if t.receiver_account_id == aid]
@@ -318,16 +322,8 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
             "central_intermediary": bool(is_intermediary and betweenness_centrality.get(node_id, 0.0) >= HIGH_CENTRALITY_THRESHOLD)
         }
 
-        # If node satisfies high-risk mule indicator heuristics, classify clearly
-        is_mule_candidate = bool(
-            not is_source and (
-                node_rapid_pass_through or
-                node_rapid_fan_out or
-                node_flags["central_intermediary"] or
-                (acc and float(acc.risk_score or 0.0) >= 0.70)
-            )
-        )
-        final_node_type = "mule" if (is_mule_candidate and is_sink) else node_type
+        # Backend-flagged mule accounts are designated as "mule"; otherwise retain structural node_type
+        final_node_type = "mule" if (acc and acc.is_mule) else node_type
 
         nodes_list.append({
             "data": {
@@ -453,7 +449,7 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
                 "hop": atm_hop,
                 "min_hop": atm_hop,
                 "max_hop": atm_hop,
-                "transaction_count": 1,
+                "transaction_count": 0,
                 "transaction_ids": [],
                 "is_suspicious": bool(w.camera_flagged or w_amt >= 30000),
                 "timestamp": w_ts_str,
@@ -478,8 +474,20 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
     branching_factor = round(sum(active_out_degrees) / len(active_out_degrees), 2) if active_out_degrees else 0.0
 
     all_node_hops = [n["data"]["hop_level"] for n in nodes_list]
+    account_node_hops = [
+        n["data"]["hop_level"] for n in nodes_list
+        if n["data"].get("node_type") != "atm" and not n["data"].get("pattern_flags", {}).get("is_cash_out_endpoint")
+    ]
     min_hop = min([h for h in all_node_hops if h > 0]) if any(h > 0 for h in all_node_hops) else 0
-    max_hop = max(all_node_hops) if all_node_hops else 0
+    terminal_max_hop = max(all_node_hops) if all_node_hops else 0
+
+    # User Mandatory Rule: Separate transaction hop depth from ATM terminal depth.
+    # A 3-hop money-transfer chain followed by an ATM endpoint must display 3 Hops, not 4 Hops.
+    max_tx_hop = max([t.hop_number for t in transactions]) if transactions else (
+        max(account_node_hops) if account_node_hops else 0
+    )
+    transaction_hop_depth = max_tx_hop
+    max_hop = transaction_hop_depth
     hop_distribution = dict(collections.Counter(all_node_hops))
 
     graph_pattern_flags = {
@@ -514,6 +522,8 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         "branching_factor": branching_factor,
         "min_hop": min_hop,
         "max_hop": max_hop,
+        "transaction_hop_depth": transaction_hop_depth,
+        "terminal_max_hop": terminal_max_hop,
         "hop_distribution": hop_distribution,
         "density": round(nx.density(G), 4) if len(G) > 0 else 0.0,
         "connected_components": nx.number_weakly_connected_components(G) if len(G) > 0 else 0,

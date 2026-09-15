@@ -83,6 +83,7 @@ export interface ComplaintCreate {
   ifsc_code?: string;
   phone_or_merchant?: string;
   additional_refs?: string;
+  demo_mode?: boolean;
 }
 
 export interface PredictionLocationItem {
@@ -257,9 +258,11 @@ export interface GraphData {
     node_count: number;
     edge_count: number;
     max_hop: number;
+    transaction_hop_depth?: number;
     branching_factor: number;
     connected_components: number;
     high_risk_mule_nodes: number;
+    withdrawal_count?: number;
     pagerank?: Record<string, number>;
     betweenness?: Record<string, number>;
     target_cashout_cluster?: string;

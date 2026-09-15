@@ -1,11 +1,11 @@
 import re
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy.orm import Session, joinedload
 from sqlalchemy import func
 from backend.app.models.db import get_db
-from backend.app.models.models import Complaint, Account, Transaction, ComplaintAccount, User, Prediction, Alert
+from backend.app.models.models import Complaint, Account, Transaction, ComplaintAccount, User, Prediction, Alert, Withdrawal, ATMLocation
 from backend.app.schemas.schemas import ComplaintCreate, ComplaintResponse, GraphDataResponse
 from backend.app.services.graph_service import build_complaint_graph
 from backend.app.auth.security import get_current_user
@@ -95,7 +95,9 @@ def _enrich_complaint_response(db: Session, complaint: Complaint) -> Complaint:
 
     complaint.locality = getattr(complaint, "locality", None) or complaint.victim_location
     complaint.provenance_mode = (
-        "SYNTHETIC_DEMO" if complaint.complaint_number.startswith("CMP-DL-")
+        getattr(complaint, "provenance_mode", None)
+        if getattr(complaint, "provenance_mode", None) in ("CONTROLLED_SYNTHETIC_DEMO", "SYNTHETIC_DEMO")
+        else "SYNTHETIC_DEMO" if complaint.complaint_number.startswith("CMP-DL-")
         else "LINKED_SYNTHETIC_SCENARIO" if complaint.scenario_link_status == "LINKED"
         else "DIRECT_OFFICER_INPUT"
     )
@@ -176,7 +178,9 @@ def _batch_enrich_complaints(db: Session, complaints: List[Complaint]) -> List[C
 
         c.locality = getattr(c, "locality", None) or c.victim_location
         c.provenance_mode = (
-            "SYNTHETIC_DEMO" if c.complaint_number.startswith("CMP-DL-")
+            getattr(c, "provenance_mode", None)
+            if getattr(c, "provenance_mode", None) in ("CONTROLLED_SYNTHETIC_DEMO", "SYNTHETIC_DEMO")
+            else "SYNTHETIC_DEMO" if c.complaint_number.startswith("CMP-DL-")
             else "LINKED_SYNTHETIC_SCENARIO" if c.scenario_link_status == "LINKED"
             else "DIRECT_OFFICER_INPUT"
         )
@@ -282,6 +286,274 @@ def list_complaints(
 
     return _batch_enrich_complaints(db, complaints)
 
+def _generate_synthetic_multihop_trail(
+    db: Session,
+    complaint: Complaint,
+    data: ComplaintCreate,
+    victim_state: str,
+    victim_district: str,
+    incident_time: datetime,
+    reported_time: datetime
+):
+    """
+    Persists a realistic, deterministic, duplicate-safe 3-hop transaction trail in PostgreSQL
+    strictly for controlled synthetic demo complaints.
+    
+    Generates:
+      - 6 Accounts: Victim, Primary Beneficiary, Intermediary A, Intermediary B, Downstream C, Downstream D
+      - 6 ComplaintAccount records
+      - 5 Transactions with conserved amounts and strictly causal timestamps
+      - 2 Terminal ATM Cash-Out Withdrawals pointing to real existing ATMLocation rows in Delhi
+    """
+    cid = complaint.id
+    amt = float(complaint.amount)
+
+    # 1. Accounts
+    # 1.1 Victim Account
+    v_acc_no = f"ACC-SYN-VIC-{cid:06d}"
+    v_acc = db.query(Account).filter(Account.account_number == v_acc_no).first()
+    if not v_acc:
+        v_acc = Account(
+            account_number=v_acc_no,
+            masked_account=f"ACC••••{1000 + (cid % 900):04d}",
+            bank_name=data.victim_bank or "State Bank of India",
+            branch="New Delhi Main Branch",
+            ifsc="SBIN0000691",
+            holder_name=data.victim_name or "Complainant Victim",
+            account_type="SAVINGS",
+            state=victim_state,
+            district=victim_district,
+            risk_score=0.05,
+            is_mule=False
+        )
+        db.add(v_acc)
+        db.flush()
+
+    # 1.2 Primary Beneficiary Account
+    raw_ben = data.beneficiary_id or data.beneficiary_account_number or data.beneficiary_upi_id or "Layer 1 Primary"
+    b_acc_no = data.beneficiary_account_number or f"ACC-SYN-BEN-{cid:06d}"
+    b_acc = db.query(Account).filter(Account.account_number == b_acc_no).first()
+    if not b_acc:
+        b_acc = Account(
+            account_number=b_acc_no,
+            masked_account=f"ACC••••{2000 + (cid % 900):04d}",
+            bank_name=data.beneficiary_bank or "HDFC Bank",
+            branch="Connaught Place Branch",
+            ifsc=data.ifsc_code or "HDFC0000003",
+            holder_name=f"Primary Beneficiary ({raw_ben})",
+            account_type="SAVINGS",
+            state="Delhi",
+            district=victim_district,
+            risk_score=0.65,
+            is_mule=False,
+            flag_reason="Rapid multi-channel pass-through recipient"
+        )
+        db.add(b_acc)
+        db.flush()
+
+    # 1.3 Intermediary Account A
+    int_a_no = f"ACC-SYN-INTA-{cid:06d}"
+    int_a = db.query(Account).filter(Account.account_number == int_a_no).first()
+    if not int_a:
+        int_a = Account(
+            account_number=int_a_no,
+            masked_account=f"ACC••••{3000 + (cid % 900):04d}",
+            bank_name="Axis Bank",
+            branch="Barakhamba Road Branch",
+            ifsc="UTIB0000015",
+            holder_name="Intermediary Flow Account A",
+            account_type="CURRENT",
+            state="Delhi",
+            district="CENTRAL_NEW_DELHI",
+            risk_score=0.76,
+            is_mule=False,
+            flag_reason="High-velocity intermediary aggregator account"
+        )
+        db.add(int_a)
+        db.flush()
+
+    # 1.4 Intermediary Account B
+    int_b_no = f"ACC-SYN-INTB-{cid:06d}"
+    int_b = db.query(Account).filter(Account.account_number == int_b_no).first()
+    if not int_b:
+        int_b = Account(
+            account_number=int_b_no,
+            masked_account=f"ACC••••{4000 + (cid % 900):04d}",
+            bank_name="ICICI Bank",
+            branch="Paharganj Branch",
+            ifsc="ICIC0000007",
+            holder_name="Intermediary Flow Account B",
+            account_type="CURRENT",
+            state="Delhi",
+            district="CENTRAL_NEW_DELHI",
+            risk_score=0.72,
+            is_mule=False,
+            flag_reason="Convergent layering intermediary account"
+        )
+        db.add(int_b)
+        db.flush()
+
+    # 1.5 Downstream Account C (Heuristic flagged mule candidate: risk_score 0.82 >= 0.70)
+    dwn_c_no = f"ACC-SYN-DWNC-{cid:06d}"
+    dwn_c = db.query(Account).filter(Account.account_number == dwn_c_no).first()
+    if not dwn_c:
+        dwn_c = Account(
+            account_number=dwn_c_no,
+            masked_account=f"ACC••••{5000 + (cid % 900):04d}",
+            bank_name="Kotak Mahindra Bank",
+            branch="Rajendra Place Branch",
+            ifsc="KKBK0000180",
+            holder_name="Downstream Account C",
+            account_type="SAVINGS",
+            state="Delhi",
+            district="CENTRAL_NEW_DELHI",
+            risk_score=0.82,
+            is_mule=True,
+            flag_reason="Rapid terminal pass-through to ATM withdrawal"
+        )
+        db.add(dwn_c)
+        db.flush()
+
+    # 1.6 Downstream Account D (Heuristic flagged mule candidate: risk_score 0.78 >= 0.70)
+    dwn_d_no = f"ACC-SYN-DWND-{cid:06d}"
+    dwn_d = db.query(Account).filter(Account.account_number == dwn_d_no).first()
+    if not dwn_d:
+        dwn_d = Account(
+            account_number=dwn_d_no,
+            masked_account=f"ACC••••{6000 + (cid % 900):04d}",
+            bank_name="Punjab National Bank",
+            branch="Karol Bagh Branch",
+            ifsc="PUNB0000100",
+            holder_name="Downstream Account D",
+            account_type="SAVINGS",
+            state="Delhi",
+            district="CENTRAL_NEW_DELHI",
+            risk_score=0.78,
+            is_mule=True,
+            flag_reason="Terminal ATM disbursement feeder account"
+        )
+        db.add(dwn_d)
+        db.flush()
+
+    # 2. Link all 6 accounts in ComplaintAccount
+    account_roles = [
+        (v_acc.id, "VICTIM"),
+        (b_acc.id, "BENEFICIARY"),
+        (int_a.id, "INTERMEDIARY"),
+        (int_b.id, "INTERMEDIARY"),
+        (dwn_c.id, "SUSPECT"),
+        (dwn_d.id, "SUSPECT")
+    ]
+    for acc_id, role in account_roles:
+        existing_ca = db.query(ComplaintAccount).filter(
+            ComplaintAccount.complaint_id == cid,
+            ComplaintAccount.account_id == acc_id
+        ).first()
+        if not existing_ca:
+            db.add(ComplaintAccount(
+                complaint_id=cid,
+                account_id=acc_id,
+                association_type=role
+            ))
+    db.flush()
+
+    # 3. Conserved Amounts Calculation
+    amt_1 = round(amt * 0.58, 2)
+    amt_2 = round(amt * 0.38, 2)
+    amt_3 = round(amt_1 * 0.85, 2)
+    amt_4 = round(amt_2 * 0.85, 2)
+    wdl_1_amt = round(amt_3 * 0.75, 2)
+    wdl_2_amt = round(amt_4 * 0.75, 2)
+
+    # 4. Strictly Causal Timestamps
+    r_time = reported_time or datetime.utcnow()
+    i_time = incident_time or r_time
+    if i_time > r_time - timedelta(minutes=75):
+        base_t = r_time - timedelta(minutes=75)
+    else:
+        base_t = i_time
+
+    t1 = base_t
+    t2 = t1 + timedelta(minutes=8)
+    t3 = t1 + timedelta(minutes=14)
+    t4 = t2 + timedelta(minutes=10)
+    t5 = t3 + timedelta(minutes=12)
+    w1_time = t4 + timedelta(minutes=15)
+    w2_time = t5 + timedelta(minutes=18)
+
+    # 5. 5 Multi-Hop Transactions (Max Hop Depth = 3)
+    tx_definitions = [
+        (data.transaction_ref or f"UTR-DL-DEMO-{cid:06d}-01", v_acc.id, b_acc.id, amt, data.payment_channel or "UPI", t1, 1),
+        (f"UTR-DL-DEMO-{cid:06d}-02", b_acc.id, int_a.id, amt_1, "IMPS", t2, 2),
+        (f"UTR-DL-DEMO-{cid:06d}-03", b_acc.id, int_b.id, amt_2, "NEFT", t3, 2),
+        (f"UTR-DL-DEMO-{cid:06d}-04", int_a.id, dwn_c.id, amt_3, "IMPS", t4, 3),
+        (f"UTR-DL-DEMO-{cid:06d}-05", int_b.id, dwn_d.id, amt_4, "RTGS", t5, 3),
+    ]
+
+    for ref, s_id, r_id, t_amt, ch, ts, hop in tx_definitions:
+        existing_tx = db.query(Transaction).filter(Transaction.transaction_ref == ref).first()
+        if not existing_tx:
+            db.add(Transaction(
+                transaction_ref=ref,
+                complaint_id=cid,
+                sender_account_id=s_id,
+                receiver_account_id=r_id,
+                amount=t_amt,
+                payment_channel=ch,
+                timestamp=ts,
+                hop_number=hop,
+                status="COMPLETED",
+                suspicious_flag=True
+            ))
+    db.flush()
+
+    # 6. Resolve 2 Real Existing Delhi ATMLocation rows from PostgreSQL
+    delhi_atms = (
+        db.query(ATMLocation)
+        .filter(
+            (func.lower(ATMLocation.state) == "delhi") |
+            (ATMLocation.district.ilike("%delhi%"))
+        )
+        .order_by(ATMLocation.id.asc())
+        .limit(5)
+        .all()
+    )
+    if len(delhi_atms) < 2:
+        delhi_atms = db.query(ATMLocation).order_by(ATMLocation.id.asc()).limit(5).all()
+
+    if len(delhi_atms) < 2:
+        raise HTTPException(
+            status_code=500,
+            detail="Insufficient ATMLocation records found in PostgreSQL. Controlled demo trace requires at least 2 real ATM records."
+        )
+
+    atm_1 = delhi_atms[0]
+    atm_2 = delhi_atms[1]
+
+    # 7. 2 Terminal Cash-Out Withdrawals
+    existing_w1 = db.query(Withdrawal).filter(Withdrawal.account_id == dwn_c.id).first()
+    if not existing_w1:
+        db.add(Withdrawal(
+            atm_id=atm_1.id,
+            account_id=dwn_c.id,
+            amount=wdl_1_amt,
+            timestamp=w1_time,
+            success=True,
+            camera_flagged=True
+        ))
+
+    existing_w2 = db.query(Withdrawal).filter(Withdrawal.account_id == dwn_d.id).first()
+    if not existing_w2:
+        db.add(Withdrawal(
+            atm_id=atm_2.id,
+            account_id=dwn_d.id,
+            amount=wdl_2_amt,
+            timestamp=w2_time,
+            success=True,
+            camera_flagged=False
+        ))
+    db.flush()
+
 @router.post("", response_model=ComplaintResponse)
 def create_complaint(
     data: ComplaintCreate,
@@ -322,6 +594,10 @@ def create_complaint(
         part for part in (locality, data.district or origin_res["resolved_district"] if is_delhi else data.district, victim_state) if part
     )
 
+    # User Mandatory Rule: Explicit demo_mode: true ONLY triggers controlled synthetic expansion.
+    is_demo = bool(data.demo_mode is True)
+    assigned_provenance = "CONTROLLED_SYNTHETIC_DEMO" if is_demo else "DIRECT_OFFICER_INPUT"
+
     # Atomic Registration Block (Rollback on any step failure)
     try:
         # Initial pre-prediction evaluation state: zero fake risk, zero fake prediction
@@ -341,7 +617,7 @@ def create_complaint(
             victim_lat=victim_lat,
             victim_lon=victim_lon,
             description=data.description,
-            provenance_mode="DIRECT_OFFICER_INPUT",
+            provenance_mode=assigned_provenance,
             risk_level="PENDING_EVALUATION",
             risk_score=None,
             prediction_status="NOT RUN",
@@ -350,93 +626,103 @@ def create_complaint(
         db.add(complaint)
         db.flush()
 
-        # Direct Officer Transaction Persistence:
-        # If officer supplied real transaction / bank / beneficiary data, persist as direct complaint context
-        has_direct_tx = bool(
-            data.transaction_ref or data.victim_bank or data.beneficiary_bank or data.beneficiary_id
-            or data.beneficiary_account_number or data.beneficiary_upi_id or data.ifsc_code
-        )
-        if has_direct_tx:
-            # 1. Victim Account
-            v_bank = data.victim_bank or "Not provided"
-            v_acc_no = f"ACC-VIC-{complaint.id:06d}"
-            v_acc = db.query(Account).filter(Account.account_number == v_acc_no).first()
-            if not v_acc:
-                v_acc = Account(
-                    account_number=v_acc_no,
-                    masked_account=f"XXXX-XXXX-{complaint.id:04d}",
-                    bank_name=v_bank,
-                    holder_name=data.victim_name or "Complainant Victim",
-                    account_type="SAVINGS",
-                    state=victim_state,
-                    district=victim_district,
-                    is_mule=False
+        if is_demo:
+            _generate_synthetic_multihop_trail(
+                db=db,
+                complaint=complaint,
+                data=data,
+                victim_state=victim_state,
+                victim_district=victim_district,
+                incident_time=incident_time,
+                reported_time=reported_time
+            )
+            link_result = {"status": "CONTROLLED_SYNTHETIC_DEMO"}
+        else:
+            # Direct Officer Transaction Persistence:
+            # Genuine officer input must remain evidence-faithful: 2 nodes / 1 transaction if that is all the officer supplied
+            has_direct_tx = bool(
+                data.transaction_ref or data.victim_bank or data.beneficiary_bank or data.beneficiary_id
+                or data.beneficiary_account_number or data.beneficiary_upi_id or data.ifsc_code
+            )
+            if has_direct_tx:
+                # 1. Victim Account
+                v_bank = data.victim_bank or "Not provided"
+                v_acc_no = f"ACC-VIC-{complaint.id:06d}"
+                v_acc = db.query(Account).filter(Account.account_number == v_acc_no).first()
+                if not v_acc:
+                    v_acc = Account(
+                        account_number=v_acc_no,
+                        masked_account=f"XXXX-XXXX-{complaint.id:04d}",
+                        bank_name=v_bank,
+                        holder_name=data.victim_name or "Complainant Victim",
+                        account_type="SAVINGS",
+                        state=victim_state,
+                        district=victim_district,
+                        is_mule=False
+                    )
+                    db.add(v_acc)
+                    db.flush()
+
+                ca_v = ComplaintAccount(
+                    complaint_id=complaint.id,
+                    account_id=v_acc.id,
+                    association_type="VICTIM"
                 )
-                db.add(v_acc)
+                db.add(ca_v)
+
+                # 2. Beneficiary Account
+                b_bank = data.beneficiary_bank or "Not provided"
+                raw_ben = data.beneficiary_account_number or data.beneficiary_id or data.beneficiary_upi_id or "Not provided"
+                b_acc_no = f"ACC-BEN-{complaint.id:06d}" if not data.beneficiary_account_number else data.beneficiary_account_number
+                b_acc = db.query(Account).filter(Account.account_number == b_acc_no).first()
+                if not b_acc:
+                    masked_b = f"XXXX-{raw_ben[-4:]}" if len(raw_ben) >= 4 else f"XXXX-{raw_ben}"
+                    b_acc = Account(
+                        account_number=b_acc_no,
+                        masked_account=masked_b,
+                        bank_name=b_bank,
+                        branch=data.beneficiary_upi_id or None,
+                        ifsc=data.ifsc_code or None,
+                        holder_name=f"Beneficiary ({raw_ben})",
+                        account_type="CURRENT" if "CURRENT" in (data.payment_channel or "").upper() else "SAVINGS",
+                        # A victim's location is not evidence of beneficiary geography.
+                        state="UNKNOWN",
+                        district=None,
+                        is_mule=False,
+                        flag_reason=None
+                    )
+                    db.add(b_acc)
+                    db.flush()
+
+                ca_b = ComplaintAccount(
+                    complaint_id=complaint.id,
+                    account_id=b_acc.id,
+                    association_type="BENEFICIARY"
+                )
+                db.add(ca_b)
+
+                # 3. Direct Transaction
+                tx_ref = data.transaction_ref or f"UTR-{complaint.complaint_number}-01"
+                existing_tx = db.query(Transaction).filter(Transaction.transaction_ref == tx_ref).first()
+                if existing_tx:
+                    tx_ref = f"{tx_ref}-{complaint.id}"
+                tx_time = data.transaction_time or incident_time
+                direct_tx = Transaction(
+                    transaction_ref=tx_ref,
+                    complaint_id=complaint.id,
+                    sender_account_id=v_acc.id,
+                    receiver_account_id=b_acc.id,
+                    amount=data.amount,
+                    payment_channel=data.payment_channel,
+                    timestamp=tx_time,
+                    hop_number=1,
+                    status="COMPLETED",
+                    suspicious_flag=True
+                )
+                db.add(direct_tx)
                 db.flush()
 
-            ca_v = ComplaintAccount(
-                complaint_id=complaint.id,
-                account_id=v_acc.id,
-                association_type="VICTIM"
-            )
-            db.add(ca_v)
-
-            # 2. Beneficiary Account
-            b_bank = data.beneficiary_bank or "Not provided"
-            raw_ben = data.beneficiary_account_number or data.beneficiary_id or data.beneficiary_upi_id or "Not provided"
-            b_acc_no = f"ACC-BEN-{complaint.id:06d}" if not data.beneficiary_account_number else data.beneficiary_account_number
-            b_acc = db.query(Account).filter(Account.account_number == b_acc_no).first()
-            if not b_acc:
-                masked_b = f"XXXX-{raw_ben[-4:]}" if len(raw_ben) >= 4 else f"XXXX-{raw_ben}"
-                b_acc = Account(
-                    account_number=b_acc_no,
-                    masked_account=masked_b,
-                    bank_name=b_bank,
-                    branch=data.beneficiary_upi_id or None,
-                    ifsc=data.ifsc_code or None,
-                    holder_name=f"Beneficiary ({raw_ben})",
-                    account_type="CURRENT" if "CURRENT" in (data.payment_channel or "").upper() else "SAVINGS",
-                    # A victim's location is not evidence of beneficiary geography.
-                    state="UNKNOWN",
-                    district=None,
-                    is_mule=False,
-                    flag_reason=None
-                )
-                db.add(b_acc)
-                db.flush()
-
-            ca_b = ComplaintAccount(
-                complaint_id=complaint.id,
-                account_id=b_acc.id,
-                association_type="BENEFICIARY"
-            )
-            db.add(ca_b)
-
-            # 3. Direct Transaction
-            tx_ref = data.transaction_ref or f"UTR-{complaint.complaint_number}-01"
-            existing_tx = db.query(Transaction).filter(Transaction.transaction_ref == tx_ref).first()
-            if existing_tx:
-                tx_ref = f"{tx_ref}-{complaint.id}"
-            tx_time = data.transaction_time or incident_time
-            direct_tx = Transaction(
-                transaction_ref=tx_ref,
-                complaint_id=complaint.id,
-                sender_account_id=v_acc.id,
-                receiver_account_id=b_acc.id,
-                amount=data.amount,
-                payment_channel=data.payment_channel,
-                timestamp=tx_time,
-                hop_number=1,
-                status="COMPLETED",
-                suspicious_flag=True
-            )
-            db.add(direct_tx)
-            db.flush()
-
-        # Historical synthetic cases train the model; they are not this officer's
-        # evidence. Do not attach unrelated accounts/transactions to a new report.
-        link_result = {"status": "DIRECT_OFFICER_INPUT"}
+            link_result = {"status": "DIRECT_OFFICER_INPUT"}
         db.commit()
         db.refresh(complaint)
     except Exception as exc:

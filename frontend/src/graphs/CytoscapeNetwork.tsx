@@ -154,12 +154,12 @@ export const CytoscapeNetwork: React.FC<CytoscapeNetworkProps> = ({
         {
           selector: 'node[node_type = "sink"]',
           style: {
-            'background-color': '#f97316',
-            'border-color': '#ea580c',
-            'border-width': 3,
-            'shape': 'diamond',
-            'width': 42,
-            'height': 42,
+            'background-color': '#f59e0b',
+            'border-color': '#d97706',
+            'border-width': 2,
+            'shape': 'roundrectangle',
+            'width': 38,
+            'height': 38,
           },
         },
         {

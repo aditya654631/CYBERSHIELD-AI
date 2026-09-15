@@ -148,13 +148,19 @@ export const TransactionNetwork: React.FC = () => {
           <div className="px-3 py-1.5 rounded-md bg-[#F6F8FC] border border-[#DCE5F0]">
             <span className="text-slate-500 block text-[10px] uppercase font-semibold">POTENTIAL MULE INDICATORS</span>
             <div className="flex items-center space-x-1.5">
-              <span className="text-slate-800 font-bold">{flaggedPatternCount} Flagged Patterns</span>
+              <span className="text-red-700 font-bold">{graphData.metrics.high_risk_mule_nodes ?? flaggedPatternCount} Flagged Indicators</span>
               {accountsUnderReviewCount > 0 && (
                 <span className="text-amber-700 bg-amber-50 border border-amber-200 px-1.5 py-0.5 rounded text-[10px] font-semibold">
                   {accountsUnderReviewCount} Under Review
                 </span>
               )}
             </div>
+          </div>
+          <div className="px-3 py-1.5 rounded-md bg-[#F6F8FC] border border-[#DCE5F0]">
+            <span className="text-slate-500 block text-[10px] uppercase font-semibold">CASH-OUT ENDPOINTS</span>
+            <span className="text-emerald-700 font-bold">
+              {graphData.metrics.withdrawal_count ?? 0} {(graphData.metrics.withdrawal_count ?? 0) === 1 ? 'Terminal' : 'Terminals'}
+            </span>
           </div>
         </div>
       </div>
@@ -297,6 +303,8 @@ export const TransactionNetwork: React.FC = () => {
           const isIntermediary = selectedNode.is_intermediary || selectedNode.node_type === 'intermediary';
           const accountRole = isVictim
             ? 'Victim / Reporting Account'
+            : selectedNode.node_type === 'mule'
+            ? 'Potential Mule Indicator / Under Review'
             : isIntermediary
             ? 'Intermediary / Under Review'
             : 'Beneficiary / Under Review';

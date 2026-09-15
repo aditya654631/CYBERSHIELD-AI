@@ -53,6 +53,7 @@ class ComplaintCreate(BaseModel):
     beneficiary_upi_id: Optional[str] = None
     ifsc_code: Optional[str] = None
     additional_references: Optional[str] = None
+    demo_mode: Optional[bool] = False
 
     @field_validator("*", mode="before")
     @classmethod
