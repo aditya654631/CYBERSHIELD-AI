@@ -1,8 +1,10 @@
 import hashlib
 import os
-from datetime import datetime, timedelta
+import secrets
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from jose import JWTError, jwt
+import bcrypt
+from jose import JWTError, jwt, ExpiredSignatureError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.orm import Session
@@ -12,34 +14,63 @@ from backend.app.models.models import User
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """
+    Verifies a plain password against stored hash using constant-time comparison.
+    Supports bcrypt and existing pbkdf2 hashes.
+    Plaintext passwords are strictly rejected with zero fallback.
+    """
+    if not plain_password or not hashed_password:
+        return False
+
+    # 1. Bcrypt hashes ($2a$, $2b$, $2y$)
+    if hashed_password.startswith(("$2a$", "$2b$", "$2y$")):
+        try:
+            return bcrypt.checkpw(
+                plain_password.encode("utf-8"),
+                hashed_password.encode("utf-8")
+            )
+        except Exception:
+            return False
+
+    # 2. Existing PBKDF2 hashes (pbkdf2:salt:hex)
     if hashed_password.startswith("pbkdf2:"):
-        _, salt, hashed = hashed_password.split(":")
-        test_hash = hashlib.pbkdf2_hmac(
-            'sha256', plain_password.encode('utf-8'), salt.encode('utf-8'), 100000
-        ).hex()
-        return test_hash == hashed
-    # Backward compatibility with demo plain if needed
-    return plain_password == hashed_password
+        parts = hashed_password.split(":")
+        if len(parts) == 3:
+            _, salt, hashed = parts
+            test_hash = hashlib.pbkdf2_hmac(
+                "sha256", plain_password.encode("utf-8"), salt.encode("utf-8"), 100000
+            ).hex()
+            return secrets.compare_digest(test_hash, hashed)
+
+    # Reject plaintext and unknown formats
+    return False
+
 
 def get_password_hash(password: str) -> str:
-    salt = os.urandom(16).hex()
-    hashed = hashlib.pbkdf2_hmac(
-        'sha256', password.encode('utf-8'), salt.encode('utf-8'), 100000
-    ).hex()
-    return f"pbkdf2:{salt}:{hashed}"
+    """Generates a secure bcrypt hash with 12 rounds of salting."""
+    salt = bcrypt.gensalt(rounds=12)
+    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    """Creates a signed JWT with expiration timestamp."""
     to_encode = data.copy()
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, settings.JWT_SECRET, algorithm=settings.ALGORITHM)
     return encoded_jwt
 
+
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
+    """
+    Validates JWT token and retrieves active user.
+    Rejects missing, forged, expired, and inactive-user credentials.
+    """
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -50,9 +81,51 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         email: str = payload.get("sub")
         if email is None:
             raise credentials_exception
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token has expired. Please sign in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except JWTError:
         raise credentials_exception
+
     user = db.query(User).filter(User.email == email).first()
-    if user is None or not user.is_active:
+    if user is None:
         raise credentials_exception
+
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="User account is deactivated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
+    return user
+
+
+def verify_ws_token(token: Optional[str], db: Session) -> User:
+    """
+    Validates a JWT token supplied via WebSocket query parameter.
+    Returns the authenticated active User, or raises HTTPException(401).
+    """
+    if not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="WebSocket connection requires an authenticated token parameter"
+        )
+    try:
+        payload = jwt.decode(token, settings.JWT_SECRET, algorithms=[settings.ALGORITHM])
+        email: str = payload.get("sub")
+        if not email:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
+    except ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="WebSocket token has expired")
+    except JWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid WebSocket token signature")
+
+    user = db.query(User).filter(User.email == email).first()
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+
     return user

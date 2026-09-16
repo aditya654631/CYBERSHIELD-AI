@@ -9,6 +9,12 @@ from backend.app.models.models import Complaint, Account, Transaction, Complaint
 from backend.app.schemas.schemas import ComplaintCreate, ComplaintResponse, GraphDataResponse
 from backend.app.services.graph_service import build_complaint_graph
 from backend.app.auth.security import get_current_user
+from backend.app.auth.rbac import (
+    require_roles,
+    verify_complaint_access,
+    filter_complaints_by_jurisdiction,
+    RoleEnum
+)
 from backend.app.services.audit_service import log_audit
 from backend.app.services.scenario_linking_service import (
     link_complaint_to_scenario,
@@ -201,20 +207,18 @@ def list_complaints(
     limit: int = 25,
     skip: int = 0,
     page: Optional[int] = None,
-    state: Optional[str] = "Delhi",
-    db: Session = Depends(get_db)
+    state: Optional[str] = None,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     query = db.query(Complaint)
 
-    # Section 3: Delhi Operational Pilot Scope (Strictly Delhi, exclude outside historical rows)
-    if state and state.upper() != "ALL":
-        query = query.filter(
-            func.lower(Complaint.state) == state.lower(),
-            ~Complaint.complaint_number.like("CMP-OUTSIDE-%"),
-            ~Complaint.victim_location.ilike("%Madhya Pradesh%"),
-            ~Complaint.victim_location.ilike("%Bhopal%"),
-            ~Complaint.victim_location.ilike("%Indore%")
-        )
+    # Centralized Jurisdiction Filtering
+    query = filter_complaints_by_jurisdiction(query, current_user, db)
+
+    # If I4C_ADMIN optionally filters by state
+    if current_user.role == RoleEnum.I4C_ADMIN and state and state.upper() != "ALL":
+        query = query.filter(func.lower(Complaint.state) == state.lower())
 
     # Operational Filters
     if fraud_type and fraud_type != "ALL":
@@ -558,7 +562,7 @@ def _generate_synthetic_multihop_trail(
 def create_complaint(
     data: ComplaintCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles(RoleEnum.I4C_ADMIN, RoleEnum.STATE_LEA, RoleEnum.DISTRICT_LEA))
 ):
     # Section 22: Duplicate / Idempotency Check on transaction reference
     if data.transaction_ref and data.transaction_ref.strip():
@@ -572,7 +576,16 @@ def create_complaint(
 
     reported_time = data.reported_at or datetime.utcnow()
     incident_time = data.incident_time or reported_time
-    victim_state = data.state or "Delhi"
+
+    # Untrusted request body protection: Non-I4C officers cannot spoof their state/district
+    if current_user.role == RoleEnum.STATE_LEA:
+        victim_state = current_user.organization.state if current_user.organization else "Delhi"
+    elif current_user.role == RoleEnum.DISTRICT_LEA:
+        victim_state = current_user.organization.state if current_user.organization else "Delhi"
+        data.district = current_user.organization.district if current_user.organization else data.district
+    else:
+        victim_state = data.state or "Delhi"
+
     locality = data.locality or data.victim_location or None
 
     # Deterministic Delhi Origin Resolution (Priority: Coords -> Cluster -> Alias -> District -> Unresolved)
@@ -745,26 +758,34 @@ def create_complaint(
     return complaint
 
 @router.get("/{id}", response_model=ComplaintResponse)
-def get_complaint(id: str, db: Session = Depends(get_db)):
+def get_complaint(
+    id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     if id.isdigit():
         complaint = db.query(Complaint).filter(Complaint.id == int(id)).first()
     else:
         complaint = db.query(Complaint).filter(Complaint.complaint_number == id).first()
 
-    if not complaint:
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
         raise HTTPException(status_code=404, detail="Complaint not found")
 
     _enrich_complaint_response(db, complaint)
     return complaint
 
 @router.get("/{id}/graph", response_model=GraphDataResponse)
-def get_complaint_graph(id: str, db: Session = Depends(get_db)):
+def get_complaint_graph(
+    id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     if id.isdigit():
         complaint = db.query(Complaint).filter(Complaint.id == int(id)).first()
     else:
         complaint = db.query(Complaint).filter(Complaint.complaint_number == id).first()
 
-    if not complaint:
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
         raise HTTPException(status_code=404, detail="Complaint not found")
 
     return build_complaint_graph(db, complaint.id)

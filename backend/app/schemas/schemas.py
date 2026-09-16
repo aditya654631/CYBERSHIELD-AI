@@ -23,6 +23,8 @@ class UserResponse(BaseModel):
     role: str
     badge_number: str
     organization_name: Optional[str] = None
+    state: Optional[str] = None
+    district: Optional[str] = None
     is_active: bool
 
     class Config:
@@ -516,3 +518,36 @@ class AuditLogResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+# Bank Action Schemas
+class BankActionResponse(BaseModel):
+    id: int
+    action_reference: str
+    idempotency_key: Optional[str] = None
+    complaint_id: int
+    alert_id: Optional[int] = None
+    account_id: Optional[int] = None
+    bank_name: Optional[str] = None
+    action_type: str
+    status: str
+    is_simulated: bool
+    simulation_notes: Optional[str] = None
+    actor_name: Optional[str] = None
+    actor_role: Optional[str] = None
+    action_notes: Optional[str] = None
+    provider_reference_id: Optional[str] = None
+    failure_reason: Optional[str] = None
+    requested_at: datetime
+    approved_at: Optional[datetime] = None
+    sent_at: Optional[datetime] = None
+    acknowledged_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class BankActionTransitionRequest(BaseModel):
+    target_status: str
+    notes: Optional[str] = None
+    failure_reason: Optional[str] = None

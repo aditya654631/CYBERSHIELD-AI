@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BellRing,
@@ -11,18 +11,24 @@ import {
   Send,
   Radio,
   Filter,
-  RefreshCw
+  RefreshCw,
+  Info
 } from 'lucide-react';
 import { api } from '../services/api';
 import { AlertItem } from '../types';
 import { formatINR } from '../utils/formatters';
+import { useAuth } from '../store/authContext';
 
 export const AlertsCenter: React.FC = () => {
   const navigate = useNavigate();
+  const { user, token } = useAuth();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [actioningId, setActioningId] = useState<number | null>(null);
+  const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const canAct = user && ['I4C_ADMIN', 'STATE_LEA', 'DISTRICT_LEA', 'BANK_OFFICER'].includes(user.role);
 
   const fetchAlerts = async () => {
     setLoading(true);
@@ -40,29 +46,69 @@ export const AlertsCenter: React.FC = () => {
 
   useEffect(() => {
     fetchAlerts();
-    // Setup WebSocket for live dashboard alert events
-    const WS_URL =
-      import.meta.env.VITE_WS_URL ||
-      'wss://cybershield-ai-production-66121.up.railway.app/ws/alerts';
+
+    // Authenticated WebSocket connection
     let socket: WebSocket | null = null;
-    try {
-      socket = new WebSocket(WS_URL);
-      socket.onmessage = (evt) => {
-        try {
-          const data = JSON.parse(evt.data);
-          if (data.event) {
-            fetchAlerts();
+    let isSubscribed = true;
+    let reconnectDelay = 2000;
+
+    const connectWebSocket = () => {
+      if (!isSubscribed || !token) return;
+
+      const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const defaultWsUrl = `${wsProtocol}//${window.location.host}/ws/alerts`;
+      const baseWsUrl = import.meta.env.VITE_WS_URL || defaultWsUrl;
+      const wsUrl = `${baseWsUrl}?token=${encodeURIComponent(token)}`;
+
+      try {
+        socket = new WebSocket(wsUrl);
+
+        socket.onopen = () => {
+          reconnectDelay = 2000; // reset on success
+        };
+
+        socket.onmessage = (evt) => {
+          try {
+            const data = JSON.parse(evt.data);
+            if (data.event) {
+              fetchAlerts();
+            }
+          } catch (e) {}
+        };
+
+        socket.onclose = (evt) => {
+          // If closed due to policy violation / unauthorized (1008), do not reconnect automatically
+          if (evt.code === 1008) {
+            console.warn('Alerts WebSocket authentication failed (1008). Stopped auto-reconnect.');
+            return;
           }
-        } catch (e) {}
-      };
-    } catch (e) {}
+          if (isSubscribed) {
+            reconnectTimeoutRef.current = setTimeout(() => {
+              reconnectDelay = Math.min(reconnectDelay * 1.5, 30000);
+              connectWebSocket();
+            }, reconnectDelay);
+          }
+        };
+
+        socket.onerror = () => {
+          if (socket) socket.close();
+        };
+      } catch (e) {
+        console.error('WebSocket connection error:', e);
+      }
+    };
+
+    connectWebSocket();
 
     return () => {
+      isSubscribed = false;
+      if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
       if (socket) socket.close();
     };
-  }, [statusFilter]);
+  }, [statusFilter, token]);
 
   const handleAcknowledge = async (id: number) => {
+    if (!canAct) return;
     setActioningId(id);
     try {
       await api.acknowledgeAlert(id, 'Ground unit assigned to ATM terminal perimeter.');
@@ -75,9 +121,10 @@ export const AlertsCenter: React.FC = () => {
   };
 
   const handleEscalate = async (id: number) => {
+    if (!canAct) return;
     setActioningId(id);
     try {
-      await api.escalateAlert(id, 'Automated bank ATM hold request transmitted via I4C Gateway.');
+      await api.escalateAlert(id, 'Automated bank ATM hold request transmitted [SIMULATED PROTOTYPE].');
       await fetchAlerts();
     } catch (err) {
       console.error('Error escalating alert', err);
@@ -128,12 +175,24 @@ export const AlertsCenter: React.FC = () => {
         </div>
       </div>
 
+      {/* Truthful Operational Banner */}
+      <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg flex items-start space-x-3 text-xs text-amber-900 shadow-xs">
+        <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
+        <div>
+          <span className="font-bold">Operational Integration Status: </span>
+          <span>
+            Bank hold transmissions operate in <strong>SIMULATED PROTOTYPE</strong> mode. Action requests are tracked in the local audit lifecycle and will not freeze live accounts on external core banking networks.
+          </span>
+        </div>
+      </div>
+
       {/* Alert Cards List */}
       <div className="space-y-3">
         {alerts.map((alert) => {
           const isCritical = alert.severity === 'CRITICAL';
           const isHigh = alert.severity === 'HIGH';
           const isNew = alert.status === 'NEW';
+          const isSimulatedAction = alert.status === 'ACTION_INITIATED';
 
           return (
             <div
@@ -179,7 +238,7 @@ export const AlertsCenter: React.FC = () => {
                           : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       }`}
                     >
-                      STATUS: {alert.status}
+                      STATUS: {alert.status} {isSimulatedAction && '[SIMULATED]'}
                     </span>
                   </div>
 
@@ -232,8 +291,9 @@ export const AlertsCenter: React.FC = () => {
                   {alert.status === 'NEW' && (
                     <button
                       onClick={() => handleAcknowledge(alert.id)}
-                      disabled={actioningId === alert.id}
-                      className="px-3.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-60"
+                      disabled={actioningId === alert.id || !canAct}
+                      title={!canAct ? 'Requires LEA or Bank Officer role' : undefined}
+                      className="px-3.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-50"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>ACKNOWLEDGE</span>
@@ -243,11 +303,12 @@ export const AlertsCenter: React.FC = () => {
                   {alert.status !== 'ACTION_INITIATED' && (
                     <button
                       onClick={() => handleEscalate(alert.id)}
-                      disabled={actioningId === alert.id}
-                      className="px-3.5 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-60"
+                      disabled={actioningId === alert.id || !canAct}
+                      title={!canAct ? 'Requires LEA or Bank Officer role' : 'Requests simulated hold in audit trail'}
+                      className="px-3.5 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-50"
                     >
                       <Send className="w-3.5 h-3.5" />
-                      <span>ESCALATE TO BANK</span>
+                      <span>ESCALATE (SIMULATED HOLD)</span>
                     </button>
                   )}
                 </div>

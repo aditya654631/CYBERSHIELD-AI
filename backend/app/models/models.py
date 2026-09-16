@@ -34,6 +34,14 @@ class User(Base):
     case_notes = relationship("CaseNote", back_populates="user")
     audit_logs = relationship("AuditLog", back_populates="user")
 
+    @property
+    def state(self) -> str:
+        return self.organization.state if self.organization and self.organization.state else "Delhi"
+
+    @property
+    def district(self) -> str:
+        return self.organization.district if self.organization and self.organization.district else "CENTRAL_NEW_DELHI"
+
 class LocationCluster(Base):
     __tablename__ = "location_clusters"
 
@@ -283,3 +291,36 @@ class AuditLog(Base):
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
     user = relationship("User", back_populates="audit_logs")
+
+class BankAction(Base):
+    __tablename__ = "bank_actions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    action_reference = Column(String(100), unique=True, index=True, nullable=False)
+    idempotency_key = Column(String(100), unique=True, index=True, nullable=True)
+    complaint_id = Column(Integer, ForeignKey("complaints.id"), nullable=False, index=True)
+    alert_id = Column(Integer, ForeignKey("alerts.id"), nullable=True, index=True)
+    account_id = Column(Integer, ForeignKey("accounts.id"), nullable=True, index=True)
+    bank_name = Column(String(100), nullable=True)
+    action_type = Column(String(50), default="ATM_DISBURSEMENT_HOLD")
+    status = Column(String(50), default="REQUESTED", index=True)  # REQUESTED, APPROVED, SENT, ACKNOWLEDGED, COMPLETED, FAILED, CANCELLED
+    is_simulated = Column(Boolean, default=True, nullable=False)
+    simulation_notes = Column(String(255), default="Simulated local action: External core-banking gateway not connected.")
+    requested_by_user_id = Column(Integer, ForeignKey("users.id"), nullable=True)
+    actor_name = Column(String(255), nullable=True)
+    actor_role = Column(String(50), nullable=True)
+    action_notes = Column(Text, nullable=True)
+    provider_reference_id = Column(String(100), nullable=True)
+    failure_reason = Column(Text, nullable=True)
+    requested_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    approved_at = Column(DateTime, nullable=True)
+    sent_at = Column(DateTime, nullable=True)
+    acknowledged_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    complaint = relationship("Complaint", foreign_keys=[complaint_id])
+    alert = relationship("Alert", foreign_keys=[alert_id])
+    account = relationship("Account", foreign_keys=[account_id])
+    requested_by = relationship("User", foreign_keys=[requested_by_user_id])

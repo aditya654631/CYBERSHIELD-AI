@@ -59,25 +59,22 @@ class DashboardService:
             .all()
         )
 
-    def get_dashboard_summary(self, db: Session) -> Dict[str, Any]:
+    def get_dashboard_summary(self, db: Session, user: Optional[Any] = None) -> Dict[str, Any]:
         """
         Aggregates a complete, logically consistent dashboard summary in a single
-        read-only database snapshot.
+        read-only database snapshot, optionally scoped by officer jurisdiction.
         """
         # 1. Active Complaints: case_status != 'RESOLVED'
         active_statuses = ["ACTIVE", "UNDER_INVESTIGATION", "ALERTED"]
-        active_complaints_count = (
-            db.query(Complaint)
-            .filter(Complaint.case_status.in_(active_statuses))
-            .count()
-        )
+        comp_query = db.query(Complaint).filter(Complaint.case_status.in_(active_statuses))
+        if user and getattr(user, "role", None) in ("STATE_LEA", "DISTRICT_LEA"):
+            from backend.app.auth.rbac import filter_complaints_by_jurisdiction
+            comp_query = filter_complaints_by_jurisdiction(comp_query, user, db)
+
+        active_complaints_count = comp_query.count()
 
         # Amount at risk for active complaints
-        total_amount_at_risk_raw = (
-            db.query(func.sum(Complaint.amount))
-            .filter(Complaint.case_status.in_(active_statuses))
-            .scalar()
-        )
+        total_amount_at_risk_raw = comp_query.with_entities(func.sum(Complaint.amount)).scalar()
         total_amount_at_risk = float(total_amount_at_risk_raw or 0.0)
 
         # 2. Latest Successful Predictions (one per complaint, created_at DESC, id DESC)

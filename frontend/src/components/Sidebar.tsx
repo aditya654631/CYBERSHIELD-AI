@@ -15,12 +15,14 @@ import {
   X,
 } from 'lucide-react';
 import { useAuth } from '../store/authContext';
+import { UserRole } from '../types';
 
 interface NavItem {
   name: string;
   path: string;
   icon: React.ComponentType<{ className?: string }>;
   badge?: string;
+  allowedRoles?: UserRole[];
 }
 
 interface SidebarProps {
@@ -32,12 +34,12 @@ const NAV_ITEMS: NavItem[] = [
   { name: 'Dashboard', path: '/dashboard', icon: LayoutDashboard },
   { name: 'Complaints', path: '/complaints', icon: FileText },
   { name: 'Case Intelligence', path: '/cases/CMP-NEW-000002', icon: ShieldAlert },
-  { name: 'Live Risk Map', path: '/risk-map', icon: MapPin },
-  { name: 'Alert Center', path: '/alerts', icon: BellRing },
+  { name: 'Live Risk Map', path: '/risk-map', icon: MapPin, allowedRoles: ['I4C_ADMIN', 'STATE_LEA', 'DISTRICT_LEA', 'ANALYST'] },
+  { name: 'Alert Center', path: '/alerts', icon: BellRing, allowedRoles: ['I4C_ADMIN', 'STATE_LEA', 'DISTRICT_LEA', 'BANK_OFFICER'] },
   { name: 'Transaction Network', path: '/network/CMP-NEW-000002', icon: Network },
-  { name: 'Analytics', path: '/analytics', icon: BarChart3 },
-  { name: 'Model Performance', path: '/model-performance', icon: Cpu },
-  { name: 'System Audit', path: '/audit', icon: History },
+  { name: 'Analytics', path: '/analytics', icon: BarChart3, allowedRoles: ['I4C_ADMIN', 'STATE_LEA', 'DISTRICT_LEA', 'ANALYST'] },
+  { name: 'Model Performance', path: '/model-performance', icon: Cpu, allowedRoles: ['I4C_ADMIN', 'ANALYST', 'AUDITOR', 'STATE_LEA', 'DISTRICT_LEA'] },
+  { name: 'System Audit', path: '/audit', icon: History, allowedRoles: ['I4C_ADMIN', 'AUDITOR'] },
   { name: 'Settings', path: '/settings', icon: SettingsIcon },
 ];
 
@@ -83,6 +85,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
         .toUpperCase()
     : 'LE';
 
+  const visibleNavItems = NAV_ITEMS.filter((item) => {
+    if (!item.allowedRoles) return true;
+    return user && item.allowedRoles.includes(user.role);
+  });
+
   return (
     <>
       {/* Mobile Backdrop Overlay */}
@@ -118,8 +125,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
             </div>
           </div>
 
-          {/* Close Button for Mobile Drawer */}
-          {onClose && (
+          {mobileOpen && (
             <button
               onClick={onClose}
               className="lg:hidden p-1.5 rounded-md text-blue-200 hover:text-white hover:bg-white/10 transition-colors ml-2"
@@ -134,7 +140,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
         <div className="px-5 py-3 border-b border-[#1E4A7D]/60">
           <div className="px-2.5 py-1.5 rounded bg-[#122E4F] border border-[#1E4A7D] flex items-center justify-between">
             <span className="text-[11px] font-medium text-blue-100 truncate">
-              I4C Pilot • Delhi NCT
+              {user?.role === 'STATE_LEA' ? 'State Cyber Police' : user?.role === 'DISTRICT_LEA' ? 'District Cyber Cell' : user?.role === 'BANK_OFFICER' ? 'Bank Fraud Ops' : 'I4C Pilot • Delhi NCT'}
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium shrink-0 ml-1">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
@@ -148,7 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
         <div className="px-3 pb-2 text-[11px] font-semibold text-blue-200/70 uppercase tracking-wider">
           Intelligence & Operations
         </div>
-        {NAV_ITEMS.map((item) => {
+        {visibleNavItems.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink
