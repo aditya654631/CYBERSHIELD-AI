@@ -395,7 +395,7 @@ While many failures relate to security, schema, and ML promotions, they are cate
   - Call `GET /api/v1/model/performance`; verify JSON metrics match `model_metadata_v7_compat.json` with zero V2 residual text.
   - Open `/model-performance` in browser; verify clean, consistent telemetry.
 - **Dependencies**: `backend/app/api/model_routes.py`.
-- **Status**: **VERIFIED ROOT CAUSE — PENDING REMEDIATION**
+- **Status**: **VERIFIED ROOT CAUSE — REMEDIATED IN PHASE 4**
 
 ---
 
@@ -825,10 +825,150 @@ graph TD
   - `tests/test_phase2_timestamp_and_scores.py`: 15 tests (100% pass rate)
   - `tests/test_phase1_security_authorization.py`: 30 tests (100% pass rate)
   - **Disclaimer**: 70 pre-existing baseline test failures identified during the initial audit remain cataloged in Section 2 and scheduled for remediation in subsequent phases.
-- **Phase 4 Status**: Phase 4 has **NOT** been started. All work stops after this Phase 3 closure review.
+- **Phase 4 Status**: Completed and verified in Phase 4 remediation section below.
+
+---
+
+## Phase 4 Completion Report & Closure Review: Truthful Model Performance and Runtime Status
+
+### 1. Verified Root Cause Analysis
+Prior to Phase 4, `/model-performance` presented contradictory, misleading, and fabricated telemetry:
+1. **Hardcoded V2 Metadata Selection**: `backend/app/api/model_routes.py` hardcoded `model_metadata_v2.json` (falling back to `v1`), completely ignoring the promoted `cashout-location-xgb-v7-compat` model and its corresponding metadata file `model_metadata_v7_compat.json`.
+2. **Version & Metric Contradiction**: The page sliced the active runtime version string (`cashout-location-xgb-v7-compat`) over obsolete V2 classification numbers (`42.4%` Recall@1, `50.8%` Recall@3), concealing the authentic V7-compat pairwise ranking performance (`17.8%` Recall@1, `32.38%` Recall@3).
+3. **Misleading Demo Fallback**: If metadata was missing or failed to parse, the endpoint fell back to `"prediction_mode": "deterministic_demo"` with completely fabricated benchmark numbers (`65.0%` candidate recall, `35.0%` Recall@1), falsely implying demo inference even when the trained model was fully verified and ready.
+4. **Fabricated Comparison Deltas**: Hardcoded gains (`+38.4%`, `+38.8%`) were calculated against non-comparable baseline objectives, disguising the differences between classification and pairwise ranking on synthetic data.
+5. **Static Frontend Fallbacks**: `ModelPerformance.tsx` defaulted location signals to 43 (ignoring V7's 47 features), defaulted calibration to "Isotonic (5-Fold CV)" (despite runtime using Platt logistic scaling), and hardcoded "CyberShield AI (v2)" in table headers.
+
+### 2. Runtime and Metadata Mapping Architecture
+- **Authoritative Runtime Derivation**:
+  - Runtime readiness is established strictly from `prediction_service.ml_provider.is_available()`, checking that models, calibrators, and time regressors are actually loaded in memory.
+  - Runtime statuses are truthfully distinguished:
+    - `TRAINED_READY`: Model loaded and passes SHA-256 integrity verification.
+    - `DEMO_ACTIVE`: Explicit demonstration mode active.
+    - `LOAD_FAILED`: Model loading or integrity check failed at runtime.
+    - `UNAVAILABLE`: Prediction service unavailable.
+  - Zero predictions are executed and zero database rows are committed to render `/model-performance`.
+- **Trusted Metadata Registry & Hash Cross-Checking**:
+  - Centralized registry `MODEL_METADATA_REGISTRY` resolves evaluation metadata using `prediction_service.resolve_artifacts_dir()`:
+    - `cashout-location-xgb-v7-compat` $\rightarrow$ `model_metadata_v7_compat.json`
+    - `cashout-location-xgb-v4` $\rightarrow$ `model_metadata_v4.json`
+    - `cashout-location-xgb-v3_1` $\rightarrow$ `model_metadata_v3_1.json`
+    - `cashout-location-xgb-v2` $\rightarrow$ `model_metadata_v2.json`
+  - Cross-checks `metadata["model_version"] == provider.model_version`.
+  - Cross-checks artifact hashes (`artifacts.ranker.sha256 == provider.location_hash`).
+  - If a version mismatch or hash mismatch occurs, evaluation is rejected (`VERSION_MISMATCH` or `HASH_MISMATCH`) and no evaluation metrics are attached.
+
+### 3. API Changes
+- **Updated Endpoint**: `GET /api/v1/model/performance`
+- **Pydantic Response Schema**: `ModelPerformanceResponse` in `backend/app/schemas/schemas.py`.
+- **Additive Structured Blocks**:
+  - `runtime_info` (`RuntimeModelInfo`):
+    - `runtime_status`: `"TRAINED_READY" | "DEMO_ACTIVE" | "LOAD_FAILED" | "UNAVAILABLE"`
+    - `is_loaded`: `bool`
+    - `is_available`: `bool`
+    - `model_version`, `location_model_version`, `time_model_version`
+    - `algorithm`: e.g. `"pairwise_xgb_ranker"`
+    - `calibration_method`: e.g. `"Platt Logistic Regression (Calibrated on Validation)"`
+    - `feature_schema_version`: e.g. `"v7_compat"`
+    - `location_features_count`: `47` (derived dynamically from loaded schema)
+    - `time_features_count`: `20`
+    - `location_artifact_hash_short`: Abbreviated SHA-256 (`89057bce...`)
+    - `load_error`: Sanitized error string (all internal filesystem paths, secrets, and stack traces removed).
+  - `evaluation_info` (`ModelEvaluationInfo`):
+    - `evaluation_status`: `"AVAILABLE" | "UNAVAILABLE" | "VERSION_MISMATCH" | "HASH_MISMATCH" | "NOT_EVALUATED"`
+    - `availability_reason`: Explicit explanatory note if evaluation is unavailable or mismatched.
+    - `evaluated_model_version`: e.g. `"cashout-location-xgb-v7-compat"`
+    - `synthetic_disclosure`: Truthful provenance notice.
+    - `training_samples`: `17655` (from source balancing).
+    - `validation_samples` & `test_samples`: `null` (not provided in V7 metadata; never inferred).
+  - `research_models` (`List[ResearchModelInfo]`):
+    - Explicitly surfaces `Blockchain Shadow Re-Ranker V1` with `status: "RESEARCH_ONLY"`, `promotion_status: "DID NOT MEET PROMOTION GATE"`, pre-registered threshold (`>= +1.00 pp`), and observed ablation delta (`+0.07 pp`).
+  - `saved_prediction_provenance` (`SavedPredictionProvenance`):
+    - Documents immutable historical provenance: saved prediction records preserve the model version under which they were generated (e.g. `demo-provider-v1` for CMP-1042 or `cashout-location-xgb-v4` for historical complaints), while the live runtime engine (`cashout-location-xgb-v7-compat`) serves dynamic Delhi complaints.
+- **Backward Compatibility**:
+  - Retained all legacy fields (`prediction_mode`, `model_version`, `Recall@1`, `Recall@3`, `natural_candidate_recall`, `MRR`, `median_cluster_centroid_distance_error_km`, etc.) with correct percentage formatting and nullability.
+
+### 4. Removed Misleading Defaults
+- **Removed Fabricated Demo Fallback**: Missing metadata no longer drops `prediction_mode` to `deterministic_demo`, and no longer serves fake 65% / 35% numbers.
+- **Removed Fictitious Inferred Sample Counts**: Validation and test sample counts are `null` (never assumed to be 3,000).
+- **Removed Double Percentage Conversion**: Raw values (e.g. `17.8` and `75.63`) are formatted directly with units (`17.8%`, `75.6%`), preventing `1780%` or `7563%` scaling bugs.
+- **Removed Fabricated Comparison Deltas**: Metrics from different objectives or sets show `"Not comparable"` and `comparable: false`.
+- **Real Feature Importances**: Feature importances are extracted directly from `provider.location_model.feature_importances_` mapped to `provider.feature_schema["location_features"]` (Top signals: `v4_candidate_score` 25.6%, `v4_score_gap_from_candidate1` 16.6%, `v4_candidate_rank_normalized` 8.1%, `historical_cluster_risk` 7.0%).
+- **Preserved Valid Zeros**: Valid numeric zero metrics (`0.0%`, `0.0000 ECE`, `0.00 km`) are preserved as genuine values, distinct from unavailable metrics.
+
+### 5. Behavior Example: Trained Inference Ready But Evaluation Metadata Unavailable
+When trained inference is fully ready (`provider.is_available() == True`) but evaluation metadata is missing or unregistered (e.g. model version `cashout-location-xgb-v99-unregistered`):
+- `runtime_info.runtime_status`: `"TRAINED_READY"`
+- `prediction_mode`: `"trained_ml"`
+- `current_prediction_mode`: `"Trained ML (cashout-location-xgb-v99-unregistered + Platt Calibration)"`
+- `evaluation_info.evaluation_status`: `"UNAVAILABLE"`
+- `evaluation_info.availability_reason`: `"No registered evaluation metadata for loaded model version 'cashout-location-xgb-v99-unregistered'."`
+- `Recall@1`: `null` (UI renders: `Not evaluated`)
+- `Recall@3`: `null` (UI renders: `Not evaluated`)
+- `training_samples`: `null` (UI renders: `Not recorded`)
+- **Frontend Presentation**:
+  - Runtime card displays green badge **"Trained Model Ready"**.
+  - Evaluation card displays amber banner: **"UNAVAILABLE: No registered evaluation metadata for loaded model version... Trained runtime inference remains active."**
+  - Metric cards clearly display **"Not evaluated"** without breaking or defaulting to demo mode.
+
+### 6. Files Changed
+- `backend/app/schemas/schemas.py`: Added `MetricComparisonItem`, `FeatureImportanceItem`, `RuntimeModelInfo`, `ModelEvaluationInfo`, `ResearchModelInfo`, `SavedPredictionProvenance`, and `ModelPerformanceResponse`.
+- `backend/app/api/model_routes.py`: Replaced hardcoded V2 loader with authoritative runtime inspection, `MODEL_METADATA_REGISTRY`, hash/version validation, truthful V7 metric extraction, real feature importances, and error sanitization.
+- `frontend/src/types/index.ts`: Added TypeScript interfaces for `RuntimeModelInfo`, `ModelEvaluationInfo`, `ResearchModelInfo`, and `SavedPredictionProvenance`; updated `ModelPerformanceData` with additive fields and nullable metrics.
+- `frontend/src/pages/ModelPerformance.tsx`: Complete UI update presenting distinct Runtime Engine, Saved Prediction Provenance, Evaluation Evidence, Research Models, Metric Pillars (handling nulls with "Not evaluated"), and dynamic comparison matrix with "Not comparable" badges.
+- `tests/test_phase4_model_performance.py`: New comprehensive test suite with 12 focused regression tests.
+- `docs/remediation-plan.md`: Updated Issue 6 status and added Phase 4 completion review.
+
+### 7. Exact Test Commands & Results
+1. **Phase 4 Dedicated Suite**:
+   ```bash
+   python -m pytest tests/test_phase4_model_performance.py -v
+   ```
+   - `test_endpoint_authorization_gate`: **PASSED**
+   - `test_trained_runtime_with_matching_v7_metadata`: **PASSED**
+   - `test_trained_runtime_with_missing_evaluation_metadata`: **PASSED**
+   - `test_explicit_demo_runtime`: **PASSED**
+   - `test_failed_model_loading_and_error_sanitization`: **PASSED**
+   - `test_metadata_for_wrong_model_version`: **PASSED**
+   - `test_benchmark_comparability_truthfulness`: **PASSED**
+   - `test_research_models_governance`: **PASSED**
+   - `test_saved_prediction_provenance_card`: **PASSED**
+   - `test_artifact_hash_mismatch_rejection`: **PASSED**
+   - `test_legitimate_zero_metrics_preserved`: **PASSED**
+   - `test_no_percentage_double_conversion`: **PASSED**
+   - **Result**: `12 passed, 19 warnings in 4.74s (100% pass rate)`
+
+2. **Phase 1–3 Regression Suites**:
+   ```bash
+   python -m pytest tests/test_phase1_security_authorization.py tests/test_phase2_timestamp_and_scores.py tests/test_phase3_hotspots_and_gis.py -v
+   ```
+   - **Result**: `59 passed, 68 warnings in 117.38s (100% pass rate)`
+
+3. **General Backend Suite**:
+   ```bash
+   python -m pytest tests/test_backend.py -k test_model_performance
+   ```
+   - **Result**: `1 passed, 10 deselected in 31.53s (100% pass rate)`
+
+4. **Frontend Production Build**:
+   ```bash
+   npm --prefix frontend run build
+   ```
+   - **Result**: `2502 modules transformed, built cleanly in 17.35s (Exit code 0)`
+
+### 8. Visual Verification Status
+- **Status**: **UNVERIFIED (Visual Browser Verification Deferred)**.
+- **Telemetry**: Local dev servers (`http://127.0.0.1:8000` and `http://127.0.0.1:5173`) were spun up and confirmed healthy via HTTP health checks. Browser automation using `browser_subagent` was attempted, but the `open_browser_url` tool failed because the local environment encountered a 404 error attempting to download the Playwright driver binary from Azure/Akamai CDN (`https://playwright.azureedge.net/builds/driver/playwright-1.57.0-win32_x64.zip`).
+- In accordance with repository instructions, code inspection and successful production builds are **NOT** presented as visual verification; visual acceptance remains strictly marked **UNVERIFIED**.
+
+### 9. Remaining Limitations & Boundaries
+- Cytoscape transaction network canvas layout and unreadable graph elements remain scheduled for Phase 5.
+- LIME local surrogate explanation service and background data resolver remain scheduled for Phase 6.
+- Production deployment, model retraining, and database migrations remain strictly prohibited and out of scope.
 
 ---
 
 ## Conclusion & Audit Certification
 
-This audit and remediation conclusively addresses Phase 1 (Security & RBAC), Phase 2 (Timestamps & Scores), and Phase 3 (Active Hotspots & GIS Correctness), establishing strict mathematical and operational integrity across backend services, database schemas, and frontend interfaces.
+This audit and remediation conclusively addresses Phase 1 (Security & RBAC), Phase 2 (Timestamps & Scores), Phase 3 (Active Hotspots & GIS Correctness), and Phase 4 (Truthful Model Performance and Runtime Status), establishing rigorous mathematical and operational integrity across backend predictive engines, model governance metadata, and frontend interfaces.
+

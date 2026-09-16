@@ -412,6 +412,142 @@ class ExplanationResponse(BaseModel):
         "This is an algorithmic approximation, not proof or causal evidence of criminal activity."
     )
 
+# ============================================================================
+# Model Performance, Runtime Governance & Evaluation Schemas (Phase 4)
+# ============================================================================
+
+class MetricComparisonItem(BaseModel):
+    metric: str
+    baseline: Optional[str] = None
+    cybershield: Optional[str] = None
+    delta: Optional[str] = None
+    unit: Optional[str] = None
+    comparable: bool = False
+    comparability_note: Optional[str] = None
+
+class FeatureImportanceItem(BaseModel):
+    feature: str
+    importance: float
+    feature_code: Optional[str] = None
+
+class RuntimeModelInfo(BaseModel):
+    runtime_status: str  # "TRAINED_READY", "DEMO_ACTIVE", "LOAD_FAILED", "UNAVAILABLE"
+    is_loaded: bool
+    is_available: bool
+    prediction_mode: str
+    current_prediction_mode: str
+    model_version: str
+    location_model_version: Optional[str] = None
+    time_model_version: Optional[str] = None
+    algorithm: Optional[str] = None
+    model_class: Optional[str] = None
+    calibrator_class: Optional[str] = None
+    calibration_method: Optional[str] = None
+    feature_schema_version: Optional[str] = None
+    location_features_count: Optional[int] = None
+    time_features_count: Optional[int] = None
+    location_artifact_file: Optional[str] = None
+    location_artifact_hash: Optional[str] = None
+    location_artifact_hash_short: Optional[str] = None
+    calibrator_artifact_file: Optional[str] = None
+    calibrator_artifact_hash: Optional[str] = None
+    calibrator_artifact_hash_short: Optional[str] = None
+    load_error: Optional[str] = None
+
+class ModelEvaluationInfo(BaseModel):
+    evaluation_status: str  # "AVAILABLE", "UNAVAILABLE", "VERSION_MISMATCH", "HASH_MISMATCH", "NOT_EVALUATED"
+    availability_reason: Optional[str] = None
+    evaluated_model_version: Optional[str] = None
+    evaluation_timestamp: Optional[str] = None
+    dataset_type: Optional[str] = None
+    dataset_split: Optional[str] = None
+    synthetic_disclosure: Optional[str] = None
+    training_samples: Optional[int] = None
+    validation_samples: Optional[int] = None
+    test_samples: Optional[int] = None
+    cold_start_test_samples: Optional[int] = None
+    metrics_summary: Dict[str, Any] = Field(default_factory=dict)
+
+class ResearchModelInfo(BaseModel):
+    model_name: str
+    model_type: Optional[str] = None
+    status: str
+    promotion_status: str
+    qualification_gate: Optional[str] = None
+    observed_gain: Optional[str] = None
+    required_gain: Optional[str] = None
+    official_production_model: Optional[str] = None
+    production_affected: bool = False
+    details: Optional[str] = None
+
+class SavedPredictionProvenance(BaseModel):
+    current_runtime_model: str
+    historical_policy: str
+    description: str
+
+class ModelPerformanceResponse(BaseModel):
+    prediction_mode: str
+    current_prediction_mode: str
+    model_version: str
+    provider_version: str
+    official_production_model: Optional[str] = None
+    location_model_version: Optional[str] = None
+    time_model_version: Optional[str] = None
+    location_features_count: Optional[int] = None
+    time_features_count: Optional[int] = None
+    calibration_method: Optional[str] = None
+    model_class: Optional[str] = None
+    calibrator_class: Optional[str] = None
+    dataset_type: Optional[str] = None
+    dataset_split: Optional[str] = None
+    evaluation_label: Optional[str] = None
+    synthetic_disclosure: Optional[str] = None
+    model_architecture: Optional[str] = None
+    runtime_notice: Optional[str] = None
+    production_notice: Optional[str] = None
+    geographic_disclaimer: Optional[str] = None
+
+    training_samples: Optional[int] = None
+    validation_samples: Optional[int] = None
+    test_samples: Optional[int] = None
+    cold_start_test_samples: Optional[int] = None
+    active_clusters_count: Optional[int] = 60
+    atm_coverage_count: Optional[int] = 1200
+
+    natural_candidate_recall: Optional[str] = None
+    Recall_at_1: Optional[str] = Field(None, alias="Recall@1")
+    Recall_at_3: Optional[str] = Field(None, alias="Recall@3")
+    Recall_at_5: Optional[str] = Field(None, alias="Recall@5")
+    Precision_at_3: Optional[str] = Field(None, alias="Precision@3")
+    MRR: Optional[float] = None
+    median_cluster_centroid_distance_error_km: Optional[str] = None
+    within_5km: Optional[str] = None
+    within_10km: Optional[str] = None
+    within_25km: Optional[str] = None
+    Brier_score: Optional[float] = None
+    internal_ece: Optional[float] = None
+    time_MAE_minutes: Optional[str] = None
+    time_median_absolute_error: Optional[str] = None
+    time_window_coverage: Optional[str] = None
+    cold_start_candidate_recall: Optional[str] = None
+    cold_start_recall_at_1: Optional[str] = None
+    cold_start_recall_at_3: Optional[str] = None
+
+    research_experiment: Optional[str] = None
+    research_status: Optional[str] = None
+    research_details: Optional[str] = None
+
+    metrics_comparison: List[MetricComparisonItem] = Field(default_factory=list)
+    feature_importances: List[FeatureImportanceItem] = Field(default_factory=list)
+
+    runtime_info: Optional[RuntimeModelInfo] = None
+    evaluation_info: Optional[ModelEvaluationInfo] = None
+    research_models: List[ResearchModelInfo] = Field(default_factory=list)
+    saved_prediction_provenance: Optional[SavedPredictionProvenance] = None
+
+    class Config:
+        populate_by_name = True
+
 # GIS Schemas
 class HotspotCluster(BaseModel):
     id: int
