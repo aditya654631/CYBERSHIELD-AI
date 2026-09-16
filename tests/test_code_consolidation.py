@@ -7,6 +7,7 @@ Verifies that:
 """
 
 import os
+import subprocess
 import sys
 import pytest
 
@@ -27,6 +28,20 @@ def test_canonical_database_package_resolution():
     from database.seed.seed_config import SYNTHETIC_RANDOM_SEED
     assert seed_database is not None
     assert SYNTHETIC_RANDOM_SEED == 26184
+
+
+def test_root_launcher_imports_in_clean_process():
+    """Match Railway's ``uvicorn main:app`` import path in a fresh process."""
+    root_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+    result = subprocess.run(
+        [sys.executable, "-c", "import main; assert main.app is not None"],
+        cwd=root_dir,
+        capture_output=True,
+        text=True,
+        timeout=60,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr
 
 def test_canonical_ml_artifacts_exist():
     base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
