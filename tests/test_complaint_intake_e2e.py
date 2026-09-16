@@ -462,8 +462,8 @@ def test_time_v2_shape_remains_1_20(db):
 # 13. Model artifacts are not retrained
 # ---------------------------------------------------------------------------
 def test_model_artifacts_not_retrained():
-    loc_model_path = os.path.join("ml", "artifacts", "location_ranker_v3_1.joblib")
-    time_model_path = os.path.join("ml", "artifacts", "time_regressor_v2.joblib")
+    loc_model_path = os.path.join("ml", "artifacts", "location_ranker_v7_compat.joblib")
+    time_model_path = os.path.join("ml", "artifacts", "time_regressor_v3.joblib")
 
     assert os.path.exists(loc_model_path), f"Missing {loc_model_path}"
     assert os.path.exists(time_model_path), f"Missing {time_model_path}"
@@ -504,7 +504,7 @@ def test_explicit_prediction_run_persists_prediction(db):
     pred_data = res_pred.json()
 
     assert pred_data["prediction_mode"] == "trained_ml"
-    assert pred_data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4")
+    assert pred_data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
     assert len(pred_data["top_locations"]) == 3
     assert pred_data["operational_scope"] == "DELHI_PILOT"
 
@@ -730,4 +730,3 @@ def test_officer_entered_beneficiary_not_confirmed_mule(db):
     assert ben_acc is not None
     assert ben_acc.is_mule is False
     assert ben_acc.flag_reason is None
-

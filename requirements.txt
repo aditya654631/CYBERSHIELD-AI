@@ -1,21 +1,36 @@
-fastapi>=0.110.0
-uvicorn>=0.28.0
-sqlalchemy>=2.0.0
-pydantic>=2.0.0
-pydantic-settings>=2.0.0
-python-jose[cryptography]>=3.3.0
-passlib[bcrypt]>=1.7.4
-bcrypt>=4.0.0
-python-multipart>=0.0.9
-networkx>=3.2.0
-pandas>=2.0.0
-numpy>=1.24.0
-scikit-learn>=1.4.0
-joblib>=1.3.0
-websockets>=12.0
-python-dotenv>=1.0.0
-psycopg[binary]>=3.1.18
-alembic>=1.13.0
+# CyberShield AI — Pinned Production Dependencies
+# Target Runtime: Python >= 3.11, < 3.14 (Validated on Python 3.13)
+
+# Web Framework & Server
+fastapi==0.141.1
+uvicorn[standard]==0.52.4
+pydantic==2.13.5
+pydantic-settings==2.15.0
+python-multipart==0.0.32
+websockets==17.1
+
+# Database & Migrations
+sqlalchemy==2.0.52
+alembic==1.20.0
+psycopg[binary]==3.3.5
+
+# Authentication & Security
+bcrypt==5.0.0
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.5.0
+cryptography==50.0.1
+
+# Machine Learning & Analytics Core
+# Note: Models trained on scikit-learn 1.9.0 / xgboost 3.4.1 runtime
+numpy==2.5.3
+pandas==3.0.5
+scikit-learn==1.9.1
 xgboost==3.4.1
-lime>=0.2.0.1
-requests>=2.31.0
+joblib==1.6.0
+scipy==1.18.1
+networkx==3.6.1
+lime==0.2.0.1
+
+# Utilities & Networking
+python-dotenv==1.2.3
+requests==2.34.2

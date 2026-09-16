@@ -599,7 +599,7 @@ def create_complaint(
     if is_delhi:
         victim_state = "Delhi"
     victim_district = (
-        origin_res["resolved_district"] or data.district or "UNRESOLVED"
+        data.district or origin_res["resolved_district"] or "UNRESOLVED"
     ) if is_delhi else (data.district or "UNRESOLVED")
     victim_lat = data.victim_lat
     victim_lon = data.victim_lon

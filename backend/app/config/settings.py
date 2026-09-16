@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     NEON_SSLMODE: Optional[str] = "require"
 
     # ML Model Configuration
-    ML_MODEL_DIR: str = "ml/models"
+    ML_MODEL_DIR: str = "ml/artifacts"
     USE_ML_FALLBACK: bool = True
 
     # Server Configuration
@@ -64,11 +64,14 @@ class Settings(BaseSettings):
         to psycopg v3 driver with SSL required.
         Supports NEON_DATABASE_URL, DATABASE_URL, or discrete NEON credentials (NEON_HOST, NEON_USER, etc.).
         """
-        # Priority 1: Direct NEON_DATABASE_URL
-        target_url = self.NEON_DATABASE_URL or self.DATABASE_URL
+        # Priority 1: Explicitly provided DATABASE_URL
+        if "DATABASE_URL" in self.model_fields_set and self.DATABASE_URL:
+            target_url = self.DATABASE_URL
+        else:
+            target_url = self.NEON_DATABASE_URL or self.DATABASE_URL
 
-        # Priority 2: Construct from discrete Neon parameters if provided
-        if (not target_url or target_url.startswith("sqlite")) and self.NEON_HOST and self.NEON_USER and self.NEON_PASSWORD:
+        # Priority 2: Construct from discrete Neon parameters if provided and no explicit DATABASE_URL
+        if (not target_url or target_url.startswith("sqlite")) and "DATABASE_URL" not in self.model_fields_set and self.NEON_HOST and self.NEON_USER and self.NEON_PASSWORD:
             target_url = f"postgresql://{self.NEON_USER}:{self.NEON_PASSWORD}@{self.NEON_HOST}/{self.NEON_DATABASE or 'neondb'}?sslmode={self.NEON_SSLMODE or 'require'}"
 
         if target_url:
@@ -89,6 +92,19 @@ class Settings(BaseSettings):
         return self
 
     ALLOW_DEMO_LOGIN: bool = True
+    AUTO_SEED_DEMO_DATA: bool = False
+
+    @property
+    def cors_origins_list(self) -> List[str]:
+        """Parsed list of allowed CORS origins from CORS_ORIGINS environment variable."""
+        val = self.CORS_ORIGINS
+        if isinstance(val, list):
+            origins = [o.rstrip("/") if isinstance(o, str) else o for o in val]
+        elif isinstance(val, str):
+            origins = [origin.strip().rstrip("/") for origin in val.split(",") if origin.strip()]
+        else:
+            origins = []
+        return origins
 
     @model_validator(mode="after")
     def validate_cors_origins(self) -> "Settings":
@@ -106,17 +122,23 @@ class Settings(BaseSettings):
                     raise ValueError(f"Production configuration error: CORS origin '{o}' cannot contain wildcards.")
         return self
 
-    @property
-    def cors_origins_list(self) -> List[str]:
-        """Parsed list of allowed CORS origins from CORS_ORIGINS environment variable."""
-        val = self.CORS_ORIGINS
-        if isinstance(val, list):
-            origins = val
-        elif isinstance(val, str):
-            origins = [origin.strip() for origin in val.split(",") if origin.strip()]
-        else:
-            origins = []
-        return [o.rstrip("/") for o in origins]
+    @model_validator(mode="after")
+    def validate_production_invariants(self) -> "Settings":
+        is_prod = str(self.ENVIRONMENT).lower() in ("production", "prod")
+        if is_prod:
+            if not self.DATABASE_URL or self.DATABASE_URL.startswith("sqlite"):
+                raise ValueError(
+                    "Production configuration error: PostgreSQL is required in production environment. SQLite is prohibited."
+                )
+            if self.ALLOW_DEMO_LOGIN:
+                raise ValueError(
+                    "Production configuration error: ALLOW_DEMO_LOGIN must be disabled (False) in production."
+                )
+            if self.AUTO_SEED_DEMO_DATA:
+                raise ValueError(
+                    "Production configuration error: AUTO_SEED_DEMO_DATA must be disabled (False) in production."
+                )
+        return self
 
     @property
     def SECRET_KEY(self) -> str:

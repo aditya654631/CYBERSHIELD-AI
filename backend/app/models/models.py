@@ -1,6 +1,6 @@
 import datetime
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric, UniqueConstraint, JSON
+    Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric, UniqueConstraint, JSON, Index
 )
 from sqlalchemy.orm import relationship, synonym
 from backend.app.models.db import Base
@@ -104,6 +104,11 @@ class Complaint(Base):
     case_status = Column(String(50), default="ACTIVE", index=True)  # ACTIVE, UNDER_INVESTIGATION, ALERTED, RESOLVED
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
 
+    __table_args__ = (
+        Index("ix_complaints_state_district", "state", "district"),
+        Index("ix_complaints_reported_at", "reported_at"),
+    )
+
     # Synonyms for flexible compatibility with callers, ML pipelines, and test suites
     victim_latitude = synonym("victim_lat")
     victim_longitude = synonym("victim_lon")
@@ -171,6 +176,10 @@ class Transaction(Base):
     hop_number = Column(Integer, default=1)
     status = Column(String(50), default="COMPLETED")
     suspicious_flag = Column(Boolean, default=True)
+
+    __table_args__ = (
+        Index("ix_transactions_comp_hop", "complaint_id", "hop_number"),
+    )
 
     complaint = relationship("Complaint", back_populates="transactions")
     sender = relationship("Account", foreign_keys=[sender_account_id], back_populates="sent_transactions")
@@ -262,6 +271,10 @@ class Alert(Base):
     action_notes = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
+    __table_args__ = (
+        Index("ix_alerts_comp_pred_status", "complaint_id", "prediction_id", "status"),
+    )
+
     complaint = relationship("Complaint", back_populates="alerts")
     prediction = relationship("Prediction", back_populates="alerts")
 
@@ -289,6 +302,10 @@ class AuditLog(Base):
     details = Column(Text, nullable=True)
     ip_address = Column(String(50), default="127.0.0.1")
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+    __table_args__ = (
+        Index("ix_audit_logs_user_created_at", "user_id", "created_at"),
+    )
 
     user = relationship("User", back_populates="audit_logs")
 
@@ -319,6 +336,10 @@ class BankAction(Base):
     completed_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_bank_actions_comp_status", "complaint_id", "status"),
+    )
 
     complaint = relationship("Complaint", foreign_keys=[complaint_id])
     alert = relationship("Alert", foreign_keys=[alert_id])

@@ -1,4 +1,6 @@
 import os
+import json
+from datetime import datetime, timezone
 from contextlib import asynccontextmanager
 from typing import Optional
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Depends
@@ -23,6 +25,7 @@ from backend.app.api.dashboard_routes import router as dashboard_router
 from backend.app.api.model_routes import router as model_router
 from backend.app.api.audit_routes import router as audit_router
 from backend.app.api.bank_action_routes import router as bank_action_router
+from backend.app.api.system_routes import router as system_router
 from backend.app.websocket.manager import ws_manager
 
 @asynccontextmanager
@@ -33,18 +36,22 @@ async def lifespan(app: FastAPI):
     try:
         ensure_prototype_schema(engine)
 
-        db = SessionLocal()
-        try:
-            seed_database(db)
-            app.state.bootstrap_ready = True
-        finally:
-            db.close()
+        # Seed demo dataset only if explicitly configured in non-production, non-test environments
+        is_prod = str(settings.ENVIRONMENT).lower() in ("production", "prod")
+        if settings.AUTO_SEED_DEMO_DATA and not is_prod and settings.ENVIRONMENT != "test":
+            db = SessionLocal()
+            try:
+                seed_database(db)
+            finally:
+                db.close()
+        app.state.bootstrap_ready = True
     except Exception as exc:
         app.state.bootstrap_ready = False
         print(f"[Startup] Warning: Database bootstrap initialization failed ({exc.__class__.__name__}). Database may be unreachable.")
 
     yield
     # Shutdown
+    await ws_manager.close_all()
     print("[Shutdown] CyberShield AI engine stopped.")
 
 app = FastAPI(
@@ -98,7 +105,8 @@ def health_check():
         "service": settings.APP_NAME,
         "version": "1.0.0",
         "engine": "Online" if model_ready else "Unavailable",
-        "database": db_status,
+        "database": db_health,
+        "database_status": db_status,
         "database_info": db_health,
         "database_engine": db_engine,
         "ml_engine": "ready" if model_ready else "standby",
@@ -122,6 +130,7 @@ app.include_router(dashboard_router, prefix=api_prefix)
 app.include_router(model_router, prefix=api_prefix)
 app.include_router(audit_router, prefix=api_prefix)
 app.include_router(bank_action_router, prefix=api_prefix)
+app.include_router(system_router, prefix=api_prefix)
 
 # Authenticated WebSocket for real-time alerts
 @app.websocket("/ws/alerts")
@@ -132,17 +141,27 @@ async def websocket_alerts_endpoint(
 ):
     try:
         # Validate query param token before accept
-        verify_ws_token(token, db)
+        user = verify_ws_token(token, db)
     except Exception:
         # Reject unauthenticated connection immediately with policy violation code 1008
         await websocket.close(code=1008, reason="Unauthorized: Missing or invalid token")
         return
 
-    await ws_manager.connect(websocket)
+    await ws_manager.connect(websocket, user=user)
     try:
         while True:
             data = await websocket.receive_text()
-            # Echo or handle ping
+            # Handle heartbeat ping or general messages
+            try:
+                msg = json.loads(data)
+                if isinstance(msg, dict) and msg.get("type") == "ping":
+                    await websocket.send_text(json.dumps({
+                        "type": "pong",
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    }))
+                    continue
+            except Exception:
+                pass
             await websocket.send_text(f'{{"type":"pong","received":{data}}}')
     except WebSocketDisconnect:
         ws_manager.disconnect(websocket)

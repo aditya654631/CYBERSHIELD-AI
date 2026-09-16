@@ -520,3 +520,48 @@ export interface BankActionItem {
   completed_at?: string | null;
   created_at: string;
 }
+
+export interface SystemStatus {
+  environment: string;
+  service: string;
+  version: string;
+  timestamp?: string;
+  database: {
+    status: string;
+    engine: string;
+    latency_ms?: number;
+    is_persistent: boolean;
+  };
+  ml_engine: {
+    status: string;
+    model_version: string;
+    time_model_version: string;
+    artifact_verification: string;
+    artifacts_verified: boolean;
+    runtime_versions?: Record<string, string>;
+    artifact_details?: Record<string, any>;
+  };
+  websocket: {
+    mode: string;
+    active_clients: number;
+    status: string;
+  };
+  integrations: {
+    bank_gateway: {
+      status: string;
+      is_simulated: boolean;
+      description: string;
+    };
+    blockchain_gateway: {
+      status: string;
+      is_simulated: boolean;
+      description: string;
+    };
+  };
+  requesting_officer?: {
+    id: number;
+    role: string;
+    state: string;
+    district: string;
+  };
+}
