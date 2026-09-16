@@ -33,7 +33,7 @@ class Settings(BaseSettings):
     NEON_SSLMODE: Optional[str] = "require"
 
     # ML Model Configuration
-    ML_MODEL_DIR: str = "ml/models"
+    ML_MODEL_DIR: str = "ml/artifacts"
     USE_ML_FALLBACK: bool = True
 
     # Server Configuration

@@ -11,6 +11,7 @@ Tests:
 import os
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import pytest
 
@@ -21,7 +22,7 @@ def test_fresh_database_upgrade_to_head():
     try:
         norm_path = temp_db_path.replace("\\", "/")
         cmd = [
-            r".venv\Scripts\alembic.exe",
+            sys.executable, "-m", "alembic",
             "-x", f"db_url=sqlite:///{norm_path}",
             "upgrade", "head"
         ]
@@ -64,7 +65,7 @@ def test_upgrade_from_phase1_to_phase2():
 
         # Step 1: Upgrade to Phase 1 head (0006)
         cmd_p1 = [
-            r".venv\Scripts\alembic.exe",
+            sys.executable, "-m", "alembic",
             "-x", f"db_url=sqlite:///{norm_path}",
             "upgrade", "0006_bank_actions_lifecycle"
         ]
@@ -73,7 +74,7 @@ def test_upgrade_from_phase1_to_phase2():
 
         # Step 2: Upgrade to Phase 2 head (0007)
         cmd_p2 = [
-            r".venv\Scripts\alembic.exe",
+            sys.executable, "-m", "alembic",
             "-x", f"db_url=sqlite:///{norm_path}",
             "upgrade", "head"
         ]
