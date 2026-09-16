@@ -42,6 +42,9 @@ def test_system_status_authenticated_returns_truthful_telemetry(db_session):
     assert "ml_engine" in data
     assert "websocket" in data
     assert "integrations" in data
+    assert isinstance(data["database"]["latency_ms"], (int, float))
+    assert data["database"]["latency_ms"] >= 0
+    assert data["timestamp"]
 
     # Truthful simulation reporting
     assert data["integrations"]["bank_gateway"]["is_simulated"] is True
