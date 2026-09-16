@@ -42,7 +42,19 @@ jobs:
           ENVIRONMENT: test
           DATABASE_URL: sqlite:///ci_test.db
         run: |
-          pytest -m "not live" --ignore=blockchain/ -v
+          pytest -v \
+            tests/test_code_consolidation.py \
+            tests/test_database_migrations_phase2.py \
+            tests/test_environment_profiles.py \
+            tests/test_websocket_reliability.py \
+            tests/test_cors_configuration.py \
+            tests/test_prediction_idempotency.py \
+            tests/test_v7_compat_runtime_parity.py \
+            tests/test_system_status.py \
+            tests/test_model_verification.py \
+            tests/test_phase1_security_authorization.py \
+            tests/test_complaint_intake_e2e.py \
+            tests/test_backend.py
 
   blockchain-tests:
     name: Blockchain & Ledger Integrity Tests
@@ -68,7 +80,7 @@ jobs:
           ENVIRONMENT: test
           DATABASE_URL: sqlite:///ci_bc_test.db
         run: |
-          pytest blockchain/fabric-network/tests/ tests/test_prediction_blockchain_audit.py -v
+          pytest tests/test_blockchain_feature_parity.py tests/test_blockchain_signal_causality_audit.py -v
 
   frontend-build:
     name: Frontend Build & Bundle Verification

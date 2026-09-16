@@ -1,0 +1,5 @@
+# Model metadata and schemas participate in SHA-256 integrity checks.
+# Keep their repository and working-tree bytes identical on every OS.
+ml/artifacts/*.json text eol=lf
+backend/ml/artifacts/*.json text eol=lf
+

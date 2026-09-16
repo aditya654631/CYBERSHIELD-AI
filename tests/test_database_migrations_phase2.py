@@ -34,7 +34,7 @@ def test_fresh_database_upgrade_to_head():
         # Verify all indexes created
         cur.execute("SELECT name FROM sqlite_master WHERE type='index';")
         indexes = {row[0] for row in cur.fetchall()}
-        
+
         expected_indexes = [
             "ix_complaints_state_district",
             "ix_complaints_reported_at",
@@ -61,7 +61,7 @@ def test_upgrade_from_phase1_to_phase2():
 
     try:
         norm_path = temp_db_path.replace("\\", "/")
-        
+
         # Step 1: Upgrade to Phase 1 head (0006)
         cmd_p1 = [
             r".venv\Scripts\alembic.exe",
