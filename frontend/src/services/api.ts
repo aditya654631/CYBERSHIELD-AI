@@ -13,6 +13,7 @@ import {
   AuditLogItem,
   ModelPerformanceData,
   BankActionItem,
+  SystemStatus,
 } from '../types';
 
 const API_BASE_URL =
@@ -212,6 +213,12 @@ export const api = {
   // Audit
   getAuditLogs: async (params?: { action?: string }) => {
     const res = await apiClient.get<AuditLogItem[]>('/audit', { params });
+    return res.data;
+  },
+
+  // System Diagnostics (Truthful runtime status)
+  getSystemStatus: async () => {
+    const res = await apiClient.get<SystemStatus>('/system/status');
     return res.data;
   },
 };

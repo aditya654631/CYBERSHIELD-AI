@@ -1,0 +1,94 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - phase-**
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  backend-tests:
+    name: Backend Tests & Migrations
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run Alembic Fresh Database Migration
+        run: |
+          alembic -x db_url=sqlite:///ci_migration_test.db upgrade head
+
+      - name: Run Model Verification
+        run: |
+          pytest tests/test_model_verification.py -v
+
+      - name: Run Isolated Backend Test Suite
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: sqlite:///ci_test.db
+        run: |
+          pytest -m "not live" --ignore=blockchain/ -v
+
+  blockchain-tests:
+    name: Blockchain & Ledger Integrity Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install -r requirements-dev.txt
+
+      - name: Run Blockchain & Prediction Audit Tests
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: sqlite:///ci_bc_test.db
+        run: |
+          pytest blockchain/fabric-network/tests/ tests/test_prediction_blockchain_audit.py -v
+
+  frontend-build:
+    name: Frontend Build & Bundle Verification
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm ci
+
+      - name: Build & Typecheck Frontend
+        run: npm run build

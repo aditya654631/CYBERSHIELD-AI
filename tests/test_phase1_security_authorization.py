@@ -34,15 +34,6 @@ from backend.app.models.models import (
 client = TestClient(app)
 
 
-@pytest.fixture(scope="module")
-def db_session():
-    session = SessionLocal()
-    try:
-        yield session
-    finally:
-        session.close()
-
-
 def _make_auth_header(email: str, role: str, expires_delta: timedelta = None) -> dict:
     claims = {"sub": email, "role": role}
     token = create_access_token(claims, expires_delta=expires_delta)

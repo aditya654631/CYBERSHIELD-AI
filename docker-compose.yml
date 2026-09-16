@@ -1,52 +1,71 @@
-version: '3.8'
-
 services:
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    ports:
-      - "8000:8000"
-    environment:
-      # Local development PostgreSQL connection string using modern psycopg v3 driver
-      - DATABASE_URL=postgresql+psycopg://cybershield:${POSTGRES_PASSWORD:-cybershield_local_only}@db:5432/cybershield
-      - JWT_SECRET=${JWT_SECRET:-dev-insecure-jwt-secret-key-for-development-only-cybershield-2026}
-      - ENVIRONMENT=development
-    depends_on:
-      db:
-        condition: service_healthy
-    volumes:
-      - ./backend:/app
-      - ./ml/artifacts:/app/ml/artifacts
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    ports:
-      - "5173:5173"
-    environment:
-      - VITE_API_BASE_URL=http://localhost:8000/api/v1
-      - VITE_WS_URL=ws://localhost:8000/ws/alerts
-    depends_on:
-      - backend
-
   db:
-    image: postgres:16
-    restart: always
+    image: postgres:16-alpine
+    restart: unless-stopped
     environment:
-      - POSTGRES_DB=cybershield
-      - POSTGRES_USER=cybershield
+      - POSTGRES_DB=${POSTGRES_DB:-cybershield}
+      - POSTGRES_USER=${POSTGRES_USER:-cybershield}
       - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-cybershield_local_only}
     ports:
       - "5432:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U cybershield -d cybershield"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cybershield} -d ${POSTGRES_DB:-cybershield}"]
       interval: 5s
       timeout: 5s
       retries: 5
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-cybershield}:${POSTGRES_PASSWORD:-cybershield_local_only}@db:5432/${POSTGRES_DB:-cybershield}
+      - JWT_SECRET=${JWT_SECRET:-dev-insecure-jwt-secret-key-for-development-only-cybershield-2026}
+      - ENVIRONMENT=${ENVIRONMENT:-development}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000}
+      - AUTO_SEED_DEMO_DATA=${AUTO_SEED_DEMO_DATA:-false}
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "5173:80"
+      - "3000:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  # Dedicated profile service for explicit demo dataset seeding:
+  # docker compose --profile demo run --rm seed-demo
+  seed-demo:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    profiles:
+      - demo
+    command: ["python", "-m", "database.seed.seed_data"]
+    environment:
+      - DATABASE_URL=postgresql+psycopg://${POSTGRES_USER:-cybershield}:${POSTGRES_PASSWORD:-cybershield_local_only}@db:5432/${POSTGRES_DB:-cybershield}
+      - ENVIRONMENT=demo
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   postgres_data:

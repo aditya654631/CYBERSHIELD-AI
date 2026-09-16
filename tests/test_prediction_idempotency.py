@@ -16,7 +16,7 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
 if BASE_DIR not in sys.path:
     sys.path.insert(0, BASE_DIR)
 
-from backend.app.models.db import SessionLocal
+import backend.app.models.db as db_mod
 from backend.app.models.models import Complaint, Prediction, PredictionLocation, Alert
 from backend.app.auth.security import create_access_token
 from fastapi.testclient import TestClient
@@ -55,11 +55,12 @@ def test_prediction_idempotency_repeat_post():
     res1 = client.post(f"/api/v1/predictions/{c_num}")
     assert res1.status_code == 200, f"Run 1 failed: {res1.text}"
     data1 = res1.json()
+    print("DATA1 IS:", data1)
     pred_id_1 = data1["prediction_id"]
     assert pred_id_1 > 0
     print(f"Run 1 success: prediction_id={pred_id_1}, mode={data1['prediction_mode']}, model={data1['model_version']}")
 
-    db = SessionLocal()
+    db = db_mod.SessionLocal()
     count_preds_1 = db.query(Prediction).filter(Prediction.complaint_id == c_id).count()
     count_locs_1 = db.query(PredictionLocation).filter(PredictionLocation.prediction_id == pred_id_1).count()
     assert count_preds_1 == 1, f"Expected 1 prediction, got {count_preds_1}"
@@ -79,7 +80,7 @@ def test_prediction_idempotency_repeat_post():
     assert pred_id_2 == pred_id_1, f"Expected reused prediction_id {pred_id_1}, got {pred_id_2}"
     print(f"Run 2 success: prediction_id={pred_id_2} (reused existing #{pred_id_1})")
 
-    db = SessionLocal()
+    db = db_mod.SessionLocal()
     count_preds_2 = db.query(Prediction).filter(Prediction.complaint_id == c_id).count()
     count_locs_2 = db.query(PredictionLocation).filter(PredictionLocation.prediction_id == pred_id_1).count()
     total_locs_for_complaint = (
@@ -119,7 +120,6 @@ def test_prediction_idempotency_repeat_post():
 
     db.close()
     print("ALL IDEMPOTENCY CHECKS PASSED: SUCCESS!")
-    return True
 
 
 if __name__ == "__main__":

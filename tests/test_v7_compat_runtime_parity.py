@@ -65,7 +65,6 @@ def test_v7_compat_feature_parity():
 
     print("RUNTIME FEATURE PARITY TEST: PASS")
     db.close()
-    return True
 
 if __name__ == "__main__":
     test_v7_compat_feature_parity()
