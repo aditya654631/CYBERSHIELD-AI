@@ -1,4 +1,6 @@
 import os
+from datetime import datetime, timezone
+from time import perf_counter
 from typing import Dict, Any
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -55,18 +57,23 @@ def check_database_connection() -> Dict[str, Any]:
     Guarantees no credentials, passwords, or connection strings are leaked in return values or errors.
     """
     engine_type = get_database_engine_type()
+    checked_at = datetime.now(timezone.utc).isoformat()
+    started_at = perf_counter()
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
         return {
             "status": "connected",
-            "engine": engine_type
+            "engine": engine_type,
+            "latency_ms": round((perf_counter() - started_at) * 1000, 2),
+            "timestamp": checked_at,
         }
     except Exception as exc:
         # Sanitize error to avoid leaking DB host, credentials, or connection details
         return {
             "status": "unavailable",
             "engine": engine_type,
-            "error": f"Database connection failed: {exc.__class__.__name__}"
+            "latency_ms": None,
+            "timestamp": checked_at,
+            "error": f"Database connection failed: {exc.__class__.__name__}",
         }
-
