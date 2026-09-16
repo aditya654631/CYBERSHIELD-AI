@@ -1,6 +1,43 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, field_serializer
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timezone
+
+def to_utc_datetime(v: Any) -> Optional[datetime]:
+    """Ensures datetime represents a UTC instant with tzinfo=timezone.utc.
+    Handles None, strings (with Z, +00:00, +05:30, or naive), and datetimes.
+    """
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except Exception:
+            return v
+    if isinstance(v, datetime):
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v.astimezone(timezone.utc)
+    return v
+
+def to_utc_iso(v: Any) -> Optional[str]:
+    """Formats datetime or string as UTC ISO 8601 string ending in 'Z'."""
+    dt = to_utc_datetime(v)
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        iso = dt.astimezone(timezone.utc).isoformat()
+        if iso.endswith("+00:00"):
+            return iso[:-6] + "Z"
+        return iso
+    return str(v)
 
 # Auth Schemas
 class LoginRequest(BaseModel):
@@ -116,6 +153,15 @@ class ComplaintResponse(BaseModel):
     linked_account_count: Optional[int] = 0
     available_transaction_count: Optional[int] = 0
 
+    @field_validator("reported_at", "incident_time", "created_at", "transaction_time", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+    @field_serializer("reported_at", "incident_time", "created_at", "transaction_time", when_used="json", check_fields=False)
+    def serialize_utc(self, v: Optional[datetime]) -> Optional[str]:
+        return to_utc_iso(v)
+
     class Config:
         from_attributes = True
 
@@ -149,6 +195,11 @@ class TransactionResponse(BaseModel):
     suspicious_flag: bool
     context_type: Optional[str] = "DIRECT"
     source_scenario: Optional[str] = None
+
+    @field_validator("timestamp", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
     class Config:
         from_attributes = True
@@ -240,6 +291,8 @@ class PredictionLocationItem(BaseModel):
     risk_score: Optional[float] = None
     risk_level: str = "MEDIUM"
     risk_band: Optional[str] = None
+    score_label: Optional[str] = "Model ranking score"
+    operational_priority: Optional[str] = None
     distance_km: float = 0.0
     reasoning: str = ""
     evidence: Optional[List[str]] = None
@@ -292,12 +345,18 @@ class PredictionResponse(BaseModel):
     primary_cluster_id: Optional[int] = None
     time_prediction: Optional[TimePredictionDetail] = None
     score_type: Optional[str] = None
-    score_label: Optional[str] = None
+    score_label: Optional[str] = "Model ranking score"
     training_data_source: Optional[str] = None
     analysis_basis: Optional[str] = None
     dataset_version: Optional[str] = None
     provenance: Optional[Dict[str, Any]] = None
     limitations: Optional[List[str]] = None
+    created_at: Optional[datetime] = None
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
     message: Optional[str] = None
     created_at: Optional[datetime] = None
 
@@ -406,6 +465,11 @@ class AlertResponse(BaseModel):
     action_notes: Optional[str]
     created_at: datetime
 
+    @field_validator("acknowledged_at", "created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
     class Config:
         from_attributes = True
 
@@ -464,6 +528,11 @@ class RecentComplaintItem(BaseModel):
     latest_mode: Optional[str] = None
     latest_rank1_location: Optional[str] = None
 
+    @field_validator("reported_at", "created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
 class RecentPredictionItem(BaseModel):
     id: int
     complaint_id: int
@@ -476,6 +545,11 @@ class RecentPredictionItem(BaseModel):
     rank1_cluster_id: Optional[int] = None
     operational_window: str
     created_at: datetime
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
 class RecentAlertItem(BaseModel):
     id: int
@@ -491,6 +565,11 @@ class RecentAlertItem(BaseModel):
     status: str
     created_at: datetime
 
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
 class DashboardSummaryResponse(BaseModel):
     generated_at: datetime
     kpis: DashboardKpis
@@ -504,6 +583,11 @@ class DashboardSummaryResponse(BaseModel):
     recent_predictions: List[RecentPredictionItem]
     recent_alerts: List[RecentAlertItem]
 
+    @field_validator("generated_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
 # Audit Schemas
 class AuditLogResponse(BaseModel):
     id: int
@@ -515,6 +599,11 @@ class AuditLogResponse(BaseModel):
     details: Optional[str]
     ip_address: str
     created_at: datetime
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
     class Config:
         from_attributes = True
@@ -543,6 +632,11 @@ class BankActionResponse(BaseModel):
     acknowledged_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     created_at: datetime
+
+    @field_validator("requested_at", "approved_at", "sent_at", "acknowledged_at", "completed_at", "created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
     class Config:
         from_attributes = True

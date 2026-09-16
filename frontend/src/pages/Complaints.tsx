@@ -17,11 +17,11 @@ import {
   Building2,
   MapPin,
   CreditCard,
-  Network
+  Network,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { Complaint, HotspotCluster } from '../types';
-import { apiErrorMessage, toLocalDateTimeInput } from '../utils/predictionDisplay';
+import { apiErrorMessage, formatIST, toLocalDateTimeInput } from '../utils/predictionDisplay';
 
 export const Complaints: React.FC = () => {
   const navigate = useNavigate();
@@ -220,19 +220,7 @@ export const Complaints: React.FC = () => {
   // Helper formatting for timestamps
   const formatDateTime = (isoString?: string) => {
     if (!isoString) return '—';
-    try {
-      const d = new Date(isoString);
-      return d.toLocaleDateString('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: false,
-      });
-    } catch {
-      return isoString;
-    }
+    return formatIST(isoString);
   };
 
   // Badges styling

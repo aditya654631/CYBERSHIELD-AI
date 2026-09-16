@@ -23,6 +23,7 @@ import { MetricCard } from '../components/common/MetricCard';
 import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { LoadingState } from '../components/common/LoadingState';
+import { formatIST } from '../utils/predictionDisplay';
 
 const PIE_COLORS = ['#dc2626', '#d97706', '#2563eb', '#16a34a'];
 
@@ -294,7 +295,7 @@ export const Dashboard: React.FC = () => {
                     </p>
                     <div className="text-[11px] text-slate-500 flex justify-between mt-1">
                       <span>{alert.expected_window}</span>
-                      <span>{new Date(alert.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                      <span>{formatIST(alert.created_at)}</span>
                     </div>
                   </div>
                 ))
@@ -415,7 +416,7 @@ export const Dashboard: React.FC = () => {
                     </span>
                   </td>
                   <td className="px-3 py-3 text-slate-500">
-                    {comp.reported_at ? new Date(comp.reported_at).toLocaleDateString() : '—'}
+                    {comp.reported_at ? formatIST(comp.reported_at) : '—'}
                   </td>
                   <td className="px-3 py-3">
                     {comp.prediction_available ? (
@@ -460,7 +461,7 @@ export const Dashboard: React.FC = () => {
               </div>
               <div className="flex items-center justify-between text-[11px] text-slate-500">
                 <span>{comp.district || comp.state || 'Delhi'}</span>
-                <span>{comp.reported_at ? new Date(comp.reported_at).toLocaleDateString() : '—'}</span>
+                <span>{comp.reported_at ? formatIST(comp.reported_at) : '—'}</span>
               </div>
               <div className="flex items-center justify-between pt-1 text-xs">
                 <div>

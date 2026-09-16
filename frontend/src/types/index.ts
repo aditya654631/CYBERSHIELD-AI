@@ -29,6 +29,7 @@ export interface Complaint {
   complaint_number: string;
   fraud_type: string;
   amount: number;
+  disputed_amount?: number;
   victim_name?: string;
   victim_phone?: string;
   victim_location: string;
@@ -104,6 +105,8 @@ export interface PredictionLocationItem {
   reasoning: string;
   latitude: number;
   longitude: number;
+  score_label?: string;
+  operational_priority?: string;
 }
 
 export interface Prediction {

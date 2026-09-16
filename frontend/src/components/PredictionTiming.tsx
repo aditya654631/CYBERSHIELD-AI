@@ -5,7 +5,7 @@ import { formatIST, parseApiDate, predictionWindow } from '../utils/predictionDi
 export const PredictionTiming: React.FC<{ prediction: Prediction }> = ({ prediction }) => {
   const time = prediction.time_prediction;
   const windowEnd = parseApiDate(time?.window_end);
-  const expired = windowEnd != null && windowEnd.getTime() < Date.now();
+  const expired = windowEnd != null && windowEnd.getTime() <= Date.now();
   return (
     <div className="space-y-2 text-xs">
       <div className="font-bold text-[#173A63] leading-relaxed">{predictionWindow(prediction)}</div>
@@ -20,7 +20,11 @@ export const PredictionTiming: React.FC<{ prediction: Prediction }> = ({ predict
           {time.predicted_cashout_at ? ` (${formatIST(time.predicted_cashout_at)})` : ''}.
         </div>
       )}
-      {expired && <p className="font-medium text-amber-800">This estimated window has passed. Review transaction evidence before taking action.</p>}
+      {expired && (
+        <div className="p-2 rounded bg-amber-50 border border-amber-300 text-amber-900 font-medium">
+          Estimated cash-out window has expired ({formatIST(time?.window_end)}). Review transaction evidence before taking field action.
+        </div>
+      )}
       <p className="text-[11px] text-slate-500">
         Estimated from prototype patterns; the same case-level time window applies to all three locations. This is not a calibrated confidence interval.
       </p>

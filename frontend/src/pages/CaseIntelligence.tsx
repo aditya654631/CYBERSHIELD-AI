@@ -35,7 +35,7 @@ import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { LoadingState } from '../components/common/LoadingState';
 import { PredictionTiming } from '../components/PredictionTiming';
-import { apiErrorMessage, modelScore, predictionScoreNote } from '../utils/predictionDisplay';
+import { apiErrorMessage, formatIST, explainOperationalPriority, modelScore, predictionScoreNote } from '../utils/predictionDisplay';
 
 export const CaseIntelligence: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -342,15 +342,7 @@ export const CaseIntelligence: React.FC = () => {
             Incident Time
           </span>
           <div className="text-xs font-semibold text-slate-800 mt-0.5">
-            {complaint.incident_time
-              ? new Date(complaint.incident_time).toLocaleString('en-IN', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })
-              : 'Not available'}
+            {complaint.incident_time ? formatIST(complaint.incident_time) : 'Not available'}
           </div>
           <span className="text-[10px] text-slate-400">Complainant timestamp</span>
         </div>
@@ -360,15 +352,7 @@ export const CaseIntelligence: React.FC = () => {
             Reported Time
           </span>
           <div className="text-xs font-semibold text-slate-800 mt-0.5">
-            {complaint.reported_at
-              ? new Date(complaint.reported_at).toLocaleString('en-IN', {
-                  day: '2-digit',
-                  month: 'short',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit'
-                })
-              : 'Not available'}
+            {complaint.reported_at ? formatIST(complaint.reported_at) : 'Not available'}
           </div>
           <span className="text-[10px] text-slate-400">Portal intake timestamp</span>
         </div>
@@ -484,15 +468,7 @@ export const CaseIntelligence: React.FC = () => {
             <div>
               <span className="text-slate-500 text-[11px] block">Transaction Timestamp</span>
               <span className="text-slate-800">
-                {complaint.transaction_time
-                  ? new Date(complaint.transaction_time).toLocaleString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
-                  : 'Not available'}
+                {complaint.transaction_time ? formatIST(complaint.transaction_time) : 'Not available'}
               </span>
             </div>
             <div>
@@ -569,19 +545,9 @@ export const CaseIntelligence: React.FC = () => {
               </div>
               <div className="text-[10px] text-slate-500">
                 {complaint.transaction_time
-                  ? new Date(complaint.transaction_time).toLocaleString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
+                  ? formatIST(complaint.transaction_time)
                   : complaint.incident_time
-                  ? new Date(complaint.incident_time).toLocaleString('en-IN', {
-                      day: '2-digit',
-                      month: 'short',
-                      hour: '2-digit',
-                      minute: '2-digit'
-                    })
+                  ? formatIST(complaint.incident_time)
                   : 'Timestamp Recorded'}
               </div>
               <div className="w-full flex items-center justify-center text-slate-400 pt-0.5">
@@ -787,7 +753,15 @@ export const CaseIntelligence: React.FC = () => {
                               <Info className="w-3 h-3 text-slate-400" />
                             </div>
                           </th>
-                          <th className="py-2.5 px-3 text-center">Operational Priority</th>
+                          <th
+                            className="py-2.5 px-3 text-center cursor-help"
+                            title="Action urgency derived from disputed amount bands, window urgency, and incident recency. High priority can legitimately coexist with low candidate ranking scores."
+                          >
+                            <div className="flex items-center justify-center space-x-1">
+                              <span>Operational Priority</span>
+                              <Info className="w-3 h-3 text-slate-400" />
+                            </div>
+                          </th>
                           <th className="py-2.5 px-3">Distance</th>
                           <th className="py-2.5 px-3">Intervention Reasoning</th>
                         </tr>
@@ -813,13 +787,16 @@ export const CaseIntelligence: React.FC = () => {
                               {modelScore(loc)}
                             </td>
                             <td className="py-2.5 px-3 text-center">
-                              <span className={`inline-block text-[10px] px-2 py-0.5 rounded font-medium border ${
-                                loc.risk_level === 'CRITICAL'
-                                  ? 'bg-red-50 text-red-700 border-red-200'
-                                  : loc.risk_level === 'HIGH'
-                                  ? 'bg-amber-50 text-amber-700 border-amber-200'
-                                  : 'bg-blue-50 text-blue-700 border-blue-200'
-                              }`}>
+                              <span
+                                className={`inline-block text-[10px] px-2 py-0.5 rounded font-medium border cursor-help ${
+                                  loc.risk_level === 'CRITICAL'
+                                    ? 'bg-red-50 text-red-700 border-red-200'
+                                    : loc.risk_level === 'HIGH'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-blue-50 text-blue-700 border-blue-200'
+                                }`}
+                                title={explainOperationalPriority(loc.operational_priority || loc.risk_level, complaint.disputed_amount ?? complaint.amount)}
+                              >
                                 {loc.risk_level}
                               </span>
                             </td>
@@ -880,7 +857,12 @@ export const CaseIntelligence: React.FC = () => {
                         </div>
                         <div className="flex justify-between items-center text-slate-500 text-[11px]">
                           <span>Operational Priority:</span>
-                          <span className="text-slate-700 font-semibold">{loc.risk_level || (loc.rank === 1 ? 'HIGH' : loc.rank === 2 ? 'MEDIUM' : 'LOW')}</span>
+                          <span
+                            className="text-slate-700 font-semibold cursor-help"
+                            title={explainOperationalPriority(loc.operational_priority || loc.risk_level, complaint.disputed_amount ?? complaint.amount)}
+                          >
+                            {loc.risk_level || (loc.rank === 1 ? 'HIGH' : loc.rank === 2 ? 'MEDIUM' : 'LOW')}
+                          </span>
                         </div>
                         <div className="text-[10px] text-slate-500 italic pt-1 border-t border-slate-200/60">
                           Ranked #{loc.rank} by {prediction.model_version || 'Location V7-compat'} for the current complaint context.
@@ -1146,6 +1128,40 @@ export const CaseIntelligence: React.FC = () => {
                     {prediction.analysis_basis && <div className="pt-2 text-slate-600">
                       {prediction.analysis_basis === 'complaint_only' ? 'Limited evidence: complaint details only. Add verified transfer evidence to improve analysis.' : prediction.analysis_basis === 'linked_synthetic_scenario' ? 'Evidence includes a synthetic investigation scenario.' : 'Analysis includes recorded transaction evidence.'}
                     </div>}
+
+                    {/* Evaluated Risk Signals */}
+                    <div className="pt-2.5 mt-2 border-t border-slate-200 space-y-1.5">
+                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                        Evaluated Risk Signals
+                      </span>
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span className="text-slate-500 flex items-center space-x-1 cursor-help" title="Trained XGBoost ranking score for the primary candidate cluster. Relative ranking metric across Delhi candidate zones; not real-world withdrawal probability.">
+                          <span>Model Ranking Score:</span>
+                          <Info className="w-3 h-3 text-slate-400" />
+                        </span>
+                        <span className="font-mono font-semibold text-blue-700">
+                          {prediction.ml_score !== undefined && prediction.ml_score !== null && !isNaN(prediction.ml_score) ? `${(prediction.ml_score * 100).toFixed(1)}%` : 'Unavailable'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span className="text-slate-500 flex items-center space-x-1 cursor-help" title="Graph heuristic risk derived from transaction flow connectivity and mule network topology in the current evidence graph.">
+                          <span>Graph Heuristic Risk:</span>
+                          <Info className="w-3 h-3 text-slate-400" />
+                        </span>
+                        <span className="font-mono font-semibold text-slate-800">
+                          {prediction.graph_score !== undefined && prediction.graph_score !== null && !isNaN(prediction.graph_score) ? `${(prediction.graph_score * 100).toFixed(0)}%` : 'Unavailable'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center text-slate-600">
+                        <span className="text-slate-500 flex items-center space-x-1 cursor-help" title="Historical geographic risk based on historical ATM/cash-out incident concentration in this candidate cluster.">
+                          <span>Historical Geographic Risk:</span>
+                          <Info className="w-3 h-3 text-slate-400" />
+                        </span>
+                        <span className="font-mono font-semibold text-slate-800">
+                          {prediction.geo_score !== undefined && prediction.geo_score !== null && !isNaN(prediction.geo_score) ? `${(prediction.geo_score * 100).toFixed(0)}%` : 'Unavailable'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
