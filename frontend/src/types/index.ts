@@ -107,6 +107,7 @@ export interface PredictionLocationItem {
   longitude: number;
   score_label?: string;
   operational_priority?: string;
+  operational_priority_basis?: string | null;
 }
 
 export interface Prediction {
@@ -284,12 +285,46 @@ export interface HotspotCluster {
   longitude: number;
   radius_km: number;
   risk_score: number;
-  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | string;
   active_cases: number;
   amount_at_risk: number;
   atm_count: number;
   expected_window: string;
   fraud_type: string;
+
+  // Additive fields for Phase 3
+  is_active_candidate?: boolean;
+  data_basis?: string;
+  historical_risk?: number | null;
+  candidate_score?: number | null;
+  operational_priority?: string | null;
+  operational_priority_basis?: string | null;
+  associated_complaint_amount?: number;
+  window_start?: string | null;
+  window_end?: string | null;
+  latest_window_end?: string | null;
+  window_status?: string | null;
+  linked_complaint_numbers?: string[];
+}
+
+export interface GISOverviewResponse {
+  hotspots: HotspotCluster[];
+  active_candidates?: HotspotCluster[];
+  historical_hotspots?: HotspotCluster[];
+  atms: ATMLocationItem[];
+  summary: {
+    total_hotspots: number;
+    total_active_candidates?: number;
+    total_historical_hotspots?: number;
+    critical_clusters: number;
+    total_associated_amount?: number;
+    total_unique_active_cases?: number;
+    total_monitored_atms: number;
+    primary_threat_epicenter: string;
+    state: string;
+    data_basis: string;
+    [key: string]: any;
+  };
 }
 
 export interface ATMLocationItem {

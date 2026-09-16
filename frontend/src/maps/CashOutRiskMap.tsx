@@ -12,6 +12,7 @@ export interface CashOutRiskMapProps {
   height?: string;
   showControls?: boolean;
   priorityHotspotIds?: number[];
+  selectedClusterId?: number | null;
 }
 
 export const CashOutRiskMap: React.FC<CashOutRiskMapProps> = (props) => {

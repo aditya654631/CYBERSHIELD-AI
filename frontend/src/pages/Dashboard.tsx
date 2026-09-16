@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ShieldAlert,
@@ -10,6 +10,8 @@ import {
   ChevronRight,
   IndianRupee,
   Layers,
+  Shield,
+  Info,
 } from 'lucide-react';
 import {
   BarChart, Bar, PieChart, Pie, Cell,
@@ -30,40 +32,92 @@ const PIE_COLORS = ['#dc2626', '#d97706', '#2563eb', '#16a34a'];
 export const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [hotspots, setHotspots] = useState<HotspotCluster[]>([]);
+  const [allHotspots, setAllHotspots] = useState<HotspotCluster[]>([]);
+  const [activeCandidates, setActiveCandidates] = useState<HotspotCluster[]>([]);
+  const [historicalHotspots, setHistoricalHotspots] = useState<HotspotCluster[]>([]);
+  const [nowMs, setNowMs] = useState<number>(Date.now());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchData = async () => {
-      try {
+  const fetchTelemetry = useCallback(async (isInitial = false) => {
+    try {
+      if (isInitial) {
         setLoading(true);
         setError(null);
-        const [sumData, mapData] = await Promise.all([
-          api.getDashboardSummary(),
-          api.getRiskMap()
-        ]);
-        if (isMounted) {
-          setSummary(sumData);
-          setHotspots(mapData.hotspots || []);
-        }
-      } catch (err: any) {
-        console.error('Failed to load dashboard data', err);
-        if (isMounted) {
-          setError('Unable to load database-driven dashboard telemetry. Please verify backend service connectivity.');
-        }
-      } finally {
-        if (isMounted) {
-          setLoading(false);
-        }
       }
-    };
-    fetchData();
-    return () => {
-      isMounted = false;
-    };
+      const [sumData, mapData] = await Promise.all([
+        api.getDashboardSummary(),
+        api.getRiskMap()
+      ]);
+      setSummary(sumData);
+      const rawHotspots = mapData.hotspots || [];
+      setAllHotspots(rawHotspots);
+      const active = (mapData.active_candidates && mapData.active_candidates.length > 0)
+        ? mapData.active_candidates
+        : rawHotspots.filter(h => h.is_active_candidate);
+      const historical = (mapData.historical_hotspots && mapData.historical_hotspots.length > 0)
+        ? mapData.historical_hotspots
+        : rawHotspots.filter(h => !h.is_active_candidate);
+      setActiveCandidates(active);
+      setHistoricalHotspots(historical);
+      setNowMs(Date.now());
+    } catch (err: any) {
+      console.error('Failed to load dashboard data', err);
+      if (isInitial) {
+        setError('Unable to load database-driven dashboard telemetry. Please verify backend service connectivity.');
+      }
+    } finally {
+      if (isInitial) {
+        setLoading(false);
+      }
+    }
   }, []);
+
+  useEffect(() => {
+    fetchTelemetry(true);
+    // 60-second authoritative aggregate refresh:
+    // Ensures multi-case clusters update counts and amounts coherently
+    // rather than abruptly dropping clusters on single-case expiry.
+    const interval = setInterval(() => {
+      fetchTelemetry(false);
+    }, 60000);
+
+    // 10-second tick to evaluate operational time window boundaries
+    const tickInterval = setInterval(() => {
+      setNowMs(Date.now());
+    }, 10000);
+
+    return () => {
+      clearInterval(interval);
+      clearInterval(tickInterval);
+    };
+  }, [fetchTelemetry]);
+
+  // When an earliest case window boundary expires in an active cluster,
+  // proactively request fresh authoritative aggregates from backend
+  useEffect(() => {
+    const hasStaleCase = activeCandidates.some((h) => {
+      if (!h.is_active_candidate || !h.window_end) return false;
+      const end = new Date(h.window_end).getTime();
+      return Number.isFinite(end) && end <= nowMs;
+    });
+    if (hasStaleCase) {
+      fetchTelemetry(false);
+    }
+  }, [nowMs, activeCandidates, fetchTelemetry]);
+
+  const unexpiredActiveCandidates = activeCandidates.filter((h) => {
+    if (!h.is_active_candidate) return false;
+    // Multi-case clusters: do NOT remove the entire cluster when only one case expires.
+    // The cluster remains active as long as ANY linked case is unexpired (latest_window_end).
+    // If only one case is linked (or latest_window_end is not set), window_end is used.
+    const effectiveEnd = h.latest_window_end || (h.active_cases > 1 ? null : h.window_end);
+    if (effectiveEnd) {
+      const end = new Date(effectiveEnd).getTime();
+      if (Number.isFinite(end) && end <= nowMs) return false;
+    }
+    return true;
+  });
 
   const handleViewPilotCase = () => {
     navigate('/cases/CMP-NEW-000002');
@@ -207,48 +261,144 @@ export const Dashboard: React.FC = () => {
 
           <div className="h-[320px] sm:h-96 w-full rounded-md overflow-hidden border border-[#DCE5F0] relative">
             <CashOutRiskMap
-              hotspots={hotspots}
-              priorityHotspotIds={hotspots.slice(0, 3).map(h => h.id)}
+              hotspots={allHotspots}
+              priorityHotspotIds={unexpiredActiveCandidates.slice(0, 3).map(h => h.id)}
             />
           </div>
         </div>
 
         {/* Priority Hotspots & Alerts Column */}
         <div className="lg:col-span-4 space-y-4">
-          {/* Priority Candidate Clusters */}
+          {/* Active Interception Candidates */}
           <div className="bg-white rounded-lg border border-[#DCE5F0] p-4 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-[#DCE5F0] mb-3">
-              <h3 className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
-                Priority Interception Hotspots
-              </h3>
-              <span className="text-[11px] text-slate-500 font-medium">Top Candidates</span>
+              <div>
+                <h3 className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+                  Active Interception Candidates
+                </h3>
+                <p className="text-[10px] text-slate-500">Live predictions with active time windows</p>
+              </div>
+              <span className="text-[11px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded">
+                {unexpiredActiveCandidates.length} Active
+              </span>
             </div>
 
             <div className="space-y-2.5">
-              {hotspots.slice(0, 3).map((hotspot, idx) => (
-                <div
-                  key={hotspot.id}
-                  onClick={() => navigate('/risk-map')}
-                  className="p-2.5 rounded border border-[#DCE5F0] hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs font-mono font-bold text-blue-600">#{idx + 1}</span>
-                      <span className="text-xs font-semibold text-slate-800">
-                        {hotspot.cluster_name}
+              {unexpiredActiveCandidates.length === 0 ? (
+                <div className="p-4 rounded border border-dashed border-[#DCE5F0] bg-slate-50/50 text-center">
+                  <Shield className="w-6 h-6 text-slate-400 mx-auto mb-1.5" />
+                  <div className="text-xs font-semibold text-slate-700">No active interception candidates</div>
+                  <div className="text-[11px] text-slate-500 mt-1 leading-relaxed">
+                    No unexpired predictive intelligence candidates match open complaints in current scope.
+                  </div>
+                </div>
+              ) : (
+                unexpiredActiveCandidates.slice(0, 3).map((hotspot, idx) => (
+                  <div
+                    key={hotspot.id}
+                    onClick={() => navigate(`/risk-map?cluster=${hotspot.id}`)}
+                    className="p-2.5 rounded border border-[#DCE5F0] hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xs font-mono font-bold text-blue-600">#{idx + 1}</span>
+                        <span className="text-xs font-semibold text-slate-800">
+                          {hotspot.cluster_name}
+                        </span>
+                      </div>
+                      <Badge
+                        variant={
+                          hotspot.operational_priority === 'CRITICAL'
+                            ? 'critical'
+                            : hotspot.operational_priority === 'HIGH'
+                            ? 'warning'
+                            : 'medium'
+                        }
+                        size="sm"
+                      >
+                        {hotspot.operational_priority || 'STANDARD'}
+                      </Badge>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-1 text-[11px] text-slate-500">
+                      <span>
+                        {hotspot.active_cases} case{hotspot.active_cases !== 1 ? 's' : ''} • Score:{' '}
+                        <strong className="text-slate-700 font-mono">
+                          {hotspot.candidate_score != null ? `${(hotspot.candidate_score * 100).toFixed(1)}%` : 'N/A'}
+                        </strong>
+                      </span>
+                      <span className="font-semibold text-slate-700" title="Associated complaint amount">
+                        ₹{(hotspot.associated_complaint_amount ?? hotspot.amount_at_risk ?? 0).toLocaleString('en-IN')}
                       </span>
                     </div>
-                    <Badge
-                      variant={hotspot.risk_level === 'CRITICAL' ? 'critical' : 'warning'}
-                      size="sm"
-                    >
-                      {Math.round(hotspot.risk_score * 100)}% {hotspot.risk_level}
-                    </Badge>
-                  </div>
 
-                  <div className="flex items-center justify-between mt-1.5 text-[11px] text-slate-500">
-                    <span>Window: {hotspot.expected_window}</span>
-                    <span className="font-semibold text-slate-700">₹{hotspot.amount_at_risk.toLocaleString('en-IN')}</span>
+                    <div className="mt-1 text-[10px] text-slate-500 truncate">
+                      Window: <strong className="text-amber-700">{hotspot.expected_window}</strong>
+                    </div>
+
+                    <div className="mt-2 pt-1.5 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                      {hotspot.linked_complaint_numbers && hotspot.linked_complaint_numbers.length === 1 ? (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/cases/${hotspot.linked_complaint_numbers![0]}`);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1"
+                        >
+                          View {hotspot.linked_complaint_numbers[0]} →
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/risk-map?cluster=${hotspot.id}`);
+                          }}
+                          className="text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1"
+                        >
+                          Focus on Map →
+                        </button>
+                      )}
+                      <span className="text-[10px] text-slate-400">
+                        {hotspot.atm_count} Terminals
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+
+          {/* Historical Baseline Hotspots (Clearly Separated) */}
+          <div className="bg-white rounded-lg border border-[#DCE5F0] p-4 shadow-xs">
+            <div className="flex items-center justify-between pb-2 border-b border-[#DCE5F0] mb-2">
+              <div>
+                <h3 className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+                  Historical Hotspots (Baseline)
+                </h3>
+                <p className="text-[10px] text-slate-500">
+                  Static risk baseline; no active cash-out prediction
+                </p>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              {historicalHotspots.slice(0, 3).map((hotspot) => (
+                <div
+                  key={hotspot.id}
+                  onClick={() => navigate(`/risk-map?cluster=${hotspot.id}`)}
+                  className="p-2 rounded border border-[#E2E8F0] hover:bg-slate-50 cursor-pointer transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-medium text-slate-800">{hotspot.cluster_name}</span>
+                    <span className="text-[10px] font-mono text-slate-600 bg-slate-100 px-1.5 py-0.5 rounded">
+                      Baseline Risk: {hotspot.historical_risk != null ? `${Math.round(hotspot.historical_risk * 100)}%` : 'Baseline'}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between mt-1 text-[10px] text-slate-500">
+                    <span>{hotspot.city || hotspot.district} • {hotspot.atm_count} Terminals</span>
+                    <span className="text-slate-400 font-mono">0 active cases</span>
                   </div>
                 </div>
               ))}

@@ -20,6 +20,7 @@ export interface UnifiedRiskMapProps {
   height?: string;
   showControls?: boolean;
   priorityHotspotIds?: number[];
+  selectedClusterId?: number | null;
 }
 
 const DELHI_CENTER = { lat: 28.6139, lng: 77.2090 };
@@ -34,6 +35,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
   height = '480px',
   showControls = true,
   priorityHotspotIds,
+  selectedClusterId,
 }) => {
   const navigate = useNavigate();
   const mapDivRef = useRef<HTMLDivElement>(null);
@@ -167,6 +169,17 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
       googleMapRef.current.setMapTypeId(mapTypeId);
     }
   }, [mapTypeId]);
+
+  // Center on selectedClusterId if provided
+  useEffect(() => {
+    if (selectedClusterId && googleMapRef.current && hotspots.length > 0) {
+      const target = hotspots.find((h) => h.id === selectedClusterId);
+      if (target && hasCoordinates(target.latitude, target.longitude)) {
+        googleMapRef.current.panTo({ lat: Number(target.latitude), lng: Number(target.longitude) });
+        googleMapRef.current.setZoom(13);
+      }
+    }
+  }, [selectedClusterId, hotspots]);
 
   // 4. Render Layers on Google Map (Top-3 Predictions, Operational Rings, Delhi ATMs, Complaint Origin)
   useEffect(() => {
@@ -366,32 +379,44 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
       hotspots.forEach((cluster) => {
         if (!hasCoordinates(cluster.latitude, cluster.longitude)) return;
 
+        const isSelectedCluster = selectedClusterId != null && cluster.id === selectedClusterId;
+        const isActiveCandidate = cluster.is_active_candidate ?? (cluster.active_cases > 0);
         const priorityIndex = priorityHotspotIds?.indexOf(cluster.id);
         const isPriority = priorityIndex != null && priorityIndex >= 0;
         const priorityRank = isPriority ? priorityIndex + 1 : null;
 
-        const isCritical = cluster.risk_level === 'CRITICAL';
-        const isHighlighted = highlightCluster && cluster.cluster_name.toLowerCase().includes(highlightCluster.toLowerCase());
-        const color = isHighlighted ? '#2563EB' : (isCritical ? '#EF4444' : (cluster.risk_level === 'HIGH' ? '#F59E0B' : '#3B82F6'));
+        const priorityLevel = (cluster.operational_priority || cluster.risk_level || 'LOW').toUpperCase();
+        const isCritical = priorityLevel === 'CRITICAL';
+        const isHigh = priorityLevel === 'HIGH';
+        const isHighlighted = isSelectedCluster || (highlightCluster && cluster.cluster_name.toLowerCase().includes(highlightCluster.toLowerCase()));
+
+        // Active candidates get vibrant operational priority colors;
+        // Historical hotspots get calm neutral slate
+        const color = isHighlighted
+          ? '#2563EB'
+          : isActiveCandidate
+          ? (isCritical ? '#DC2626' : (isHigh ? '#D97706' : '#2563EB'))
+          : '#64748B';
+
         const radiusMeters = (cluster.radius_km || 2.5) * 1000;
 
         const circle = new google.maps.Circle({
           map,
           center: { lat: cluster.latitude, lng: cluster.longitude },
           radius: radiusMeters,
-          strokeColor: isPriority ? '#1D4ED8' : color,
-          strokeOpacity: isHighlighted ? 0.9 : (isPriority ? 0.8 : 0.45),
-          strokeWeight: isHighlighted ? 2 : (isPriority ? 2 : 1.2),
+          strokeColor: isHighlighted ? '#1D4ED8' : color,
+          strokeOpacity: isHighlighted ? 0.9 : (isActiveCandidate ? 0.8 : 0.4),
+          strokeWeight: isHighlighted ? 2.5 : (isActiveCandidate ? 2.0 : 1.0),
           fillColor: color,
-          fillOpacity: isCritical ? 0.12 : (isPriority ? 0.10 : 0.06),
+          fillOpacity: isHighlighted ? 0.18 : (isActiveCandidate ? 0.12 : 0.04),
         });
 
         const marker = new google.maps.Marker({
           position: { lat: cluster.latitude, lng: cluster.longitude },
           map,
-          title: isPriority
-            ? `Priority Hotspot #${priorityRank}: ${cluster.cluster_name} (${cluster.risk_level})`
-            : `${cluster.cluster_name} (${cluster.risk_level})`,
+          title: isActiveCandidate
+            ? `${isPriority ? `Priority #${priorityRank}: ` : ''}${cluster.cluster_name} (${priorityLevel})`
+            : `${cluster.cluster_name} (Historical Baseline)`,
           label: isPriority
             ? {
                 text: `P${priorityRank}`,
@@ -414,27 +439,43 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
               }
             : {
                 path: google.maps.SymbolPath.CIRCLE,
-                scale: isHighlighted ? 7 : 5,
+                scale: isHighlighted ? 7 : (isActiveCandidate ? 6 : 4.5),
                 fillColor: color,
-                fillOpacity: 0.9,
+                fillOpacity: isActiveCandidate ? 0.9 : 0.7,
                 strokeColor: '#FFFFFF',
                 strokeWeight: 1.5,
               },
-          zIndex: isPriority ? 400 - priorityRank! : undefined,
+          zIndex: isPriority ? 400 - priorityRank! : (isActiveCandidate ? 300 : 200),
         });
 
-        const content = `
+        const content = isActiveCandidate ? `
           <div style="background:#FFFFFF; color:#1E293B; padding:12px; border-radius:8px; font-family:system-ui, -apple-system, sans-serif; font-size:12px; max-width:260px; border:1px solid #DCE5F0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:4px; margin-bottom:6px;">
               <strong style="color:#0F172A; font-size:12px;">${isPriority ? `<span style="background:#EFF6FF; color:#1D4ED8; padding:1px 5px; border-radius:3px; font-weight:700; margin-right:4px; border:1px solid #BFDBFE;">P${priorityRank}</span> ` : ''}${cluster.cluster_name}</strong>
-              <span style="color:${isCritical ? '#DC2626' : '#D97706'}; font-weight:700; font-size:10px;">${cluster.risk_level}</span>
+              <span style="color:${isCritical ? '#DC2626' : '#D97706'}; font-weight:700; font-size:10px;">${priorityLevel}</span>
             </div>
-            ${isPriority ? `<div style="color:#1D4ED8; font-weight:700; font-size:11px; margin-bottom:4px;">Priority Hotspot #${priorityRank}</div>` : ''}
-            <div style="color:#64748B; font-size:11px; margin-top:2px;">Context Window: <strong style="color:#0284C7;">${cluster.expected_window}</strong></div>
-            <div style="color:#64748B; font-size:11px; margin-top:2px;">Amount at Risk: <strong style="color:#059669;">₹${(cluster.amount_at_risk || 0).toLocaleString('en-IN')}</strong></div>
+            <div style="color:#1D4ED8; font-weight:700; font-size:11px; margin-bottom:4px;">Active Interception Candidate</div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Active Window: <strong style="color:#0284C7;">${cluster.expected_window}</strong></div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Candidate Score: <strong style="color:#1E293B;">${cluster.candidate_score != null ? (cluster.candidate_score * 100).toFixed(1) + '%' : 'N/A'}</strong> (prototype ranking)</div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Associated Amount: <strong style="color:#059669;">₹${(cluster.associated_complaint_amount ?? cluster.amount_at_risk ?? 0).toLocaleString('en-IN')}</strong></div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Active Cases: <strong>${cluster.active_cases}</strong></div>
             <div style="color:#64748B; font-size:11px; margin-top:2px;">Surrounding Terminals: ${cluster.atm_count ?? 0} ATMs in ${cluster.radius_km || 2.5} km</div>
             <div style="color:#94A3B8; font-size:9px; margin-top:6px; border-top:1px solid #F1F5F9; padding-top:4px;">
-              Monitored Geographic Risk Cluster
+              Live Predictive Intelligence Candidate
+            </div>
+          </div>
+        ` : `
+          <div style="background:#FFFFFF; color:#1E293B; padding:12px; border-radius:8px; font-family:system-ui, -apple-system, sans-serif; font-size:12px; max-width:260px; border:1px solid #DCE5F0; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:4px; margin-bottom:6px;">
+              <strong style="color:#0F172A; font-size:12px;">${cluster.cluster_name}</strong>
+              <span style="color:#64748B; font-weight:700; font-size:10px;">HISTORICAL</span>
+            </div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Baseline Historical Risk: <strong style="color:#1E293B;">${cluster.historical_risk != null ? `${Math.round(cluster.historical_risk * 100)}%` : 'Baseline'}</strong></div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Active Cases: <strong style="color:#64748B;">0 (No active prediction)</strong></div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Associated Amount: <strong>₹0</strong></div>
+            <div style="color:#64748B; font-size:11px; margin-top:2px;">Surrounding Terminals: ${cluster.atm_count ?? 0} ATMs in ${cluster.radius_km || 2.5} km</div>
+            <div style="color:#94A3B8; font-size:9px; margin-top:6px; border-top:1px solid #F1F5F9; padding-top:4px;">
+              Monitored Geographic Risk Cluster (Baseline Density)
             </div>
           </div>
         `;
@@ -743,20 +784,24 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
       )}
 
       {/* Map Legend Footer */}
-      <div className="absolute bottom-2 left-2 sm:left-3 right-2 sm:right-auto max-w-[calc(100%-1rem)] sm:max-w-none z-10 pointer-events-none bg-white/95 backdrop-blur-xs px-2 sm:px-3 py-1 rounded-md border border-[#DCE5F0] text-[9px] sm:text-[10px] font-sans text-slate-600 shadow-xs flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-0.5">
+      <div className="absolute bottom-2 left-2 sm:left-3 right-2 sm:right-auto max-w-[calc(100%-1rem)] sm:max-w-none z-10 pointer-events-none bg-white/95 backdrop-blur-xs px-2 sm:px-3 py-1.5 rounded-md border border-[#DCE5F0] text-[9px] sm:text-[10px] font-sans text-slate-600 shadow-xs flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-0.5">
         <span className="flex items-center space-x-1">
           <span className="w-2.5 h-2.5 rounded-sm bg-blue-600 inline-block shrink-0"></span>
-          <span className="font-semibold text-slate-700">Predicted Zone (#1 Tactical Rings)</span>
+          <span className="font-semibold text-slate-700">Predicted Zone (#1 Rings)</span>
         </span>
         <span className="flex items-center space-x-1">
           <span className="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0"></span>
-          <span>Hotspot Cluster</span>
+          <span className="font-medium text-slate-700">Active Candidate</span>
+        </span>
+        <span className="flex items-center space-x-1">
+          <span className="w-2 h-2 rounded-full bg-slate-500 inline-block shrink-0"></span>
+          <span className="text-slate-500">Historical Hotspot (Baseline)</span>
         </span>
         <span className="flex items-center space-x-1">
           <span className="w-2 h-2 bg-sky-500 inline-block shrink-0"></span>
-          <span>ATM Context Node</span>
+          <span>ATM Terminal</span>
         </span>
-        <span className="text-slate-400 hidden sm:inline">Provider: Google Maps (Roadmap)</span>
+        <span className="text-slate-400 hidden sm:inline">Provider: Google Maps</span>
       </div>
     </div>
   );

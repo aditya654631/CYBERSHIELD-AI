@@ -293,6 +293,7 @@ class PredictionLocationItem(BaseModel):
     risk_band: Optional[str] = None
     score_label: Optional[str] = "Model ranking score"
     operational_priority: Optional[str] = None
+    operational_priority_basis: Optional[str] = None
     distance_km: float = 0.0
     reasoning: str = ""
     evidence: Optional[List[str]] = None
@@ -429,6 +430,20 @@ class HotspotCluster(BaseModel):
     expected_window: str
     fraud_type: str
 
+    # Additive fields for Phase 3
+    is_active_candidate: bool = False
+    data_basis: str = "historical_baseline"
+    historical_risk: Optional[float] = None
+    candidate_score: Optional[float] = None
+    operational_priority: Optional[str] = None
+    operational_priority_basis: Optional[str] = None
+    associated_complaint_amount: float = 0.0
+    window_start: Optional[str] = None
+    window_end: Optional[str] = None
+    latest_window_end: Optional[str] = None
+    window_status: Optional[str] = None
+    linked_complaint_numbers: List[str] = Field(default_factory=list)
+
 class ATMLocationItem(BaseModel):
     id: int
     atm_code: str
@@ -446,6 +461,8 @@ class GISOverviewResponse(BaseModel):
     hotspots: List[HotspotCluster]
     atms: List[ATMLocationItem]
     summary: Dict[str, Any]
+    active_candidates: List[HotspotCluster] = Field(default_factory=list)
+    historical_hotspots: List[HotspotCluster] = Field(default_factory=list)
 
 # Alert Schemas
 class AlertResponse(BaseModel):

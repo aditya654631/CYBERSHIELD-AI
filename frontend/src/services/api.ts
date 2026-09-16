@@ -6,6 +6,7 @@ import {
   Explanation,
   GraphData,
   HotspotCluster,
+  GISOverviewResponse,
   ATMLocationItem,
   AlertItem,
   AnalyticsOverview,
@@ -146,11 +147,7 @@ export const api = {
 
   // GIS
   getRiskMap: async (params?: { district?: string; risk_level?: string }) => {
-    const res = await apiClient.get<{
-      hotspots: HotspotCluster[];
-      atms: ATMLocationItem[];
-      summary: any;
-    }>('/risk-map', { params });
+    const res = await apiClient.get<GISOverviewResponse>('/risk-map', { params });
     return res.data;
   },
   getClusters: async () => {

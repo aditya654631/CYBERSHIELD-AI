@@ -154,7 +154,9 @@ def compute_operational_priority(
     - Candidate Rank (#1 Primary, #2 Secondary, #3 Tertiary)
     - Complaint Amount Band (>= ₹5L Critical, >= ₹75k High, >= ₹20k Medium)
     - Predicted Cash-Out Window Urgency (<= 90 min)
-    - Reporting Recency (<= 4 hrs)
+    - Incident-to-Report Intake Delay: (reported_at - incident_time) <= 4.0 hrs
+      NOTE: This represents intake delay between incident occurrence and official report,
+      NOT age relative to current wall-clock time.
     Zero coupling to candidate probability percentages; never called 'accuracy'.
     """
     amt = float(amount or 0.0)
@@ -186,6 +188,60 @@ def compute_operational_priority(
             return "MEDIUM"
         else:
             return "LOW"
+
+
+def explain_operational_priority_rule(
+    rank: int,
+    amount: Optional[float],
+    time_pred_minutes: float,
+    incident_time: Optional[datetime],
+    reported_at: Optional[datetime]
+) -> str:
+    """
+    Returns a truthful human-readable explanation of the operational priority decision.
+    Explicitly clarifies that recency refers to incident-to-report intake delay.
+    """
+    amt = float(amount or 0.0)
+    delay_hours = 0.0
+    if incident_time and reported_at and as_utc(reported_at) >= as_utc(incident_time):
+        delay_hours = (as_utc(reported_at) - as_utc(incident_time)).total_seconds() / 3600.0
+
+    is_recent = delay_hours <= 4.0
+    is_urgent = time_pred_minutes <= 90.0
+
+    amt_formatted = f"₹{amt:,.2f}"
+    intake_desc = f"intake delay {delay_hours:.1f}h (threshold <= 4h)" if is_recent else f"intake delay {delay_hours:.1f}h (> 4h)"
+    urgency_desc = f"predicted window urgency {time_pred_minutes:.0f}m (threshold <= 90m)" if is_urgent else f"predicted window {time_pred_minutes:.0f}m (> 90m)"
+
+    if rank == 1:
+        if amt >= 500000.0:
+            return f"Rank #1 Primary; High financial loss ({amt_formatted} >= ₹5L) triggers CRITICAL operational priority."
+        elif amt >= 150000.0 and is_urgent and is_recent:
+            return f"Rank #1 Primary; Compound risk ({amt_formatted} >= ₹1.5L + {urgency_desc} + {intake_desc}) triggers CRITICAL priority."
+        elif amt >= 75000.0:
+            return f"Rank #1 Primary; Financial loss ({amt_formatted} >= ₹75k) triggers HIGH priority."
+        elif amt >= 30000.0 and is_urgent:
+            return f"Rank #1 Primary; Immediate urgency ({amt_formatted} >= ₹30k + {urgency_desc}) triggers HIGH priority."
+        elif amt >= 20000.0:
+            return f"Rank #1 Primary; Loss ({amt_formatted} >= ₹20k) triggers MEDIUM priority."
+        elif is_urgent:
+            return f"Rank #1 Primary; Immediate window urgency ({urgency_desc}) triggers MEDIUM priority."
+        else:
+            return f"Rank #1 Primary; Routine observation ({amt_formatted} < ₹20k without immediate window urgency)."
+    elif rank == 2:
+        if amt >= 500000.0 and is_urgent:
+            return f"Rank #2 Secondary; High financial loss with urgency ({amt_formatted} >= ₹5L + {urgency_desc}) triggers HIGH priority."
+        elif amt >= 100000.0:
+            return f"Rank #2 Secondary; Financial loss ({amt_formatted} >= ₹100k) triggers MEDIUM priority."
+        elif amt >= 40000.0 and is_urgent:
+            return f"Rank #2 Secondary; Loss with window urgency ({amt_formatted} >= ₹40k + {urgency_desc}) triggers MEDIUM priority."
+        else:
+            return f"Rank #2 Secondary; Routine observation."
+    else:
+        if amt >= 500000.0 and is_urgent and is_recent:
+            return f"Rank #{rank} Candidate; High loss with urgency and recent intake ({amt_formatted} >= ₹5L + {urgency_desc} + {intake_desc}) triggers MEDIUM priority."
+        else:
+            return f"Rank #{rank} Candidate; Routine observation."
 
 
 class MLPredictionProvider:
@@ -570,6 +626,14 @@ class MLPredictionProvider:
                 "risk_score": prob,
                 "risk_level": risk_band,
                 "risk_band": risk_band,
+                "operational_priority": risk_band,
+                "operational_priority_basis": explain_operational_priority_rule(
+                    rank=rank,
+                    amount=float(complaint.amount or 0.0),
+                    time_pred_minutes=time_pred_minutes,
+                    incident_time=c_inc_time,
+                    reported_at=c_rep_time
+                ),
                 "distance_km": round(dist_km, 1),
                 "reasoning": reasoning,
                 "evidence": evidence
@@ -687,6 +751,8 @@ class DemoPredictionProvider:
                 "risk_score": 0.87,
                 "risk_level": "CRITICAL",
                 "risk_band": "CRITICAL",
+                "operational_priority": "CRITICAL",
+                "operational_priority_basis": "Rank #1 Primary; High-loss SIH scenario corridor triggers CRITICAL operational priority.",
                 "distance_km": 186.4,
                 "reasoning": "High Mule-Network Similarity & Recent ATM Cashier Activity",
                 "evidence": [
@@ -709,6 +775,8 @@ class DemoPredictionProvider:
                 "risk_score": 0.61,
                 "risk_level": "HIGH",
                 "risk_band": "HIGH",
+                "operational_priority": "HIGH",
+                "operational_priority_basis": "Rank #2 Secondary; High commercial density corridor triggers HIGH operational priority.",
                 "distance_km": 189.1,
                 "reasoning": "Secondary ATM Cluster linked to Mule B layering account",
                 "evidence": [
@@ -731,6 +799,8 @@ class DemoPredictionProvider:
                 "risk_score": 0.34,
                 "risk_level": "MEDIUM",
                 "risk_band": "MEDIUM",
+                "operational_priority": "MEDIUM",
+                "operational_priority_basis": "Rank #3 Candidate; Outlying node triggers MEDIUM operational priority.",
                 "distance_km": 198.7,
                 "reasoning": "Outlying highway ATM node with low historical frequency",
                 "evidence": [

@@ -23,6 +23,19 @@ const createClusterIcon = (riskLevel: string, isPulsing: boolean) => {
   });
 };
 
+const createHistoricalClusterIcon = () => {
+  return L.divIcon({
+    className: 'custom-historical-cluster-icon',
+    html: `
+      <div style="position:relative; width:16px; height:16px; display:flex; align-items:center; justify-content:center;">
+        <div style="width:12px; height:12px; border-radius:50%; background:#64748b; border:1.5px solid #ffffff; box-shadow:0 0 4px rgba(0,0,0,0.3);"></div>
+      </div>
+    `,
+    iconSize: [16, 16],
+    iconAnchor: [8, 8],
+  });
+};
+
 const createPredictionIcon = (rank: number) => {
   // Rank 1 visually strongest, Rank 2 and 3 progressively less prominent
   const bg = rank === 1 ? '#06b6d4' : (rank === 2 ? '#2563eb' : '#475569');
@@ -126,6 +139,22 @@ const MapBoundsController: React.FC<{
   return null;
 };
 
+const ClusterCenterController: React.FC<{
+  selectedClusterId?: number | null;
+  hotspots: HotspotCluster[];
+}> = ({ selectedClusterId, hotspots }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (selectedClusterId) {
+      const target = hotspots.find((h) => h.id === selectedClusterId);
+      if (target && hasCoordinates(target.latitude, target.longitude)) {
+        map.setView([Number(target.latitude), Number(target.longitude)], 13);
+      }
+    }
+  }, [selectedClusterId, hotspots, map]);
+  return null;
+};
+
 export interface LeafletFallbackMapProps {
   hotspots?: HotspotCluster[];
   atms?: ATMLocationItem[];
@@ -140,6 +169,7 @@ export interface LeafletFallbackMapProps {
   showComplaintOrigin?: boolean;
   focusTarget?: 'india' | 'complaint' | 'top1' | null;
   priorityHotspotIds?: number[];
+  selectedClusterId?: number | null;
 }
 
 export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
@@ -155,6 +185,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
   showAtms = true,
   showComplaintOrigin = true,
   priorityHotspotIds,
+  selectedClusterId,
 }) => {
   const navigate = useNavigate();
 
@@ -195,6 +226,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
 
         {/* Dynamic Bounds Controller */}
         <MapBoundsController topLocations={topLocations} complaint={complaint} />
+        <ClusterCenterController selectedClusterId={selectedClusterId} hotspots={hotspots} />
 
         {/* Complaint Origin Pin: Only rendered when legitimate coordinates exist */}
         {showComplaintOrigin && hasVictimCoords && (
@@ -346,16 +378,25 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
           );
         })}
 
-        {/* Render Hotspot Clusters (Generic Context - Separated from Predictions) */}
+        {/* Render Hotspot Clusters (Active Candidates vs Historical Baseline) */}
         {showHotspots && hotspots.map((cluster) => {
           if (!hasCoordinates(cluster.latitude, cluster.longitude)) return null;
+          const isActiveCandidate = cluster.is_active_candidate ?? (cluster.active_cases > 0);
+          const isSelected = selectedClusterId != null && cluster.id === selectedClusterId;
           const priorityIndex = priorityHotspotIds?.indexOf(cluster.id);
           const isPriority = priorityIndex != null && priorityIndex >= 0;
           const priorityRank = isPriority ? priorityIndex + 1 : null;
 
-          const isCritical = cluster.risk_level === 'CRITICAL';
-          const isHighlighted = highlightCluster && cluster.cluster_name.toLowerCase().includes(highlightCluster.toLowerCase());
-          const circleColor = isHighlighted ? '#06b6d4' : (isCritical ? '#ef4444' : (cluster.risk_level === 'HIGH' ? '#f59e0b' : '#3b82f6'));
+          const priorityLevel = (cluster.operational_priority || cluster.risk_level || 'LOW').toUpperCase();
+          const isCritical = priorityLevel === 'CRITICAL';
+          const isHigh = priorityLevel === 'HIGH';
+
+          const circleColor = isSelected
+            ? '#06b6d4'
+            : isActiveCandidate
+            ? (isCritical ? '#ef4444' : isHigh ? '#f59e0b' : '#3b82f6')
+            : '#64748b';
+
           const radiusMeters = (cluster.radius_km || 2.5) * 1000;
 
           return (
@@ -364,16 +405,22 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
                 center={[cluster.latitude, cluster.longitude]}
                 radius={radiusMeters}
                 pathOptions={{
-                  color: isPriority ? '#2563eb' : (isHighlighted ? '#06b6d4' : circleColor),
+                  color: isSelected ? '#06b6d4' : isPriority ? '#2563eb' : circleColor,
                   fillColor: circleColor,
-                  fillOpacity: isHighlighted ? 0.25 : (isPriority ? 0.18 : 0.08),
-                  weight: isHighlighted ? 2.5 : (isPriority ? 2.5 : 1),
-                  dashArray: isCritical ? '6, 6' : undefined,
+                  fillOpacity: isSelected ? 0.25 : isActiveCandidate ? (isPriority ? 0.18 : 0.08) : 0.04,
+                  weight: isSelected ? 2.5 : isActiveCandidate ? (isPriority ? 2.5 : 1.5) : 1,
+                  dashArray: isActiveCandidate && isCritical ? '6, 6' : undefined,
                 }}
               />
               <Marker
                 position={[cluster.latitude, cluster.longitude]}
-                icon={isPriority ? createPriorityHotspotIcon(priorityRank!, cluster.risk_level) : createClusterIcon(cluster.risk_level, isCritical || !!isHighlighted)}
+                icon={
+                  isPriority
+                    ? createPriorityHotspotIcon(priorityRank!, priorityLevel)
+                    : isActiveCandidate
+                    ? createClusterIcon(priorityLevel, isCritical || !!isSelected)
+                    : createHistoricalClusterIcon()
+                }
               >
                 <Popup>
                   <div className="bg-[#0b1326] text-slate-100 p-3 rounded-lg border border-[#1b2b4d] font-sans w-64">
@@ -381,12 +428,14 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
                       <span className="font-bold text-xs text-slate-100">{cluster.cluster_name}</span>
                       <span
                         className={`text-[10px] px-1.5 py-0.5 rounded font-bold font-mono ${
-                          cluster.risk_level === 'CRITICAL'
-                            ? 'bg-red-500/20 text-red-400 border border-red-500/40'
-                            : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                          isActiveCandidate
+                            ? isCritical
+                              ? 'bg-red-500/20 text-red-400 border border-red-500/40'
+                              : 'bg-amber-500/20 text-amber-400 border border-amber-500/40'
+                            : 'bg-slate-700/40 text-slate-400 border border-slate-600/40'
                         }`}
                       >
-                        {cluster.risk_level}
+                        {isActiveCandidate ? priorityLevel : 'HISTORICAL'}
                       </span>
                     </div>
 
@@ -398,29 +447,58 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
                     )}
 
                     <div className="space-y-1.5 text-xs text-slate-300 font-mono">
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Context Window:</span>
-                        <span className="text-cyan-300 font-bold">{cluster.expected_window}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-400">Historical Risk:</span>
-                        <span className="text-emerald-400 font-bold">₹{(cluster.amount_at_risk || 0).toLocaleString('en-IN')}</span>
-                      </div>
+                      {isActiveCandidate ? (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Active Window:</span>
+                            <span className="text-cyan-300 font-bold">{cluster.expected_window}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Candidate Score:</span>
+                            <span className="text-slate-200 font-bold">{cluster.candidate_score != null ? `${(cluster.candidate_score * 100).toFixed(1)}%` : 'N/A'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Associated Amount:</span>
+                            <span className="text-emerald-400 font-bold">₹{(cluster.associated_complaint_amount ?? cluster.amount_at_risk ?? 0).toLocaleString('en-IN')}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Active Cases:</span>
+                            <span className="text-slate-200">{cluster.active_cases}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Baseline Risk:</span>
+                            <span className="text-slate-300 font-bold">{cluster.historical_risk != null ? `${Math.round(cluster.historical_risk * 100)}%` : 'Baseline'}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Active Cases:</span>
+                            <span className="text-slate-400">0 (No active prediction)</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">Associated Amount:</span>
+                            <span className="text-slate-400">₹0</span>
+                          </div>
+                        </>
+                      )}
                       <div className="flex justify-between">
                         <span className="text-slate-400">Context Radius:</span>
                         <span>{cluster.radius_km || 2.5} km</span>
                       </div>
                     </div>
 
-                    <div className="mt-3 pt-2 border-t border-[#1b2b4d] flex items-center justify-between gap-1.5">
-                      <button
-                        onClick={() => navigate(complaint?.complaint_number ? `/cases/${complaint.complaint_number}` : '/cases')}
-                        className="flex-1 px-2 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[11px] font-bold text-center flex items-center justify-center space-x-1"
-                      >
-                        <Eye className="w-3 h-3" />
-                        <span>Case</span>
-                      </button>
-                    </div>
+                    {isActiveCandidate && cluster.linked_complaint_numbers && cluster.linked_complaint_numbers.length > 0 && (
+                      <div className="mt-3 pt-2 border-t border-[#1b2b4d] flex items-center justify-between gap-1.5">
+                        <button
+                          onClick={() => navigate(`/cases/${cluster.linked_complaint_numbers![0]}`)}
+                          className="flex-1 px-2 py-1 bg-cyan-600 hover:bg-cyan-500 text-white rounded text-[11px] font-bold text-center flex items-center justify-center space-x-1"
+                        >
+                          <Eye className="w-3 h-3" />
+                          <span>View {cluster.linked_complaint_numbers[0]}</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </Popup>
               </Marker>
@@ -447,6 +525,27 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
           </Marker>
         ))}
       </MapContainer>
+
+      {/* Map Legend Footer */}
+      <div className="absolute bottom-2 left-2 sm:left-3 right-2 sm:right-auto max-w-[calc(100%-1rem)] sm:max-w-none z-[1000] pointer-events-none bg-[#0b1326]/90 backdrop-blur-xs px-2 sm:px-3 py-1.5 rounded-md border border-[#1b2b4d] text-[9px] sm:text-[10px] font-sans text-slate-300 shadow-xs flex flex-wrap items-center gap-x-2.5 sm:gap-x-3 gap-y-0.5">
+        <span className="flex items-center space-x-1">
+          <span className="w-2.5 h-2.5 rounded-sm bg-cyan-500 inline-block shrink-0"></span>
+          <span className="font-semibold text-slate-200">Predicted Zone (#1 Rings)</span>
+        </span>
+        <span className="flex items-center space-x-1">
+          <span className="w-2 h-2 rounded-full bg-red-500 inline-block shrink-0"></span>
+          <span className="font-medium text-slate-200">Active Candidate</span>
+        </span>
+        <span className="flex items-center space-x-1">
+          <span className="w-2 h-2 rounded-full bg-slate-500 inline-block shrink-0"></span>
+          <span className="text-slate-400">Historical Hotspot (Baseline)</span>
+        </span>
+        <span className="flex items-center space-x-1">
+          <span className="w-2 h-2 bg-sky-400 inline-block shrink-0"></span>
+          <span>ATM Terminal</span>
+        </span>
+        <span className="text-slate-400 hidden sm:inline">Provider: OpenStreetMap</span>
+      </div>
     </div>
   );
 };

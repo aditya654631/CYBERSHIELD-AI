@@ -72,19 +72,61 @@ export const explainOperationalPriority = (
   riskLevel?: string | null,
   amount?: number | null,
   urgencyMinutes?: number | null,
-  delayHours?: number | null
+  delayHours?: number | null,
+  rank?: number | null,
+  backendReason?: string | null
 ): string => {
+  if (backendReason && backendReason.trim()) {
+    return backendReason.trim();
+  }
+
   const level = (riskLevel || 'MEDIUM').toUpperCase();
   const amtStr = amount != null ? `₹${Number(amount).toLocaleString('en-IN')}` : 'reported loss';
+
+  if (rank === 1) {
+    switch (level) {
+      case 'CRITICAL':
+        return `Rank #1 Primary: CRITICAL (loss band >= ₹5L or >= ₹1.5L with cash-out urgency <= 90 min and intake delay <= 4 hrs). Associated amount: ${amtStr}.`;
+      case 'HIGH':
+        return `Rank #1 Primary: HIGH (loss band >= ₹75k or >= ₹30k with cash-out urgency <= 90 min). Associated amount: ${amtStr}.`;
+      case 'MEDIUM':
+        return `Rank #1 Primary: MEDIUM (loss band >= ₹20k or window urgency <= 90 min). Associated amount: ${amtStr}.`;
+      case 'LOW':
+        return `Rank #1 Primary: LOW (routine observation for loss band < ₹20k without immediate window urgency).`;
+      default:
+        return `Rank #1 Primary: ${level}`;
+    }
+  } else if (rank === 2) {
+    switch (level) {
+      case 'HIGH':
+        return `Rank #2 Secondary: HIGH (loss band >= ₹5L with immediate window urgency <= 90 min). Associated amount: ${amtStr}.`;
+      case 'MEDIUM':
+        return `Rank #2 Secondary: MEDIUM (loss band >= ₹100k or >= ₹40k with window urgency <= 90 min). Associated amount: ${amtStr}.`;
+      case 'LOW':
+        return `Rank #2 Secondary: LOW (routine observation).`;
+      default:
+        return `Rank #2 Secondary: ${level}`;
+    }
+  } else if (rank && rank >= 3) {
+    switch (level) {
+      case 'MEDIUM':
+        return `Rank #${rank} Candidate: MEDIUM (loss band >= ₹5L with urgency <= 90 min and intake delay <= 4 hrs). Associated amount: ${amtStr}.`;
+      case 'LOW':
+        return `Rank #${rank} Candidate: LOW (routine observation).`;
+      default:
+        return `Rank #${rank} Candidate: ${level}`;
+    }
+  }
+
   switch (level) {
     case 'CRITICAL':
-      return `Operational Priority: CRITICAL (loss band >= ₹5L or >= ₹1.5L with cash-out urgency <= 90 min and intake delay <= 4 hrs). Amount at risk: ${amtStr}.`;
+      return `Operational Priority: CRITICAL (loss band >= ₹5L or compound risk with cash-out urgency <= 90 min and intake delay <= 4 hrs). Associated amount: ${amtStr}.`;
     case 'HIGH':
-      return `Operational Priority: HIGH (loss band >= ₹75k or >= ₹30k with window urgency <= 90 min). Amount at risk: ${amtStr}.`;
+      return `Operational Priority: HIGH (loss band >= ₹75k or urgency <= 90 min). Associated amount: ${amtStr}.`;
     case 'MEDIUM':
-      return `Operational Priority: MEDIUM (loss band >= ₹20k or window urgency). Amount at risk: ${amtStr}.`;
+      return `Operational Priority: MEDIUM (loss band >= ₹20k or immediate window urgency). Associated amount: ${amtStr}.`;
     case 'LOW':
-      return `Operational Priority: LOW (routine observation for loss band < ₹20k without immediate window urgency).`;
+      return `Operational Priority: LOW (routine observation).`;
     default:
       return `Operational Priority: ${level}`;
   }
