@@ -1,12 +1,14 @@
 import os
 import json
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from backend.app.config.settings import settings
+from backend.app.auth.security import get_current_user
+from backend.app.models.models import User
 
 router = APIRouter(prefix="/model", tags=["Model Performance"])
 
 @router.get("/performance")
-def get_model_performance():
+def get_model_performance(current_user: User = Depends(get_current_user)):
     meta_path_v2 = os.path.join(settings.ML_MODEL_DIR, "model_metadata_v2.json")
     meta_path_v1 = os.path.join(settings.ML_MODEL_DIR, "model_metadata_v1.json")
 

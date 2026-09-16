@@ -1,23 +1,31 @@
 from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from sqlalchemy.orm import Session
 from backend.app.models.db import get_db
-from backend.app.models.models import Complaint, Transaction, Account
+from backend.app.models.models import Complaint, Transaction, Account, User
 from backend.app.schemas.schemas import TransactionResponse, TransactionContextResponse, GraphDataResponse
 from backend.app.services.transaction_context_service import resolve_transaction_context
 from backend.app.services.graph_service import build_complaint_graph
+from backend.app.auth.security import get_current_user
+from backend.app.auth.rbac import verify_complaint_access
 
 router = APIRouter(prefix="/complaints", tags=["Transactions & Graphs"])
 
+
 @router.get("/{id}/transactions", response_model=List[TransactionResponse])
-def get_complaint_transactions(id: str, response: Response, db: Session = Depends(get_db)):
+def get_complaint_transactions(
+    id: str,
+    response: Response,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     if id.isdigit():
         complaint = db.query(Complaint).filter(Complaint.id == int(id)).first()
     else:
         complaint = db.query(Complaint).filter(Complaint.complaint_number == id).first()
 
-    if not complaint:
-        raise HTTPException(status_code=404, detail="Complaint not found")
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
 
     context = resolve_transaction_context(db, complaint)
     transactions = context["transactions"]
@@ -58,15 +66,20 @@ def get_complaint_transactions(id: str, response: Response, db: Session = Depend
 
     return results
 
+
 @router.get("/{id}/transactions/context", response_model=TransactionContextResponse)
-def get_complaint_transaction_context(id: str, db: Session = Depends(get_db)):
+def get_complaint_transaction_context(
+    id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     if id.isdigit():
         complaint = db.query(Complaint).filter(Complaint.id == int(id)).first()
     else:
         complaint = db.query(Complaint).filter(Complaint.complaint_number == id).first()
 
-    if not complaint:
-        raise HTTPException(status_code=404, detail="Complaint not found")
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
 
     context = resolve_transaction_context(db, complaint)
     transactions = context["transactions"]
@@ -108,15 +121,20 @@ def get_complaint_transaction_context(id: str, db: Session = Depends(get_db)):
         "transactions": mapped_txs
     }
 
+
 @router.get("/{id}/graph", response_model=GraphDataResponse)
-def get_complaint_graph(id: str, db: Session = Depends(get_db)):
+def get_complaint_graph(
+    id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     if id.isdigit():
         complaint = db.query(Complaint).filter(Complaint.id == int(id)).first()
     else:
         complaint = db.query(Complaint).filter(Complaint.complaint_number == id).first()
 
-    if not complaint:
-        raise HTTPException(status_code=404, detail="Complaint not found")
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Complaint not found")
 
     graph_data = build_complaint_graph(db, complaint.id)
     return graph_data

@@ -13,6 +13,8 @@ export interface User {
   role: UserRole;
   badge_number: string;
   organization_name?: string;
+  state?: string;
+  district?: string;
   is_active: boolean;
 }
 
@@ -493,4 +495,28 @@ export interface ModelPerformanceData {
   research_decision_rationale?: string;
   metrics_comparison: MetricComparisonItem[];
   feature_importances: FeatureImportanceItem[];
+}
+
+export interface BankActionItem {
+  id: number;
+  action_reference: string;
+  idempotency_key?: string | null;
+  complaint_id: number;
+  alert_id?: number | null;
+  bank_name?: string | null;
+  action_type: string;
+  status: 'REQUESTED' | 'APPROVED' | 'SENT' | 'ACKNOWLEDGED' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | string;
+  is_simulated: boolean;
+  simulation_notes?: string | null;
+  actor_name?: string | null;
+  actor_role?: string | null;
+  action_notes?: string | null;
+  provider_reference_id?: string | null;
+  failure_reason?: string | null;
+  requested_at: string;
+  approved_at?: string | null;
+  sent_at?: string | null;
+  acknowledged_at?: string | null;
+  completed_at?: string | null;
+  created_at: string;
 }

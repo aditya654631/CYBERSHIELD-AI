@@ -5,6 +5,7 @@ from backend.app.models.db import get_db
 from backend.app.models.models import Complaint, Prediction, PredictionLocation, User
 from backend.app.schemas.schemas import PredictionResponse, ExplanationResponse
 from backend.app.auth.security import get_current_user
+from backend.app.auth.rbac import require_roles, verify_complaint_access, RoleEnum
 from backend.app.services.audit_service import log_audit
 from backend.app.services.prediction_service import prediction_service
 
@@ -137,14 +138,16 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
 def run_prediction(
     complaint_id: str,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles(
+        RoleEnum.I4C_ADMIN, RoleEnum.STATE_LEA, RoleEnum.DISTRICT_LEA, RoleEnum.ANALYST
+    ))
 ):
     if complaint_id.isdigit():
         complaint = db.query(Complaint).filter(Complaint.id == int(complaint_id)).first()
     else:
         complaint = db.query(Complaint).filter(Complaint.complaint_number == complaint_id).first()
 
-    if not complaint:
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
         raise HTTPException(status_code=404, detail="Complaint not found")
 
     # Step 10: Dynamic inference + atomic persistence into Prediction and PredictionLocation
@@ -166,17 +169,21 @@ def run_prediction(
 
 
 @router.get("/{complaint_id}", response_model=PredictionResponse)
-def get_prediction(complaint_id: str, db: Session = Depends(get_db)):
+def get_prediction(
+    complaint_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Strictly read-only endpoint: retrieves the latest persisted prediction for the complaint.
-    Returns 404 if no prediction has been persisted yet. Does NOT execute inference or persist from GET.
+    Returns 404 if no prediction has been persisted yet or if complaint is out of jurisdiction.
     """
     if complaint_id.isdigit():
         complaint = db.query(Complaint).filter(Complaint.id == int(complaint_id)).first()
     else:
         complaint = db.query(Complaint).filter(Complaint.complaint_number == complaint_id).first()
 
-    if not complaint:
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
         raise HTTPException(status_code=404, detail="Complaint not found")
 
     from backend.app.services.prediction_persistence_service import prediction_persistence_service
@@ -191,7 +198,11 @@ def get_prediction(complaint_id: str, db: Session = Depends(get_db)):
 
 
 @router.get("/{prediction_id}/explanation", response_model=ExplanationResponse)
-def get_prediction_explanation(prediction_id: int, db: Session = Depends(get_db)):
+def get_prediction_explanation(
+    prediction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     prediction = db.query(Prediction).filter(Prediction.id == prediction_id).first()
     if not prediction:
         raise HTTPException(
@@ -199,9 +210,15 @@ def get_prediction_explanation(prediction_id: int, db: Session = Depends(get_db)
             detail=f"Prediction #{prediction_id} not found."
         )
 
+    complaint = db.query(Complaint).filter(Complaint.id == prediction.complaint_id).first()
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
+        raise HTTPException(
+            status_code=404,
+            detail=f"Prediction #{prediction_id} not found."
+        )
+
     if prediction.prediction_mode == "deterministic_demo":
         from datetime import datetime, timezone
-        complaint = db.query(Complaint).filter(Complaint.id == prediction.complaint_id).first()
         demo_exp = prediction_service.get_explanation(prediction, complaint)
         return {
             "explanation_status": "AVAILABLE",
@@ -227,9 +244,12 @@ def get_prediction_explanation(prediction_id: int, db: Session = Depends(get_db)
     return prediction_explainability_service.get_or_generate_explanation(db, prediction_id)
 
 
-
 @router.get("/{prediction_id}/audit-verification")
-def verify_prediction_audit(prediction_id: int, db: Session = Depends(get_db)):
+def verify_prediction_audit(
+    prediction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     """
     Phase B.5: Tamper-Evident Prediction Audit Verification Endpoint.
     Loads persisted prediction from PostgreSQL, recomputes canonical SHA-256 hash,
@@ -240,8 +260,8 @@ def verify_prediction_audit(prediction_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail=f"Prediction #{prediction_id} not found.")
 
     complaint = db.query(Complaint).filter(Complaint.id == prediction.complaint_id).first()
-    if not complaint:
-        raise HTTPException(status_code=404, detail="Complaint not found for prediction.")
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
+        raise HTTPException(status_code=404, detail="Prediction not found.")
 
     from backend.app.services.prediction_audit_service import prediction_audit_client
     audit_dict = {

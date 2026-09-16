@@ -12,6 +12,7 @@ import {
   DashboardSummary,
   AuditLogItem,
   ModelPerformanceData,
+  BankActionItem,
 } from '../types';
 
 const API_BASE_URL =
@@ -34,14 +35,23 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-// Interceptor for handling 401 Unauthorized / Token Expiration
+// Interceptor for handling 401 Unauthorized vs 403 Forbidden
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
+      // 401 Unauthorized: Session invalid or expired, close session cleanly
       localStorage.removeItem('cybershield_token');
       localStorage.removeItem('cybershield_user');
-      window.dispatchEvent(new CustomEvent('auth:expired'));
+      window.dispatchEvent(new CustomEvent('auth:expired', {
+        detail: error.response?.data?.detail || 'Your session has expired. Please log in again.'
+      }));
+    } else if (error.response?.status === 403) {
+      // 403 Forbidden: Authenticated user lacks required permission
+      // Do NOT clear user session; dispatch notification event
+      window.dispatchEvent(new CustomEvent('auth:forbidden', {
+        detail: error.response?.data?.detail || 'Access forbidden: Insufficient role permissions.'
+      }));
     }
     return Promise.reject(error);
   }
@@ -55,6 +65,13 @@ export const api = {
   },
   getMe: async () => {
     const res = await apiClient.get('/auth/me');
+    return res.data;
+  },
+
+  // Health
+  getHealth: async () => {
+    const healthUrl = API_BASE_URL.replace(/\/api\/v1\/?$/, '') + '/health';
+    const res = await axios.get(healthUrl);
     return res.data;
   },
 
@@ -159,6 +176,20 @@ export const api = {
   },
   escalateAlert: async (alertId: number, notes?: string) => {
     const res = await apiClient.post<AlertItem>(`/alerts/${alertId}/escalate`, { notes });
+    return res.data;
+  },
+
+  // Bank Actions (Truthful Lifecycle)
+  getBankActions: async (params?: { status_filter?: string }) => {
+    const res = await apiClient.get<BankActionItem[]>('/bank-actions', { params });
+    return res.data;
+  },
+  getBankAction: async (id: number) => {
+    const res = await apiClient.get<BankActionItem>(`/bank-actions/${id}`);
+    return res.data;
+  },
+  transitionBankAction: async (id: number, data: { target_status: string; notes?: string; failure_reason?: string }) => {
+    const res = await apiClient.post<BankActionItem>(`/bank-actions/${id}/transition`, data);
     return res.data;
   },
 

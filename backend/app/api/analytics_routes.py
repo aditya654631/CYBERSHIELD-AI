@@ -1,16 +1,20 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
-from sqlalchemy import func
 from backend.app.models.db import get_db
-from backend.app.models.models import Complaint, Alert, Prediction, LocationCluster
+from backend.app.models.models import User
 from backend.app.schemas.schemas import AnalyticsOverviewResponse
+from backend.app.auth.security import get_current_user
 
 router = APIRouter(prefix="/analytics", tags=["Analytics & Overview"])
 
+
 @router.get("/overview", response_model=AnalyticsOverviewResponse)
-def get_analytics_overview(db: Session = Depends(get_db)):
+def get_analytics_overview(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     from backend.app.services.dashboard_service import dashboard_service
-    summary = dashboard_service.get_dashboard_summary(db)
+    summary = dashboard_service.get_dashboard_summary(db, user=current_user)
     kpis = summary["kpis"]
 
     return {
@@ -26,8 +30,9 @@ def get_analytics_overview(db: Session = Depends(get_db)):
         "regional_risk": summary["regional_distribution"]
     }
 
+
 @router.get("/fraud-types")
-def get_fraud_types():
+def get_fraud_types(current_user: User = Depends(get_current_user)):
     return [
         {"type": "Investment Scam", "cases": 184, "avg_amount": 77173, "risk_velocity": "Moderate (4-8h)"},
         {"type": "UPI / QR Code Fraud", "cases": 142, "avg_amount": 43661, "risk_velocity": "Ultra Fast (<2h)"},
@@ -36,8 +41,9 @@ def get_fraud_types():
         {"type": "Loan App Extortion", "cases": 40, "avg_amount": 55000, "risk_velocity": "Slow (>8h)"}
     ]
 
+
 @router.get("/timeline")
-def get_timeline():
+def get_timeline(current_user: User = Depends(get_current_user)):
     return [
         {"timestamp": "20:15", "event": "CMP-1042: AI Prediction flagged Vijay Nagar ATM Cluster (87% Risk)"},
         {"timestamp": "19:42", "event": "CMP-1042: Layer 2 fund split into Mule accounts ACC••••8129 and ACC••••6291"},

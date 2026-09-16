@@ -88,6 +88,8 @@ class Settings(BaseSettings):
 
         return self
 
+    ALLOW_DEMO_LOGIN: bool = True
+
     @model_validator(mode="after")
     def validate_cors_origins(self) -> "Settings":
         is_prod = str(self.ENVIRONMENT).lower() in ("production", "prod")
@@ -97,6 +99,11 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Production configuration error: CORS_ORIGINS must be set to explicit allowed origins and cannot contain wildcard '*' when allow_credentials=True."
                 )
+            for o in origins:
+                if not (o.startswith("https://") or o.startswith("http://")):
+                    raise ValueError(f"Production configuration error: CORS origin '{o}' must include protocol scheme.")
+                if "*" in o:
+                    raise ValueError(f"Production configuration error: CORS origin '{o}' cannot contain wildcards.")
         return self
 
     @property
