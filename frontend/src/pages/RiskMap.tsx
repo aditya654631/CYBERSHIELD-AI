@@ -33,6 +33,12 @@ export const RiskMap: React.FC = () => {
   const [selectedComplaintId, setSelectedComplaintId] = useState<string>(initialCaseParam);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
 
+  // Cluster Selection & Route Integration (Phase 3)
+  const [selectedClusterId, setSelectedClusterId] = useState<number | null>(null);
+  const [selectedCluster, setSelectedCluster] = useState<HotspotCluster | null>(null);
+  const [clusterNotice, setClusterNotice] = useState<string | null>(null);
+  const [clusterError, setClusterError] = useState<string | null>(null);
+
   // Persisted Prediction Intelligence State
   const [currentPrediction, setCurrentPrediction] = useState<Prediction | null>(null);
   const [topLocations, setTopLocations] = useState<PredictionLocationItem[]>([]);
@@ -74,15 +80,16 @@ export const RiskMap: React.FC = () => {
   const [showHotspots, setShowHotspots] = useState<boolean>(false);
   const [showAtms, setShowAtms] = useState<boolean>(false);
 
-  // 1. Initial Load: Fetch Complaints List from Real API (Correction 2)
+  // 1. Initial Load: Fetch Complaints List from Real API
   useEffect(() => {
     const loadComplaints = async () => {
       try {
         const comps = await api.getComplaints({ limit: 100, state: 'Delhi' });
         let allComps = [...comps];
 
-        // Check query param first, otherwise default to CMP-NEW-000002 or first complaint
-        const paramId = searchParams.get('case') || searchParams.get('complaint') || selectedComplaintId;
+        const hasClusterParam = Boolean(searchParams.get('cluster'));
+        const paramId = searchParams.get('case') || searchParams.get('complaint');
+
         if (paramId) {
           const inList = comps.find(c => c.complaint_number === paramId);
           if (inList) {
@@ -95,20 +102,20 @@ export const RiskMap: React.FC = () => {
                 allComps = [specificComp, ...comps];
                 setSelectedComplaintId(paramId);
                 setSelectedComplaint(specificComp);
-              } else if (comps.length > 0) {
+              } else if (!hasClusterParam && comps.length > 0) {
                 const defaultComp = comps[0];
                 setSelectedComplaintId(defaultComp.complaint_number);
                 setSelectedComplaint(defaultComp);
               }
             } catch {
-              if (comps.length > 0) {
+              if (!hasClusterParam && comps.length > 0) {
                 const defaultComp = comps[0];
                 setSelectedComplaintId(defaultComp.complaint_number);
                 setSelectedComplaint(defaultComp);
               }
             }
           }
-        } else if (comps.length > 0) {
+        } else if (!hasClusterParam && comps.length > 0) {
           const defaultComp = comps[0];
           setSelectedComplaintId(defaultComp.complaint_number);
           setSelectedComplaint(defaultComp);
@@ -140,6 +147,41 @@ export const RiskMap: React.FC = () => {
     };
     fetchGISContext();
   }, [districtFilter, riskFilter]);
+
+  // 2b. Cluster URL Parameter Navigation & Validation (Requirement 10)
+  useEffect(() => {
+    const clusterParam = searchParams.get('cluster');
+    if (clusterParam && hotspots.length > 0) {
+      const target = hotspots.find(
+        (h) => String(h.id) === clusterParam || h.cluster_name.toLowerCase() === clusterParam.toLowerCase()
+      );
+      if (target) {
+        setSelectedClusterId(target.id);
+        setSelectedCluster(target);
+        setShowHotspots(true);
+        setClusterError(null);
+
+        if (target.is_active_candidate && target.linked_complaint_numbers && target.linked_complaint_numbers.length > 0) {
+          const firstLinked = target.linked_complaint_numbers[0];
+          setSelectedComplaintId(firstLinked);
+          setClusterNotice(`Focused on active candidate cluster '${target.cluster_name}' (${target.active_cases} linked case(s)).`);
+        } else {
+          // Historical baseline: clear selected complaint so we don't silently display an unrelated case!
+          setSelectedComplaintId('');
+          setSelectedComplaint(null);
+          setCurrentPrediction(null);
+          setTopLocations([]);
+          setPredictionLoading(false);
+          setClusterNotice(`Focused on monitored hotspot '${target.cluster_name}' (Historical baseline — no active case prediction).`);
+        }
+      } else {
+        setSelectedClusterId(null);
+        setSelectedCluster(null);
+        setClusterNotice(null);
+        setClusterError(`Requested cluster '${clusterParam}' was not found or is outside authorized officer jurisdiction.`);
+      }
+    }
+  }, [searchParams, hotspots]);
 
   // 3. Reactive Single Source of Truth: Fetch Persisted Prediction on Complaint Change (Requirement 2 & 19)
   useEffect(() => {
@@ -321,6 +363,39 @@ export const RiskMap: React.FC = () => {
         </div>
       </div>
 
+      {/* Cluster Navigation Feedback Alerts (Requirement 10) */}
+      {clusterNotice && (
+        <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <Info className="w-4 h-4 text-blue-600 shrink-0" />
+            <span>{clusterNotice}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setClusterNotice(null)}
+            className="text-blue-600 hover:text-blue-800 font-bold ml-2 text-sm leading-none"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
+      {clusterError && (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800 flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+            <span>{clusterError}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setClusterError(null)}
+            className="text-amber-600 hover:text-amber-800 font-bold ml-2 text-sm leading-none"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Main Map + Selected Prediction Intelligence Panel */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Full GIS Map Canvas */}
@@ -332,7 +407,8 @@ export const RiskMap: React.FC = () => {
             complaint={selectedComplaint}
             prediction={currentPrediction}
             height={mapHeight}
-            highlightCluster={highlightClusterName}
+            highlightCluster={selectedCluster?.cluster_name || highlightClusterName}
+            selectedClusterId={selectedClusterId}
           />
           <div className="mt-3 flex flex-wrap items-center justify-between text-[11px] text-slate-500 px-2">
             <span>
@@ -557,6 +633,101 @@ export const RiskMap: React.FC = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            ) : selectedCluster && !selectedComplaintId ? (
+              /* Cluster Focus Panel (Phase 3 Requirement 10) */
+              <div className="space-y-4">
+                <div className="p-3 bg-[#F6F8FC] rounded-lg border border-[#DCE5F0]">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-[10px] font-bold tracking-wider text-slate-500 uppercase">
+                      Cluster Focus
+                    </span>
+                    <span
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                        selectedCluster.is_active_candidate
+                          ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                          : 'bg-slate-200 text-slate-700'
+                      }`}
+                    >
+                      {selectedCluster.is_active_candidate ? 'Active Interception Zone' : 'Historical Hotspot'}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-900">{selectedCluster.cluster_name}</h3>
+                  <div className="mt-1 text-xs text-slate-600">
+                    Radius: {selectedCluster.radius_km || 2.0} km • ATMs: {selectedCluster.atm_count || 0}
+                  </div>
+                </div>
+
+                {/* Historical Baseline vs Active Data */}
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="text-[10px] text-slate-500 uppercase font-semibold">Historical Risk</div>
+                    <div className="text-base font-bold text-slate-800 mt-0.5">
+                      {selectedCluster.historical_risk != null ? `${Math.round(selectedCluster.historical_risk * 100)}%` : 'Baseline'}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">Baseline density</div>
+                  </div>
+                  <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200">
+                    <div className="text-[10px] text-slate-500 uppercase font-semibold">Active Cases</div>
+                    <div className="text-base font-bold text-slate-800 mt-0.5">
+                      {selectedCluster.active_cases || 0}
+                    </div>
+                    <div className="text-[10px] text-slate-500 mt-0.5">
+                      {selectedCluster.is_active_candidate ? 'Eligible predictions' : 'None eligible'}
+                    </div>
+                  </div>
+                </div>
+
+                {selectedCluster.is_active_candidate ? (
+                  <div className="space-y-3">
+                    <div className="p-3 bg-amber-50 rounded-lg border border-amber-200 text-xs space-y-1">
+                      <div className="font-semibold text-amber-900 flex items-center justify-between">
+                        <span>Operational Priority:</span>
+                        <span className="font-bold uppercase text-amber-800">{selectedCluster.operational_priority || 'Standard'}</span>
+                      </div>
+                      <div className="text-amber-700 text-[11px]">
+                        Associated Amount: ₹{(selectedCluster.associated_complaint_amount || 0).toLocaleString('en-IN')}
+                      </div>
+                      {selectedCluster.window_status && (
+                        <div className="text-amber-700 text-[11px]">
+                          Window Status: <span className="font-semibold">{selectedCluster.window_status}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedCluster.linked_complaint_numbers && selectedCluster.linked_complaint_numbers.length > 0 && (
+                      <div className="space-y-1.5">
+                        <div className="text-[11px] font-semibold text-slate-700">Linked Complaints:</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {selectedCluster.linked_complaint_numbers.map((cNum) => (
+                            <button
+                              key={cNum}
+                              onClick={() => {
+                                setSelectedComplaintId(cNum);
+                              }}
+                              className="px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded text-xs font-mono font-medium transition-colors"
+                            >
+                              {cNum} →
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-600 space-y-2">
+                    <div className="font-medium text-slate-800 flex items-center gap-1.5">
+                      <Shield className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Historical Baseline Zone</span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-relaxed">
+                      This cluster is an ATM cash-out concentration zone derived from historical cybercrime patterns. There are currently no active case predictions routed here.
+                    </p>
+                    <p className="text-[10px] text-slate-500 italic">
+                      Select an active complaint from the dropdown or dashboard to render tactical interception rings and model provenance.
+                    </p>
+                  </div>
+                )}
               </div>
             ) : (
               /* Outside Scope / Unavailable State (Requirement 17) */

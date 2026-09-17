@@ -22,7 +22,7 @@ from datetime import datetime, timedelta
 from typing import Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 
-from backend.app.models.models import Complaint, Prediction, PredictionLocation
+from backend.app.models.models import Complaint, Prediction, PredictionLocation, PredictionSnapshot
 from backend.app.services.prediction_contract import as_utc, build_time_prediction
 
 logger = logging.getLogger("cybershield.prediction_persistence")
@@ -160,21 +160,27 @@ class PredictionPersistenceService:
                     persisted_predicted_minutes = raw_time_pred.get("predicted_minutes_to_cashout")
                     persisted_time_model_version = raw_time_pred.get("model_version") or None
 
+            inf_snapshot = prediction_data.get("inference_snapshot")
+
+            result_meta_dict = {
+                **{key: prediction_data[key] for key in (
+                    "candidate_pool_size", "operational_scope", "dataset_version", "score_type", "score_label",
+                    "training_data_source", "analysis_basis", "provenance", "limitations",
+                ) if key in prediction_data},
+                "time_prediction": time_pred if pred_mode == "trained_ml" else prediction_data.get("time_prediction"),
+                "location_evidence": {str(loc["cluster_id"]): loc.get("evidence", []) for loc in top_locations},
+                "result_fingerprint": fingerprint,
+            }
+            if inf_snapshot:
+                result_meta_dict["inference_snapshot"] = inf_snapshot
+
             prediction = Prediction(
                 complaint_id=complaint.id,
                 prediction_mode=pred_mode,
                 model_version=prediction_data.get("model_version", "cashout-location-xgb-v3.1"),
                 time_model_version=persisted_time_model_version,
                 predicted_minutes_to_cashout=persisted_predicted_minutes,
-                result_metadata={
-                    **{key: prediction_data[key] for key in (
-                        "candidate_pool_size", "operational_scope", "dataset_version", "score_type", "score_label",
-                        "training_data_source", "analysis_basis", "provenance", "limitations",
-                    ) if key in prediction_data},
-                    "time_prediction": time_pred if pred_mode == "trained_ml" else prediction_data.get("time_prediction"),
-                    "location_evidence": {str(loc["cluster_id"]): loc.get("evidence", []) for loc in top_locations},
-                    "result_fingerprint": fingerprint,
-                },
+                result_metadata=result_meta_dict,
                 predicted_window_start=window_start,
                 predicted_window_end=window_end,
                 window_label=window_label,
@@ -192,6 +198,21 @@ class PredictionPersistenceService:
             )
             db.add(prediction)
             db.flush()  # Allocates prediction.id while remaining inside transaction
+
+            # Phase 5: Persist companion PredictionSnapshot record if snapshot exists
+            if inf_snapshot and isinstance(inf_snapshot, dict):
+                snapshot_row = PredictionSnapshot(
+                    prediction_id=prediction.id,
+                    complaint_id=complaint.id,
+                    model_version=str(inf_snapshot.get("model_version", prediction.model_version)),
+                    feature_schema_version=str(inf_snapshot.get("feature_schema_version", "v7_compat")),
+                    feature_schema_hash=inf_snapshot.get("feature_schema_hash"),
+                    model_hash=inf_snapshot.get("location_model_hash"),
+                    calibrator_hash=inf_snapshot.get("calibrator_hash"),
+                    snapshot_data=inf_snapshot,
+                    created_at=prediction.created_at
+                )
+                db.add(snapshot_row)
 
             # Insert exactly 3 children
             for loc in top_locations:

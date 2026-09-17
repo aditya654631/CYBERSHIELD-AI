@@ -1,4 +1,5 @@
 from typing import Any, Optional
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from backend.app.models.db import get_db
@@ -8,6 +9,7 @@ from backend.app.auth.security import get_current_user
 from backend.app.auth.rbac import require_roles, verify_complaint_access, RoleEnum
 from backend.app.services.audit_service import log_audit
 from backend.app.services.prediction_service import prediction_service
+from backend.app.services.prediction_contract import utc_iso, window_status
 
 router = APIRouter(prefix="/predictions", tags=["Predictive Intelligence"])
 
@@ -122,7 +124,19 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
         "time_prediction": {
             "predicted_minutes_to_cashout": getattr(prediction, "predicted_minutes_to_cashout", None),
             "model_version": getattr(prediction, "time_model_version", None),
-            "prediction_reference_time": str(ref_time) if ref_time else None,
+            "prediction_reference_time": utc_iso(ref_time),
+            "reference_basis": "complaint_reported_at",
+            "predicted_cashout_at": (
+                utc_iso(ref_time + timedelta(minutes=float(getattr(prediction, "predicted_minutes_to_cashout", 0.0))))
+                if ref_time and getattr(prediction, "predicted_minutes_to_cashout", None) is not None
+                else None
+            ),
+            "window_start": utc_iso(getattr(prediction, "predicted_window_start", None)),
+            "window_end": utc_iso(getattr(prediction, "predicted_window_end", None)),
+            "window_status": window_status(
+                getattr(prediction, "predicted_window_start", None),
+                getattr(prediction, "predicted_window_end", None)
+            ),
             "operational_window": getattr(prediction, "window_label", None) or ("Next 2–4 Hours" if pred_mode == "deterministic_demo" else "Next 2–4 Hours (operational estimate window)")
         },
         "limitations": [
@@ -216,29 +230,6 @@ def get_prediction_explanation(
             status_code=404,
             detail=f"Prediction #{prediction_id} not found."
         )
-
-    if prediction.prediction_mode == "deterministic_demo":
-        from datetime import datetime, timezone
-        demo_exp = prediction_service.get_explanation(prediction, complaint)
-        return {
-            "explanation_status": "AVAILABLE",
-            "prediction_id": prediction.id,
-            "complaint_number": complaint.complaint_number if complaint else "CMP-1042",
-            "prediction_mode": "deterministic_demo",
-            "model_version": prediction.model_version,
-            "explanation_method": "DEMO_HEURISTIC",
-            "explainer_version": "demo_provider_v1",
-            "feature_schema_version": "v7_compat",
-            "generated_at": datetime.now(timezone.utc).isoformat(),
-            "overall_fidelity_status": "HIGH_FIDELITY",
-            "mean_local_fidelity_r2": 1.0,
-            "background_sample_size": 500,
-            "background_seed": 56100,
-            "top3_explanations": [],
-            "factors": demo_exp.get("factors", []),
-            "narrative": demo_exp.get("narrative", ""),
-            "disclaimer": demo_exp.get("disclaimer", "")
-        }
 
     from backend.app.services.prediction_explainability_service import prediction_explainability_service
     return prediction_explainability_service.get_or_generate_explanation(db, prediction_id)

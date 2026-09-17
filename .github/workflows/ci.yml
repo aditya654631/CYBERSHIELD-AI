@@ -56,6 +56,18 @@ jobs:
             tests/test_complaint_intake_e2e.py \
             tests/test_backend.py
 
+      - name: Run Phase 2-6 Remediation Regression Suite
+        env:
+          ENVIRONMENT: test
+          DATABASE_URL: sqlite:///ci_phase_regression.db
+        run: |
+          pytest -v \
+            tests/test_phase2_timestamp_and_scores.py \
+            tests/test_phase3_hotspots_and_gis.py \
+            tests/test_phase4_model_performance.py \
+            tests/test_phase5_lime_explainability.py \
+            tests/test_phase6_graph_contracts.py
+
   blockchain-tests:
     name: Blockchain & Ledger Integrity Tests
     runs-on: ubuntu-latest

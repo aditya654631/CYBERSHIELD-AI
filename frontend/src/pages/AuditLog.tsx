@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { AuditLogItem } from '../types';
+import { formatIST } from '../utils/predictionDisplay';
 
 export const AuditLog: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogItem[]>([]);
@@ -99,7 +100,7 @@ export const AuditLog: React.FC = () => {
               {logs.map((log) => (
                 <tr key={log.id} className="hover:bg-blue-50/30 transition-colors">
                   <td className="py-3 px-4 text-slate-500">
-                    {new Date(log.created_at).toLocaleString()}
+                    {formatIST(log.created_at)}
                   </td>
                   <td className="py-3 px-4 font-semibold text-slate-900">{log.officer_name}</td>
                   <td className="py-3 px-4">

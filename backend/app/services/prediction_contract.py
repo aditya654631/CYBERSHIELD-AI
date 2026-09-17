@@ -18,7 +18,12 @@ def as_utc(value: Any) -> Optional[datetime]:
 
 def utc_iso(value: Any) -> Optional[str]:
     resolved = as_utc(value)
-    return resolved.isoformat() if resolved else None
+    if not resolved:
+        return None
+    iso = resolved.isoformat()
+    if iso.endswith("+00:00"):
+        return iso[:-6] + "Z"
+    return iso
 
 
 def window_status(start: Any, end: Any, now: Any = None) -> Optional[str]:

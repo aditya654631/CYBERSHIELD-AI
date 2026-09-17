@@ -1,6 +1,6 @@
 import datetime
 from sqlalchemy import (
-    Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric, UniqueConstraint, JSON, Index
+    Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric, UniqueConstraint, JSON, Index, event
 )
 from sqlalchemy.orm import relationship, synonym
 from backend.app.models.db import Base
@@ -230,6 +230,36 @@ class Prediction(Base):
     complaint = relationship("Complaint", back_populates="predictions")
     locations = relationship("PredictionLocation", back_populates="prediction", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="prediction")
+    snapshot = relationship("PredictionSnapshot", back_populates="prediction", uselist=False, cascade="all, delete-orphan")
+
+class PredictionSnapshot(Base):
+    """
+    Phase 5: Immutable Inference Feature Snapshot for Faithful Explanations.
+    Captures the exact ordered candidate feature matrix, schema version/hash,
+    model/calibrator hashes, official candidate outputs, and provenance
+    at the exact instant inference is executed. Never reconstructed dynamically.
+    """
+    __tablename__ = "prediction_snapshots"
+
+    id = Column(Integer, primary_key=True, index=True)
+    prediction_id = Column(Integer, ForeignKey("predictions.id", ondelete="CASCADE"), nullable=False, unique=True, index=True)
+    complaint_id = Column(Integer, ForeignKey("complaints.id", ondelete="CASCADE"), nullable=False, index=True)
+    model_version = Column(String(100), nullable=False)
+    feature_schema_version = Column(String(50), nullable=False)
+    feature_schema_hash = Column(String(64), nullable=True)
+    model_hash = Column(String(64), nullable=True)
+    calibrator_hash = Column(String(64), nullable=True)
+    snapshot_data = Column(JSON, nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+    prediction = relationship("Prediction", back_populates="snapshot")
+    complaint = relationship("Complaint")
+
+
+@event.listens_for(PredictionSnapshot, "before_update")
+def _prediction_snapshot_before_update(mapper, connection, target):
+    raise ValueError("PredictionSnapshot is write-once and immutable; historical snapshot updates are strictly prohibited.")
+
 
 class PredictionLocation(Base):
     __tablename__ = "prediction_locations"

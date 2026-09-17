@@ -1,6 +1,43 @@
-from pydantic import BaseModel, Field, field_validator, model_validator
-from typing import List, Optional, Dict, Any
+from pydantic import BaseModel, Field, field_validator, model_validator, field_serializer
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timezone
+
+def to_utc_datetime(v: Any) -> Optional[datetime]:
+    """Ensures datetime represents a UTC instant with tzinfo=timezone.utc.
+    Handles None, strings (with Z, +00:00, +05:30, or naive), and datetimes.
+    """
+    if v is None:
+        return None
+    if isinstance(v, str):
+        s = v.strip()
+        if not s:
+            return None
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(s)
+            if dt.tzinfo is None:
+                return dt.replace(tzinfo=timezone.utc)
+            return dt.astimezone(timezone.utc)
+        except Exception:
+            return v
+    if isinstance(v, datetime):
+        if v.tzinfo is None:
+            return v.replace(tzinfo=timezone.utc)
+        return v.astimezone(timezone.utc)
+    return v
+
+def to_utc_iso(v: Any) -> Optional[str]:
+    """Formats datetime or string as UTC ISO 8601 string ending in 'Z'."""
+    dt = to_utc_datetime(v)
+    if dt is None:
+        return None
+    if isinstance(dt, datetime):
+        iso = dt.astimezone(timezone.utc).isoformat()
+        if iso.endswith("+00:00"):
+            return iso[:-6] + "Z"
+        return iso
+    return str(v)
 
 # Auth Schemas
 class LoginRequest(BaseModel):
@@ -116,6 +153,15 @@ class ComplaintResponse(BaseModel):
     linked_account_count: Optional[int] = 0
     available_transaction_count: Optional[int] = 0
 
+    @field_validator("reported_at", "incident_time", "created_at", "transaction_time", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+    @field_serializer("reported_at", "incident_time", "created_at", "transaction_time", when_used="json", check_fields=False)
+    def serialize_utc(self, v: Optional[datetime]) -> Optional[str]:
+        return to_utc_iso(v)
+
     class Config:
         from_attributes = True
 
@@ -149,6 +195,11 @@ class TransactionResponse(BaseModel):
     suspicious_flag: bool
     context_type: Optional[str] = "DIRECT"
     source_scenario: Optional[str] = None
+
+    @field_validator("timestamp", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
     class Config:
         from_attributes = True
@@ -240,6 +291,9 @@ class PredictionLocationItem(BaseModel):
     risk_score: Optional[float] = None
     risk_level: str = "MEDIUM"
     risk_band: Optional[str] = None
+    score_label: Optional[str] = "Model ranking score"
+    operational_priority: Optional[str] = None
+    operational_priority_basis: Optional[str] = None
     distance_km: float = 0.0
     reasoning: str = ""
     evidence: Optional[List[str]] = None
@@ -292,12 +346,18 @@ class PredictionResponse(BaseModel):
     primary_cluster_id: Optional[int] = None
     time_prediction: Optional[TimePredictionDetail] = None
     score_type: Optional[str] = None
-    score_label: Optional[str] = None
+    score_label: Optional[str] = "Model ranking score"
     training_data_source: Optional[str] = None
     analysis_basis: Optional[str] = None
     dataset_version: Optional[str] = None
     provenance: Optional[Dict[str, Any]] = None
     limitations: Optional[List[str]] = None
+    created_at: Optional[datetime] = None
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
     message: Optional[str] = None
     created_at: Optional[datetime] = None
 
@@ -306,15 +366,27 @@ class PredictionResponse(BaseModel):
 
 class ExplanationFactor(BaseModel):
     name: str
-    contribution_percentage: int
+    contribution_percentage: Union[int, float]
     description: str
+    feature_code: Optional[str] = None
+    direction: Optional[str] = None
 
 class LimeContribution(BaseModel):
     feature_name: str
+    friendly_label: Optional[str] = None
+    category: Optional[str] = None
+    provenance_type: Optional[str] = None  # DIRECT_INTAKE, DERIVED_TRANSFER, SPATIAL_DERIVED, SYNTHETIC_HISTORICAL_BASELINE, MODEL_PRIOR
     rule: str
     weight: float
+    raw_weight: Optional[float] = None
     feature_value: float
+    formatted_value: Optional[str] = None
+    direction: Optional[str] = None
+    contribution_share: Optional[float] = None
+    share_denominator_formula: Optional[str] = None
+    share_denominator_note: Optional[str] = None
     description: str
+    honest_explanation: Optional[str] = None
 
 class LimeCandidateExplanation(BaseModel):
     rank: int
@@ -347,10 +419,154 @@ class ExplanationResponse(BaseModel):
     top3_explanations: Optional[List[LimeCandidateExplanation]] = []
     factors: Optional[List[ExplanationFactor]] = []
     narrative: Optional[str] = ""
+    message: Optional[str] = None
+    actionable_next_step: Optional[str] = None
+    is_legacy_prediction: Optional[bool] = False
+    cache_identity: Optional[str] = None
+    snapshot_digest: Optional[str] = None
+    snapshot_source: Optional[str] = None
+    snapshot_provenance: Optional[bool] = False
+    integrity_conflict: Optional[bool] = False
     disclaimer: str = (
         "LIME provides local surrogate linear explanations of model decisions for risk prioritization. "
         "This is an algorithmic approximation, not proof or causal evidence of criminal activity."
     )
+
+# ============================================================================
+# Model Performance, Runtime Governance & Evaluation Schemas (Phase 4)
+# ============================================================================
+
+class MetricComparisonItem(BaseModel):
+    metric: str
+    baseline: Optional[str] = None
+    cybershield: Optional[str] = None
+    delta: Optional[str] = None
+    unit: Optional[str] = None
+    comparable: bool = False
+    comparability_note: Optional[str] = None
+
+class FeatureImportanceItem(BaseModel):
+    feature: str
+    importance: float
+    feature_code: Optional[str] = None
+
+class RuntimeModelInfo(BaseModel):
+    runtime_status: str  # "TRAINED_READY", "DEMO_ACTIVE", "LOAD_FAILED", "UNAVAILABLE"
+    is_loaded: bool
+    is_available: bool
+    prediction_mode: str
+    current_prediction_mode: str
+    model_version: str
+    location_model_version: Optional[str] = None
+    time_model_version: Optional[str] = None
+    algorithm: Optional[str] = None
+    model_class: Optional[str] = None
+    calibrator_class: Optional[str] = None
+    calibration_method: Optional[str] = None
+    feature_schema_version: Optional[str] = None
+    location_features_count: Optional[int] = None
+    time_features_count: Optional[int] = None
+    location_artifact_file: Optional[str] = None
+    location_artifact_hash: Optional[str] = None
+    location_artifact_hash_short: Optional[str] = None
+    calibrator_artifact_file: Optional[str] = None
+    calibrator_artifact_hash: Optional[str] = None
+    calibrator_artifact_hash_short: Optional[str] = None
+    load_error: Optional[str] = None
+
+class ModelEvaluationInfo(BaseModel):
+    evaluation_status: str  # "AVAILABLE", "UNAVAILABLE", "VERSION_MISMATCH", "HASH_MISMATCH", "NOT_EVALUATED"
+    availability_reason: Optional[str] = None
+    evaluated_model_version: Optional[str] = None
+    evaluation_timestamp: Optional[str] = None
+    dataset_type: Optional[str] = None
+    dataset_split: Optional[str] = None
+    synthetic_disclosure: Optional[str] = None
+    training_samples: Optional[int] = None
+    validation_samples: Optional[int] = None
+    test_samples: Optional[int] = None
+    cold_start_test_samples: Optional[int] = None
+    metrics_summary: Dict[str, Any] = Field(default_factory=dict)
+
+class ResearchModelInfo(BaseModel):
+    model_name: str
+    model_type: Optional[str] = None
+    status: str
+    promotion_status: str
+    qualification_gate: Optional[str] = None
+    observed_gain: Optional[str] = None
+    required_gain: Optional[str] = None
+    official_production_model: Optional[str] = None
+    production_affected: bool = False
+    details: Optional[str] = None
+
+class SavedPredictionProvenance(BaseModel):
+    current_runtime_model: str
+    historical_policy: str
+    description: str
+
+class ModelPerformanceResponse(BaseModel):
+    prediction_mode: str
+    current_prediction_mode: str
+    model_version: str
+    provider_version: str
+    official_production_model: Optional[str] = None
+    location_model_version: Optional[str] = None
+    time_model_version: Optional[str] = None
+    location_features_count: Optional[int] = None
+    time_features_count: Optional[int] = None
+    calibration_method: Optional[str] = None
+    model_class: Optional[str] = None
+    calibrator_class: Optional[str] = None
+    dataset_type: Optional[str] = None
+    dataset_split: Optional[str] = None
+    evaluation_label: Optional[str] = None
+    synthetic_disclosure: Optional[str] = None
+    model_architecture: Optional[str] = None
+    runtime_notice: Optional[str] = None
+    production_notice: Optional[str] = None
+    geographic_disclaimer: Optional[str] = None
+
+    training_samples: Optional[int] = None
+    validation_samples: Optional[int] = None
+    test_samples: Optional[int] = None
+    cold_start_test_samples: Optional[int] = None
+    active_clusters_count: Optional[int] = 60
+    atm_coverage_count: Optional[int] = 1200
+
+    natural_candidate_recall: Optional[str] = None
+    Recall_at_1: Optional[str] = Field(None, alias="Recall@1")
+    Recall_at_3: Optional[str] = Field(None, alias="Recall@3")
+    Recall_at_5: Optional[str] = Field(None, alias="Recall@5")
+    Precision_at_3: Optional[str] = Field(None, alias="Precision@3")
+    MRR: Optional[float] = None
+    median_cluster_centroid_distance_error_km: Optional[str] = None
+    within_5km: Optional[str] = None
+    within_10km: Optional[str] = None
+    within_25km: Optional[str] = None
+    Brier_score: Optional[float] = None
+    internal_ece: Optional[float] = None
+    time_MAE_minutes: Optional[str] = None
+    time_median_absolute_error: Optional[str] = None
+    time_window_coverage: Optional[str] = None
+    cold_start_candidate_recall: Optional[str] = None
+    cold_start_recall_at_1: Optional[str] = None
+    cold_start_recall_at_3: Optional[str] = None
+
+    research_experiment: Optional[str] = None
+    research_status: Optional[str] = None
+    research_details: Optional[str] = None
+
+    metrics_comparison: List[MetricComparisonItem] = Field(default_factory=list)
+    feature_importances: List[FeatureImportanceItem] = Field(default_factory=list)
+
+    runtime_info: Optional[RuntimeModelInfo] = None
+    evaluation_info: Optional[ModelEvaluationInfo] = None
+    research_models: List[ResearchModelInfo] = Field(default_factory=list)
+    saved_prediction_provenance: Optional[SavedPredictionProvenance] = None
+
+    class Config:
+        populate_by_name = True
 
 # GIS Schemas
 class HotspotCluster(BaseModel):
@@ -370,6 +586,20 @@ class HotspotCluster(BaseModel):
     expected_window: str
     fraud_type: str
 
+    # Additive fields for Phase 3
+    is_active_candidate: bool = False
+    data_basis: str = "historical_baseline"
+    historical_risk: Optional[float] = None
+    candidate_score: Optional[float] = None
+    operational_priority: Optional[str] = None
+    operational_priority_basis: Optional[str] = None
+    associated_complaint_amount: float = 0.0
+    window_start: Optional[str] = None
+    window_end: Optional[str] = None
+    latest_window_end: Optional[str] = None
+    window_status: Optional[str] = None
+    linked_complaint_numbers: List[str] = Field(default_factory=list)
+
 class ATMLocationItem(BaseModel):
     id: int
     atm_code: str
@@ -387,6 +617,8 @@ class GISOverviewResponse(BaseModel):
     hotspots: List[HotspotCluster]
     atms: List[ATMLocationItem]
     summary: Dict[str, Any]
+    active_candidates: List[HotspotCluster] = Field(default_factory=list)
+    historical_hotspots: List[HotspotCluster] = Field(default_factory=list)
 
 # Alert Schemas
 class AlertResponse(BaseModel):
@@ -405,6 +637,11 @@ class AlertResponse(BaseModel):
     acknowledged_at: Optional[datetime]
     action_notes: Optional[str]
     created_at: datetime
+
+    @field_validator("acknowledged_at", "created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
     class Config:
         from_attributes = True
@@ -464,6 +701,11 @@ class RecentComplaintItem(BaseModel):
     latest_mode: Optional[str] = None
     latest_rank1_location: Optional[str] = None
 
+    @field_validator("reported_at", "created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
 class RecentPredictionItem(BaseModel):
     id: int
     complaint_id: int
@@ -476,6 +718,11 @@ class RecentPredictionItem(BaseModel):
     rank1_cluster_id: Optional[int] = None
     operational_window: str
     created_at: datetime
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
 class RecentAlertItem(BaseModel):
     id: int
@@ -491,6 +738,11 @@ class RecentAlertItem(BaseModel):
     status: str
     created_at: datetime
 
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
 class DashboardSummaryResponse(BaseModel):
     generated_at: datetime
     kpis: DashboardKpis
@@ -504,6 +756,11 @@ class DashboardSummaryResponse(BaseModel):
     recent_predictions: List[RecentPredictionItem]
     recent_alerts: List[RecentAlertItem]
 
+    @field_validator("generated_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
 # Audit Schemas
 class AuditLogResponse(BaseModel):
     id: int
@@ -515,6 +772,11 @@ class AuditLogResponse(BaseModel):
     details: Optional[str]
     ip_address: str
     created_at: datetime
+
+    @field_validator("created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
     class Config:
         from_attributes = True
@@ -543,6 +805,11 @@ class BankActionResponse(BaseModel):
     acknowledged_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
     created_at: datetime
+
+    @field_validator("requested_at", "approved_at", "sent_at", "acknowledged_at", "completed_at", "created_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
 
     class Config:
         from_attributes = True

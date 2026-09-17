@@ -1,5 +1,5 @@
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 from sqlalchemy.orm import Session
 from fastapi import HTTPException
@@ -8,6 +8,19 @@ from backend.app.models.models import Alert, Complaint, Prediction, PredictionLo
 from backend.app.services.audit_service import log_audit
 
 logger = logging.getLogger(__name__)
+
+
+def format_window_ist(start_dt: datetime, end_dt: datetime) -> str:
+    """Formats start and end UTC datetimes into an IST window string with explicit IST label.
+    Includes full dates if window crosses midnight in IST."""
+    ist_tz = timezone(timedelta(hours=5, minutes=30))
+    s_utc = start_dt.replace(tzinfo=timezone.utc) if start_dt.tzinfo is None else start_dt.astimezone(timezone.utc)
+    e_utc = end_dt.replace(tzinfo=timezone.utc) if end_dt.tzinfo is None else end_dt.astimezone(timezone.utc)
+    s_ist = s_utc.astimezone(ist_tz)
+    e_ist = e_utc.astimezone(ist_tz)
+    if s_ist.date() == e_ist.date():
+        return f"{s_ist.strftime('%d %b %Y, %H:%M')}–{e_ist.strftime('%H:%M')} IST (Operational Estimate Window)"
+    return f"{s_ist.strftime('%d %b %Y, %H:%M')} IST – {e_ist.strftime('%d %b %Y, %H:%M')} IST (Operational Estimate Window)"
 
 
 def create_alert_for_prediction(
@@ -130,11 +143,9 @@ def create_alert_for_prediction(
     # Risk score from calibrated probability or rank1 probability
     risk_score = float(rank1_loc.probability if rank1_loc.probability is not None else 0.5)
 
-    # Operational estimate window
+    # Operational estimate window formatted in IST (+05:30)
     if prediction.predicted_window_start and prediction.predicted_window_end:
-        start_str = prediction.predicted_window_start.strftime("%H:%M")
-        end_str = prediction.predicted_window_end.strftime("%H:%M")
-        expected_window = f"{start_str}–{end_str} (Operational Estimate Window)"
+        expected_window = format_window_ist(prediction.predicted_window_start, prediction.predicted_window_end)
     elif prediction.window_label:
         expected_window = f"{prediction.window_label} (Operational Estimate Window)"
     else:

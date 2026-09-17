@@ -29,6 +29,7 @@ export interface Complaint {
   complaint_number: string;
   fraud_type: string;
   amount: number;
+  disputed_amount?: number;
   victim_name?: string;
   victim_phone?: string;
   victim_location: string;
@@ -104,6 +105,9 @@ export interface PredictionLocationItem {
   reasoning: string;
   latitude: number;
   longitude: number;
+  score_label?: string;
+  operational_priority?: string;
+  operational_priority_basis?: string | null;
 }
 
 export interface Prediction {
@@ -167,6 +171,12 @@ export interface LimeContribution {
   weight: number;
   feature_value: number;
   description: string;
+  friendly_label?: string;
+  category?: string;
+  formatted_value?: string;
+  direction?: 'SUPPORTING' | 'OPPOSING';
+  contribution_share?: number;
+  honest_explanation?: string;
 }
 
 export interface LimeCandidateExplanation {
@@ -195,13 +205,18 @@ export interface Explanation {
   feature_schema_version?: string;
   generated_at?: string;
   overall_fidelity_status?: string;
-  mean_local_fidelity_r2?: number;
-  background_sample_size?: number;
-  background_seed?: number;
+  mean_local_fidelity_r2?: number | null;
+  background_sample_size?: number | null;
+  background_seed?: number | null;
   top3_explanations?: LimeCandidateExplanation[];
   factors: ExplanationFactor[];
   narrative: string;
   disclaimer: string;
+  message?: string;
+  actionable_next_step?: string;
+  is_legacy_prediction?: boolean;
+  cache_identity?: string;
+  snapshot_provenance?: boolean;
 }
 
 export interface PredictionAuditVerification {
@@ -227,7 +242,7 @@ export interface CytoscapeNodeData {
   amount_sent: number;
   connections_count: number;
   previous_complaints: number;
-  is_hotspot: boolean;
+  is_hotspot?: boolean;
   is_source?: boolean;
   is_sink?: boolean;
   is_intermediary?: boolean;
@@ -281,12 +296,46 @@ export interface HotspotCluster {
   longitude: number;
   radius_km: number;
   risk_score: number;
-  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM';
+  risk_level: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | string;
   active_cases: number;
   amount_at_risk: number;
   atm_count: number;
   expected_window: string;
   fraud_type: string;
+
+  // Additive fields for Phase 3
+  is_active_candidate?: boolean;
+  data_basis?: string;
+  historical_risk?: number | null;
+  candidate_score?: number | null;
+  operational_priority?: string | null;
+  operational_priority_basis?: string | null;
+  associated_complaint_amount?: number;
+  window_start?: string | null;
+  window_end?: string | null;
+  latest_window_end?: string | null;
+  window_status?: string | null;
+  linked_complaint_numbers?: string[];
+}
+
+export interface GISOverviewResponse {
+  hotspots: HotspotCluster[];
+  active_candidates?: HotspotCluster[];
+  historical_hotspots?: HotspotCluster[];
+  atms: ATMLocationItem[];
+  summary: {
+    total_hotspots: number;
+    total_active_candidates?: number;
+    total_historical_hotspots?: number;
+    critical_clusters: number;
+    total_associated_amount?: number;
+    total_unique_active_cases?: number;
+    total_monitored_atms: number;
+    primary_threat_epicenter: string;
+    state: string;
+    data_basis: string;
+    [key: string]: any;
+  };
 }
 
 export interface ATMLocationItem {
@@ -430,71 +479,140 @@ export interface AuditLogItem {
   created_at: string;
 }
 
-export interface MetricComparisonItem {
-  metric: string;
-  baseline: string;
-  cybershield: string;
-  delta: string;
-  unit?: string;
-}
-
 export interface FeatureImportanceItem {
   feature: string;
   importance: number;
+  feature_code?: string;
+}
+
+export interface MetricComparisonItem {
+  metric: string;
+  baseline?: string | null;
+  cybershield?: string | null;
+  delta?: string | null;
+  unit?: string | null;
+  comparable?: boolean;
+  comparability_note?: string | null;
+}
+
+export interface RuntimeModelInfo {
+  runtime_status: 'TRAINED_READY' | 'DEMO_ACTIVE' | 'LOAD_FAILED' | 'UNAVAILABLE' | string;
+  is_loaded: boolean;
+  is_available: boolean;
+  prediction_mode: string;
+  current_prediction_mode: string;
+  model_version: string;
+  location_model_version?: string | null;
+  time_model_version?: string | null;
+  algorithm?: string | null;
+  model_class?: string | null;
+  calibrator_class?: string | null;
+  calibration_method?: string | null;
+  feature_schema_version?: string | null;
+  location_features_count?: number | null;
+  time_features_count?: number | null;
+  location_artifact_file?: string | null;
+  location_artifact_hash?: string | null;
+  location_artifact_hash_short?: string | null;
+  calibrator_artifact_file?: string | null;
+  calibrator_artifact_hash?: string | null;
+  calibrator_artifact_hash_short?: string | null;
+  load_error?: string | null;
+}
+
+export interface ModelEvaluationInfo {
+  evaluation_status: 'AVAILABLE' | 'UNAVAILABLE' | 'VERSION_MISMATCH' | 'HASH_MISMATCH' | 'NOT_EVALUATED' | string;
+  availability_reason?: string | null;
+  evaluated_model_version?: string | null;
+  evaluation_timestamp?: string | null;
+  dataset_type?: string | null;
+  dataset_split?: string | null;
+  synthetic_disclosure?: string | null;
+  training_samples?: number | null;
+  validation_samples?: number | null;
+  test_samples?: number | null;
+  cold_start_test_samples?: number | null;
+  metrics_summary?: Record<string, any>;
+}
+
+export interface ResearchModelInfo {
+  model_name: string;
+  model_type?: string | null;
+  status: string;
+  promotion_status: string;
+  qualification_gate?: string | null;
+  observed_gain?: string | null;
+  required_gain?: string | null;
+  official_production_model?: string | null;
+  production_affected: boolean;
+  details?: string | null;
+}
+
+export interface SavedPredictionProvenance {
+  current_runtime_model: string;
+  historical_policy: string;
+  description: string;
 }
 
 export interface ModelPerformanceData {
   prediction_mode: string;
   current_prediction_mode: string;
   model_version: string;
-  location_model_version?: string;
-  time_model_version?: string;
-  location_features_count?: number;
-  time_features_count?: number;
-  calibration_method?: string;
-  geographic_focus?: string;
-  cluster_count?: number;
   provider_version: string;
-  dataset_type: string;
-  model_class: string;
-  calibrator_class?: string;
-  training_samples: number;
-  validation_samples: number;
-  test_samples: number;
-  cold_start_test_samples?: number;
-  evaluation_label: string;
-  dataset_split: string;
-  model_architecture: string;
-  runtime_notice: string;
-  production_notice: string;
-  geographic_disclaimer: string;
-  natural_candidate_recall: string;
-  'Recall@1': string;
-  'Recall@3': string;
-  'Recall@5': string;
-  'Precision@3': string;
-  MRR: number;
-  median_cluster_centroid_distance_error_km: string;
-  within_5km: string;
-  within_10km: string;
-  within_25km: string;
-  Brier_score: number;
-  cold_start_candidate_recall?: string;
-  cold_start_recall_at_1?: string;
-  cold_start_recall_at_3?: string;
-  time_MAE_minutes: string;
-  time_median_absolute_error: string;
-  time_window_coverage?: string;
-  active_clusters_count?: number;
-  atm_coverage_count?: number;
-  official_production_model?: string;
-  research_experiment?: string;
-  research_status?: string;
-  promotion_gate?: string;
-  research_ablation_gain?: string;
-  research_decision_rationale?: string;
+  official_production_model?: string | null;
+  location_model_version?: string | null;
+  time_model_version?: string | null;
+  location_features_count?: number | null;
+  time_features_count?: number | null;
+  calibration_method?: string | null;
+  geographic_focus?: string | null;
+  cluster_count?: number | null;
+  dataset_type?: string | null;
+  model_class?: string | null;
+  calibrator_class?: string | null;
+  training_samples?: number | null;
+  validation_samples?: number | null;
+  test_samples?: number | null;
+  cold_start_test_samples?: number | null;
+  evaluation_label?: string | null;
+  dataset_split?: string | null;
+  synthetic_disclosure?: string | null;
+  model_architecture?: string | null;
+  runtime_notice?: string | null;
+  production_notice?: string | null;
+  geographic_disclaimer?: string | null;
+  natural_candidate_recall?: string | null;
+  'Recall@1'?: string | null;
+  'Recall@3'?: string | null;
+  'Recall@5'?: string | null;
+  'Precision@3'?: string | null;
+  MRR?: number | null;
+  median_cluster_centroid_distance_error_km?: string | null;
+  within_5km?: string | null;
+  within_10km?: string | null;
+  within_25km?: string | null;
+  Brier_score?: number | null;
+  internal_ece?: number | null;
+  cold_start_candidate_recall?: string | null;
+  cold_start_recall_at_1?: string | null;
+  cold_start_recall_at_3?: string | null;
+  time_MAE_minutes?: string | null;
+  time_median_absolute_error?: string | null;
+  time_window_coverage?: string | null;
+  active_clusters_count?: number | null;
+  atm_coverage_count?: number | null;
+  research_experiment?: string | null;
+  research_status?: string | null;
+  promotion_gate?: string | null;
+  research_ablation_gain?: string | null;
+  research_decision_rationale?: string | null;
+  research_details?: string | null;
   metrics_comparison: MetricComparisonItem[];
   feature_importances: FeatureImportanceItem[];
+  runtime_info?: RuntimeModelInfo;
+  evaluation_info?: ModelEvaluationInfo;
+  research_models?: ResearchModelInfo[];
+  saved_prediction_provenance?: SavedPredictionProvenance;
 }
 
 export interface BankActionItem {

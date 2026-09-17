@@ -14,7 +14,7 @@ import json
 import math
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 import joblib
 import numpy as np
@@ -83,8 +83,8 @@ EXPECTED_HASHES = {
     # Promoted Qualified Model: Location V7-compat
     "location_ranker_v7_compat.joblib": "89057bce1000cb82e10f29077b9e168bc0cbd254e979106998e1d623e072c2a6",
     "location_calibrator_v7_compat.joblib": "1c14d5aba1b0556a47519ea435804a86b34173c76743a77bcf52cea43d3a2c6d",
-    "feature_schema_v7_compat.json": "6a22835ec817aec969f40ecc778182738318efd613e05e822c09b229407f6335",
-    "model_metadata_v7_compat.json": "0f57ab7c3e852472d67a996253d090d767d1d84446486037dd889d9c7259a48f",
+    "feature_schema_v7_compat.json": "fc303d7e8b995e1a9903706d4a7da21431c8424e27edf30b4757f900f7642444",
+    "model_metadata_v7_compat.json": "d402ab6c397327fbce5916621e1da51766ee87b7a5449fa152c0e969b10c59f4",
     # Active Production Models / Base Dependency: Location V4 & Time V3
     "location_ranker_v4.joblib": "9ed5792ced4f8a6e79dc91e587e3c130d2fbadb5af6a73640397dc506dd9cdc9",
     "location_calibrator_v4.joblib": "65ceb736838d14cb865111aac6eddfad3838704ddf2fffc63a6b2bdd998a3664",
@@ -154,7 +154,9 @@ def compute_operational_priority(
     - Candidate Rank (#1 Primary, #2 Secondary, #3 Tertiary)
     - Complaint Amount Band (>= ₹5L Critical, >= ₹75k High, >= ₹20k Medium)
     - Predicted Cash-Out Window Urgency (<= 90 min)
-    - Reporting Recency (<= 4 hrs)
+    - Incident-to-Report Intake Delay: (reported_at - incident_time) <= 4.0 hrs
+      NOTE: This represents intake delay between incident occurrence and official report,
+      NOT age relative to current wall-clock time.
     Zero coupling to candidate probability percentages; never called 'accuracy'.
     """
     amt = float(amount or 0.0)
@@ -186,6 +188,60 @@ def compute_operational_priority(
             return "MEDIUM"
         else:
             return "LOW"
+
+
+def explain_operational_priority_rule(
+    rank: int,
+    amount: Optional[float],
+    time_pred_minutes: float,
+    incident_time: Optional[datetime],
+    reported_at: Optional[datetime]
+) -> str:
+    """
+    Returns a truthful human-readable explanation of the operational priority decision.
+    Explicitly clarifies that recency refers to incident-to-report intake delay.
+    """
+    amt = float(amount or 0.0)
+    delay_hours = 0.0
+    if incident_time and reported_at and as_utc(reported_at) >= as_utc(incident_time):
+        delay_hours = (as_utc(reported_at) - as_utc(incident_time)).total_seconds() / 3600.0
+
+    is_recent = delay_hours <= 4.0
+    is_urgent = time_pred_minutes <= 90.0
+
+    amt_formatted = f"₹{amt:,.2f}"
+    intake_desc = f"intake delay {delay_hours:.1f}h (threshold <= 4h)" if is_recent else f"intake delay {delay_hours:.1f}h (> 4h)"
+    urgency_desc = f"predicted window urgency {time_pred_minutes:.0f}m (threshold <= 90m)" if is_urgent else f"predicted window {time_pred_minutes:.0f}m (> 90m)"
+
+    if rank == 1:
+        if amt >= 500000.0:
+            return f"Rank #1 Primary; High financial loss ({amt_formatted} >= ₹5L) triggers CRITICAL operational priority."
+        elif amt >= 150000.0 and is_urgent and is_recent:
+            return f"Rank #1 Primary; Compound risk ({amt_formatted} >= ₹1.5L + {urgency_desc} + {intake_desc}) triggers CRITICAL priority."
+        elif amt >= 75000.0:
+            return f"Rank #1 Primary; Financial loss ({amt_formatted} >= ₹75k) triggers HIGH priority."
+        elif amt >= 30000.0 and is_urgent:
+            return f"Rank #1 Primary; Immediate urgency ({amt_formatted} >= ₹30k + {urgency_desc}) triggers HIGH priority."
+        elif amt >= 20000.0:
+            return f"Rank #1 Primary; Loss ({amt_formatted} >= ₹20k) triggers MEDIUM priority."
+        elif is_urgent:
+            return f"Rank #1 Primary; Immediate window urgency ({urgency_desc}) triggers MEDIUM priority."
+        else:
+            return f"Rank #1 Primary; Routine observation ({amt_formatted} < ₹20k without immediate window urgency)."
+    elif rank == 2:
+        if amt >= 500000.0 and is_urgent:
+            return f"Rank #2 Secondary; High financial loss with urgency ({amt_formatted} >= ₹5L + {urgency_desc}) triggers HIGH priority."
+        elif amt >= 100000.0:
+            return f"Rank #2 Secondary; Financial loss ({amt_formatted} >= ₹100k) triggers MEDIUM priority."
+        elif amt >= 40000.0 and is_urgent:
+            return f"Rank #2 Secondary; Loss with window urgency ({amt_formatted} >= ₹40k + {urgency_desc}) triggers MEDIUM priority."
+        else:
+            return f"Rank #2 Secondary; Routine observation."
+    else:
+        if amt >= 500000.0 and is_urgent and is_recent:
+            return f"Rank #{rank} Candidate; High loss with urgency and recent intake ({amt_formatted} >= ₹5L + {urgency_desc} + {intake_desc}) triggers MEDIUM priority."
+        else:
+            return f"Rank #{rank} Candidate; Routine observation."
 
 
 class MLPredictionProvider:
@@ -570,6 +626,14 @@ class MLPredictionProvider:
                 "risk_score": prob,
                 "risk_level": risk_band,
                 "risk_band": risk_band,
+                "operational_priority": risk_band,
+                "operational_priority_basis": explain_operational_priority_rule(
+                    rank=rank,
+                    amount=float(complaint.amount or 0.0),
+                    time_pred_minutes=time_pred_minutes,
+                    incident_time=c_inc_time,
+                    reported_at=c_rep_time
+                ),
                 "distance_km": round(dist_km, 1),
                 "reasoning": reasoning,
                 "evidence": evidence
@@ -612,6 +676,63 @@ class MLPredictionProvider:
         if analysis_basis == "linked_synthetic_scenario":
             limitations.append("Linked transaction movements are synthetic scenario data, not observed movements for this complaint.")
 
+        # Phase 5: Faithful, immutable inference snapshot captured at prediction time
+        feature_names = list(
+            FEATURE_COLUMNS_LOCATION_V7_COMPAT
+            if "v7-compat" in self.model_version
+            else FEATURE_COLUMNS_LOCATION_V3_1
+        )
+        active_matrix = X_loc_compat if "v7-compat" in self.model_version else X_loc
+        schema_file = f"feature_schema_{self.location_feature_version}.json"
+        schema_hash = EXPECTED_HASHES.get(schema_file)
+
+        candidate_features_dict = {}
+        official_scores_dict = {}
+        candidate_metadata_list = []
+
+        for c_idx, c_obj in enumerate(candidates):
+            cid_str = str(c_obj["id"])
+            candidate_features_dict[cid_str] = [float(val) for val in active_matrix[c_idx]]
+            official_scores_dict[cid_str] = float(round(cal_probs[c_idx], 4))
+            r_pos = ranked_indices.index(c_idx) + 1 if c_idx in ranked_indices else None
+            candidate_metadata_list.append({
+                "cluster_id": int(c_obj["id"]),
+                "location_name": str(c_obj.get("location_name") or c_obj.get("name") or f"Cluster {c_obj['id']}"),
+                "district": str(c_obj.get("district") or c_obj.get("zone") or ""),
+                "latitude": float(c_obj["lat"]) if c_obj.get("lat") is not None else None,
+                "longitude": float(c_obj["lon"]) if c_obj.get("lon") is not None else None,
+                "official_score": float(round(cal_probs[c_idx], 4)),
+                "rank": r_pos
+            })
+
+        inference_snapshot = {
+            "snapshot_version": "1.0",
+            "model_version": self.model_version,
+            "time_model_version": self.time_model_version,
+            "feature_schema_version": self.location_feature_version,
+            "feature_schema_hash": schema_hash,
+            "model_hash": self.location_hash,
+            "location_model_hash": self.location_hash,
+            "calibrator_hash": self.calibrator_hash,
+            "candidate_pool_size": len(candidates),
+            "feature_names": feature_names,
+            "candidate_features": candidate_features_dict,
+            "official_candidate_scores": official_scores_dict,
+            "candidate_metadata": candidate_metadata_list,
+            "provenance": {
+                "terminal_zone": term_zone,
+                "all_tx_zones": list(all_tx_zones),
+                "origin_zone": origin_zone,
+                "victim_lat": v_lat,
+                "victim_lon": v_lon,
+                "context_type": ctx_type,
+                "analysis_basis": analysis_basis,
+                "graph_nodes": loc_res["provenance"].get("graph_node_count"),
+                "graph_edges": loc_res["provenance"].get("graph_edge_count")
+            },
+            "prediction_timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
         return PredictionResultDict({
             "prediction_id": 0,
             "complaint_id": complaint.id,
@@ -649,6 +770,7 @@ class MLPredictionProvider:
             "top_locations": top_locations,
             "time_prediction": time_prediction,
             "limitations": limitations,
+            "inference_snapshot": inference_snapshot,
             "provenance": {
                 "location_model_sha256": self.location_hash,
                 "calibrator_sha256": self.calibrator_hash,
@@ -687,6 +809,8 @@ class DemoPredictionProvider:
                 "risk_score": 0.87,
                 "risk_level": "CRITICAL",
                 "risk_band": "CRITICAL",
+                "operational_priority": "CRITICAL",
+                "operational_priority_basis": "Rank #1 Primary; High-loss SIH scenario corridor triggers CRITICAL operational priority.",
                 "distance_km": 186.4,
                 "reasoning": "High Mule-Network Similarity & Recent ATM Cashier Activity",
                 "evidence": [
@@ -709,6 +833,8 @@ class DemoPredictionProvider:
                 "risk_score": 0.61,
                 "risk_level": "HIGH",
                 "risk_band": "HIGH",
+                "operational_priority": "HIGH",
+                "operational_priority_basis": "Rank #2 Secondary; High commercial density corridor triggers HIGH operational priority.",
                 "distance_km": 189.1,
                 "reasoning": "Secondary ATM Cluster linked to Mule B layering account",
                 "evidence": [
@@ -731,6 +857,8 @@ class DemoPredictionProvider:
                 "risk_score": 0.34,
                 "risk_level": "MEDIUM",
                 "risk_band": "MEDIUM",
+                "operational_priority": "MEDIUM",
+                "operational_priority_basis": "Rank #3 Candidate; Outlying node triggers MEDIUM operational priority.",
                 "distance_km": 198.7,
                 "reasoning": "Outlying highway ATM node with low historical frequency",
                 "evidence": [

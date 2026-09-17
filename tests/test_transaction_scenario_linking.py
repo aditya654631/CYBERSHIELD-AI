@@ -16,8 +16,11 @@ from backend.app.models.models import (
 )
 from backend.app.services.transaction_context_service import resolve_transaction_context
 import backend.app.services.transaction_context_service as tcs_module
+from backend.app.auth.security import create_access_token
 
 client = TestClient(app)
+_token = create_access_token({"sub": "admin@cybershield.gov.in", "role": "I4C_ADMIN"})
+client.headers.update({"Authorization": f"Bearer {_token}"})
 
 
 @pytest.fixture(scope="module")
@@ -363,6 +366,7 @@ def test_zero_target_leakage_in_transaction_resolution(db):
             ], f"Forbidden target attribute {node.attr} accessed!"
 
 
+@pytest.mark.live
 def test_step4_transaction_dataset_preserved(db):
     """27. Verifies Step-4 operational transaction dataset remains intact."""
     txn_dl_count = db.query(Transaction).filter(Transaction.transaction_ref.like("TXN-DL-%")).count()
