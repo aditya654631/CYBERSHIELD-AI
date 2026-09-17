@@ -893,26 +893,58 @@ export const CaseIntelligence: React.FC = () => {
                     </div>
                     <Button
                       onClick={handleExplainPrediction}
-                      disabled={loadingExplanation}
+                      disabled={loadingExplanation || (explanation?.explanation_status === 'UNAVAILABLE' && !!explanation.is_legacy_prediction)}
                       variant="outline"
                       size="sm"
                       className="shrink-0 text-xs"
                       icon={<Cpu className="w-3.5 h-3.5 text-blue-600" />}
                     >
-                      {loadingExplanation ? 'Computing LIME...' : explanation ? 'Re-explain (LIME)' : 'Explain Prediction'}
+                      {loadingExplanation
+                        ? 'Computing LIME...'
+                        : explanation?.explanation_status === 'UNAVAILABLE' && explanation.is_legacy_prediction
+                        ? 'Unavailable (Legacy Prediction)'
+                        : explanation
+                        ? 'Re-explain (LIME)'
+                        : 'Explain Prediction'}
                     </Button>
                   </div>
 
                   {explanationError && (
-                    <div className="p-2.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800">
-                      {explanationError}
+                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded text-xs text-rose-800 flex items-center space-x-2">
+                      <AlertTriangle className="w-4 h-4 shrink-0 text-rose-600" />
+                      <span>{explanationError}</span>
                     </div>
                   )}
 
+                  {/* Unavailable Explanation Banner */}
+                  {explanation && explanation.explanation_status === 'UNAVAILABLE' && (
+                    <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-lg text-xs space-y-2">
+                      <div className="flex items-center space-x-2 font-semibold text-amber-900">
+                        <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span>LIME Explanation Unavailable</span>
+                        {explanation.is_legacy_prediction && (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-200/70 text-amber-900">
+                            Historical Snapshot Missing
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-amber-800 leading-relaxed">
+                        {explanation.message || 'LIME explanation could not be generated for this prediction.'}
+                      </p>
+                      {explanation.actionable_next_step && (
+                        <div className="pt-1 border-t border-amber-200/60 text-[11px] text-amber-900 flex items-start space-x-1.5">
+                          <span className="font-semibold">Next Step:</span>
+                          <span>{explanation.actionable_next_step}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Render Available or Low-Fidelity Explanations */}
                   {explanation && explanation.top3_explanations && explanation.top3_explanations.length > 0 ? (
                     <div className="space-y-3 pt-1">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 text-xs p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                           <span className="text-slate-600 font-medium">Surrogate Linear Fidelity:</span>
                           <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
                             explanation.overall_fidelity_status === 'HIGH_FIDELITY'
@@ -921,86 +953,159 @@ export const CaseIntelligence: React.FC = () => {
                               ? 'bg-blue-50 text-blue-700 border border-blue-200'
                               : 'bg-amber-50 text-amber-700 border border-amber-200'
                           }`}>
-                            {explanation.overall_fidelity_status?.replace('_', ' ')} (Mean R² = {explanation.mean_local_fidelity_r2 !== undefined ? explanation.mean_local_fidelity_r2.toFixed(4) : '0.2252'})
+                            {explanation.overall_fidelity_status?.replace('_', ' ')} (Mean R² = {explanation.mean_local_fidelity_r2 !== undefined && explanation.mean_local_fidelity_r2 !== null ? explanation.mean_local_fidelity_r2.toFixed(4) : 'N/A'})
                           </span>
+                          {explanation.snapshot_provenance && (
+                            <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 border border-indigo-200">
+                              Immutable Snapshot
+                            </span>
+                          )}
                         </div>
                         <span className="text-[10px] text-slate-500 font-mono">
                           Method: {explanation.explanation_method || 'LIME'} Tabular
                         </span>
                       </div>
 
+                      {explanation.overall_fidelity_status === 'LOW_FIDELITY' && (
+                        <div className="p-2 bg-amber-50/70 border border-amber-200 rounded text-[11px] text-amber-800 flex items-start space-x-1.5">
+                          <Info className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                          <span>
+                            <strong>Low Surrogate Fidelity:</strong> The local surrogate R² indicates non-linear decision boundaries around this candidate. Signals reflect local linear trends rather than global exact rules.
+                          </span>
+                        </div>
+                      )}
+
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
                         {explanation.top3_explanations.map((cand) => (
                           <div
                             key={`lime-card-${cand.rank}`}
-                            className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2"
+                            className="p-3 bg-slate-50 rounded-lg border border-slate-200 text-xs space-y-2 flex flex-col justify-between"
                           >
-                            <div className="flex items-center justify-between">
-                              <span className="font-bold text-blue-700 font-mono">Rank #{cand.rank}</span>
-                              <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
-                                cand.fidelity_status === 'HIGH_FIDELITY'
-                                  ? 'bg-emerald-100 text-emerald-800'
-                                  : cand.fidelity_status === 'MODERATE_FIDELITY'
-                                  ? 'bg-blue-100 text-blue-800'
-                                  : 'bg-amber-100 text-amber-800'
-                              }`}>
-                                {cand.fidelity_status?.replace('_', ' ')}
-                              </span>
-                            </div>
-                            <div className="font-semibold text-slate-900 truncate" title={cand.location_name}>
-                              {cand.location_name}
-                            </div>
-                            <div className="text-[11px] text-slate-500 flex justify-between font-mono">
-                              <span>Official: <strong>{(cand.official_score * 100).toFixed(1)}%</strong></span>
-                              <span>LIME: <strong>{(cand.lime_local_prediction * 100).toFixed(1)}%</strong></span>
-                              <span>R²: <strong>{cand.local_fidelity_r2 !== undefined ? cand.local_fidelity_r2.toFixed(2) : 'N/A'}</strong></span>
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between">
+                                <span className="font-bold text-blue-700 font-mono">Rank #{cand.rank}</span>
+                                <span className={`text-[10px] px-1.5 py-0.2 rounded font-semibold ${
+                                  cand.fidelity_status === 'HIGH_FIDELITY'
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : cand.fidelity_status === 'MODERATE_FIDELITY'
+                                    ? 'bg-blue-100 text-blue-800'
+                                    : 'bg-amber-100 text-amber-800'
+                                }`}>
+                                  {cand.fidelity_status?.replace('_', ' ')}
+                                </span>
+                              </div>
+                              <div className="font-semibold text-slate-900 truncate" title={cand.location_name}>
+                                {cand.location_name}
+                              </div>
+                              <div className="text-[11px] text-slate-500 flex justify-between font-mono bg-white p-1.5 rounded border border-slate-100">
+                                <span>Official: <strong>{(cand.official_score * 100).toFixed(1)}%</strong></span>
+                                <span>LIME: <strong>{(cand.lime_local_prediction * 100).toFixed(1)}%</strong></span>
+                                <span>R²: <strong>{cand.local_fidelity_r2 !== undefined ? cand.local_fidelity_r2.toFixed(2) : 'N/A'}</strong></span>
+                              </div>
+
+                              {cand.summary_statement && (
+                                <p className="text-[11px] text-slate-600 italic bg-blue-50/50 p-1.5 rounded">
+                                  {cand.summary_statement}
+                                </p>
+                              )}
+
+                              {/* Top Supporting Factors (Positive) */}
+                              {cand.positive_contributions && cand.positive_contributions.length > 0 && (
+                                <div className="space-y-1.5 pt-1 border-t border-slate-200">
+                                  <span className="text-[10px] font-bold text-emerald-700 uppercase block tracking-wider">
+                                    Top Supporting Factors:
+                                  </span>
+                                  {cand.positive_contributions.slice(0, 3).map((c, i) => (
+                                    <div key={i} className="text-[10px] bg-white p-1.5 rounded border border-emerald-100 space-y-0.5">
+                                      <div className="flex justify-between items-baseline">
+                                        <span className="font-semibold text-slate-800 truncate pr-1" title={c.friendly_label || c.feature_name}>
+                                          {c.friendly_label || c.feature_name}
+                                        </span>
+                                        <span className="font-mono text-emerald-700 font-bold shrink-0">
+                                          {c.contribution_share !== undefined ? `+${c.contribution_share}%` : `+${c.weight.toFixed(4)}`}
+                                        </span>
+                                      </div>
+                                      {c.formatted_value && (
+                                        <div className="text-[10px] text-slate-600 font-mono">
+                                          Observed: {c.formatted_value}
+                                        </div>
+                                      )}
+                                      {c.honest_explanation && (
+                                        <div className="text-[9px] text-slate-500 leading-tight">
+                                          {c.honest_explanation}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Top Down-weighting Factors (Negative) */}
+                              {cand.negative_contributions && cand.negative_contributions.length > 0 && (
+                                <div className="space-y-1.5 pt-1 border-t border-slate-200">
+                                  <span className="text-[10px] font-bold text-slate-500 uppercase block tracking-wider">
+                                    Top Down-weighting Factors:
+                                  </span>
+                                  {cand.negative_contributions.slice(0, 2).map((c, i) => (
+                                    <div key={i} className="text-[10px] bg-white p-1.5 rounded border border-slate-200 space-y-0.5">
+                                      <div className="flex justify-between items-baseline">
+                                        <span className="font-semibold text-slate-700 truncate pr-1" title={c.friendly_label || c.feature_name}>
+                                          {c.friendly_label || c.feature_name}
+                                        </span>
+                                        <span className="font-mono text-slate-600 font-bold shrink-0">
+                                          {c.contribution_share !== undefined ? `-${c.contribution_share}%` : `${c.weight.toFixed(4)}`}
+                                        </span>
+                                      </div>
+                                      {c.formatted_value && (
+                                        <div className="text-[10px] text-slate-500 font-mono">
+                                          Observed: {c.formatted_value}
+                                        </div>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                             </div>
 
-                            {/* Top Positive Contributions */}
-                            {cand.positive_contributions && cand.positive_contributions.length > 0 && (
-                              <div className="space-y-1 pt-1 border-t border-slate-200">
-                                <span className="text-[10px] font-bold text-emerald-700 uppercase block">
-                                  Contributing Signals:
-                                </span>
-                                {cand.positive_contributions.slice(0, 2).map((c, i) => (
-                                  <div key={i} className="flex justify-between text-[10px] text-slate-700">
-                                    <span className="truncate pr-1" title={c.feature_name}>{c.feature_name}</span>
-                                    <span className="font-mono text-emerald-700 font-bold shrink-0">+{c.weight.toFixed(4)}</span>
+                            {/* Expandable Technical Surrogate Details */}
+                            <details className="mt-2 pt-2 border-t border-slate-200 text-[10px] text-slate-500 cursor-pointer">
+                              <summary className="font-medium text-blue-600 hover:text-blue-800">
+                                Technical Surrogate Details
+                              </summary>
+                              <div className="mt-1.5 space-y-1 bg-white p-2 rounded border border-slate-100 font-mono text-[9px]">
+                                <div>Cluster ID: {cand.cluster_id}</div>
+                                <div>Abs Error: {cand.absolute_approximation_error.toFixed(4)}</div>
+                                <div className="pt-1 text-slate-400">Rules & Raw Weights:</div>
+                                {[...cand.positive_contributions, ...cand.negative_contributions].slice(0, 5).map((ct, idx) => (
+                                  <div key={idx} className="truncate" title={ct.rule}>
+                                    • {ct.feature_name}: {ct.weight > 0 ? '+' : ''}{ct.weight.toFixed(4)} ({ct.rule})
                                   </div>
                                 ))}
                               </div>
-                            )}
-
-                            {/* Top Negative Contributions */}
-                            {cand.negative_contributions && cand.negative_contributions.length > 0 && (
-                              <div className="space-y-1 pt-1 border-t border-slate-200">
-                                <span className="text-[10px] font-bold text-slate-500 uppercase block">
-                                  Down-weighting Signals:
-                                </span>
-                                {cand.negative_contributions.slice(0, 2).map((c, i) => (
-                                  <div key={i} className="flex justify-between text-[10px] text-slate-700">
-                                    <span className="truncate pr-1" title={c.feature_name}>{c.feature_name}</span>
-                                    <span className="font-mono text-slate-600 font-bold shrink-0">{c.weight.toFixed(4)}</span>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            </details>
                           </div>
                         ))}
                       </div>
 
                       <div className="p-2.5 bg-blue-50/60 rounded border border-blue-100 text-[11px] text-slate-600 flex items-start space-x-2">
                         <Info className="w-3.5 h-3.5 text-blue-600 shrink-0 mt-0.5" />
-                        <p className="leading-relaxed">
-                          {explanation.disclaimer || 'LIME provides a local approximation of model behavior and does not prove causality or criminal activity.'}
-                        </p>
+                        <div className="space-y-1">
+                          {explanation.narrative && (
+                            <p className="font-medium text-slate-700">
+                              {explanation.narrative}
+                            </p>
+                          )}
+                          <p className="leading-relaxed">
+                            {explanation.disclaimer || 'LIME provides a local approximation of model behavior and does not prove causality or criminal activity.'}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  ) : (
+                  ) : !explanation || explanation.explanation_status !== 'UNAVAILABLE' ? (
                     <p className="text-[11px] text-slate-500 italic">
                       Click &quot;Explain Prediction&quot; to compute feature attributions on demand without blocking standard workflow.
                     </p>
-                  )}
+                  ) : null}
                 </div>
 
                 {/* Explanatory Disclaimer Note (Section 21) */}
@@ -1104,15 +1209,21 @@ export const CaseIntelligence: React.FC = () => {
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">LIME Fidelity:</span>
                       {explanation ? (
-                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
-                          explanation.overall_fidelity_status === 'HIGH_FIDELITY'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : explanation.overall_fidelity_status === 'MODERATE_FIDELITY'
-                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                            : 'bg-amber-50 text-amber-700 border border-amber-200'
-                        }`}>
-                          {explanation.overall_fidelity_status?.replace('_', ' ') || 'LOW FIDELITY'}
-                        </span>
+                        explanation.explanation_status === 'UNAVAILABLE' ? (
+                          <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-100 text-slate-600 border border-slate-300">
+                            UNAVAILABLE
+                          </span>
+                        ) : (
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            explanation.overall_fidelity_status === 'HIGH_FIDELITY'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : explanation.overall_fidelity_status === 'MODERATE_FIDELITY'
+                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                              : 'bg-amber-50 text-amber-700 border border-amber-200'
+                          }`}>
+                            {explanation.overall_fidelity_status?.replace('_', ' ') || 'LOW FIDELITY'}
+                          </span>
+                        )
                       ) : (
                         <span className="text-[10px] text-slate-400">On Demand</span>
                       )}

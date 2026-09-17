@@ -322,8 +322,8 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
             "central_intermediary": bool(is_intermediary and betweenness_centrality.get(node_id, 0.0) >= HIGH_CENTRALITY_THRESHOLD)
         }
 
-        # Backend-flagged mule accounts are designated as "mule"; otherwise retain structural node_type
-        final_node_type = "mule" if (acc and acc.is_mule) else node_type
+        # Retain structural node_type (victim, intermediary, sink, account); is_mule is captured as an account attribute
+        final_node_type = node_type
 
         nodes_list.append({
             "data": {
@@ -347,6 +347,7 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
                 "is_source": is_source,
                 "is_sink": is_sink,
                 "is_intermediary": is_intermediary,
+                "is_mule": bool(acc and acc.is_mule),
                 "pattern_flags": node_flags
             }
         })

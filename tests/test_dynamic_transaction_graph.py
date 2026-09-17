@@ -31,8 +31,11 @@ from backend.app.services.graph_service import (
     HIGH_CENTRALITY_THRESHOLD
 )
 import backend.app.services.graph_service as graph_service_module
+from backend.app.auth.security import create_access_token
 
 client = TestClient(app)
+_token = create_access_token({"sub": "admin@cybershield.gov.in", "role": "I4C_ADMIN"})
+client.headers.update({"Authorization": f"Bearer {_token}"})
 
 
 @pytest.fixture(scope="module")

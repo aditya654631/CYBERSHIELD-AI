@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field, field_validator, model_validator, field_serializer
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Union
 from datetime import datetime, timezone
 
 def to_utc_datetime(v: Any) -> Optional[datetime]:
@@ -366,15 +366,27 @@ class PredictionResponse(BaseModel):
 
 class ExplanationFactor(BaseModel):
     name: str
-    contribution_percentage: int
+    contribution_percentage: Union[int, float]
     description: str
+    feature_code: Optional[str] = None
+    direction: Optional[str] = None
 
 class LimeContribution(BaseModel):
     feature_name: str
+    friendly_label: Optional[str] = None
+    category: Optional[str] = None
+    provenance_type: Optional[str] = None  # DIRECT_INTAKE, DERIVED_TRANSFER, SPATIAL_DERIVED, SYNTHETIC_HISTORICAL_BASELINE, MODEL_PRIOR
     rule: str
     weight: float
+    raw_weight: Optional[float] = None
     feature_value: float
+    formatted_value: Optional[str] = None
+    direction: Optional[str] = None
+    contribution_share: Optional[float] = None
+    share_denominator_formula: Optional[str] = None
+    share_denominator_note: Optional[str] = None
     description: str
+    honest_explanation: Optional[str] = None
 
 class LimeCandidateExplanation(BaseModel):
     rank: int
@@ -407,6 +419,14 @@ class ExplanationResponse(BaseModel):
     top3_explanations: Optional[List[LimeCandidateExplanation]] = []
     factors: Optional[List[ExplanationFactor]] = []
     narrative: Optional[str] = ""
+    message: Optional[str] = None
+    actionable_next_step: Optional[str] = None
+    is_legacy_prediction: Optional[bool] = False
+    cache_identity: Optional[str] = None
+    snapshot_digest: Optional[str] = None
+    snapshot_source: Optional[str] = None
+    snapshot_provenance: Optional[bool] = False
+    integrity_conflict: Optional[bool] = False
     disclaimer: str = (
         "LIME provides local surrogate linear explanations of model decisions for risk prioritization. "
         "This is an algorithmic approximation, not proof or causal evidence of criminal activity."

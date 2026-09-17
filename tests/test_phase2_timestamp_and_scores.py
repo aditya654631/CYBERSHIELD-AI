@@ -261,7 +261,7 @@ def test_genuine_zero_score_vs_missing_score():
     # In prediction routes/adapters, missing score remains None, not defaulted to 0.0
     raw_data = {"score": None}
     assert raw_data["score"] is None
-    assert raw_data.get("score") is not 0.0
+    assert raw_data.get("score") != 0.0
 
 
 def test_official_candidate_score_unchanged():

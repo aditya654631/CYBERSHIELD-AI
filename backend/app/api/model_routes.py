@@ -202,16 +202,45 @@ def get_model_performance(current_user: User = Depends(get_current_user)):
                         )
                     else:
                         # Cross-check artifact hashes if present in metadata
+                        meta_artifacts = loaded_meta.get("artifacts", {})
                         meta_ranker_hash = (
-                            loaded_meta.get("artifacts", {})
-                            .get("ranker", {})
+                            meta_artifacts.get("ranker", {})
                             .get("sha256")
                         )
+                        meta_calibrator_hash = (
+                            meta_artifacts.get("calibrator", {})
+                            .get("sha256")
+                        )
+                        meta_schema_hash = (
+                            meta_artifacts.get("feature_schema", {})
+                            .get("sha256")
+                        )
+
+                        schema_hash = None
+                        schema_file = meta_artifacts.get("feature_schema", {}).get("file")
+                        if schema_file:
+                            schema_full_path = os.path.join(artifacts_dir, schema_file)
+                            if os.path.exists(schema_full_path):
+                                from backend.app.services.prediction_service import compute_file_sha256
+                                schema_hash = compute_file_sha256(schema_full_path)
+
                         if meta_ranker_hash and loc_hash and meta_ranker_hash != loc_hash:
                             evaluation_status = "HASH_MISMATCH"
                             availability_reason = (
                                 f"Metadata ranker hash '{meta_ranker_hash[:8]}...' does not match "
                                 f"loaded artifact hash '{loc_hash[:8]}...'."
+                            )
+                        elif meta_calibrator_hash and cal_hash and meta_calibrator_hash != cal_hash:
+                            evaluation_status = "HASH_MISMATCH"
+                            availability_reason = (
+                                f"Metadata calibrator hash '{meta_calibrator_hash[:8]}...' does not match "
+                                f"loaded calibrator hash '{cal_hash[:8]}...'."
+                            )
+                        elif meta_schema_hash and schema_hash and meta_schema_hash != schema_hash:
+                            evaluation_status = "HASH_MISMATCH"
+                            availability_reason = (
+                                f"Metadata feature schema hash '{meta_schema_hash[:8]}...' does not match "
+                                f"disk schema hash '{schema_hash[:8]}...'."
                             )
                         else:
                             metadata = loaded_meta
@@ -532,15 +561,15 @@ def get_model_performance(current_user: User = Depends(get_current_user)):
         research_models.append(
             ResearchModelInfo(
                 model_name="Blockchain Shadow Re-Ranker V1",
-                model_type="XGBoost_Classifier_Platt_Calibrated",
-                status="RESEARCH_ONLY",
-                promotion_status="DID NOT MEET PROMOTION GATE",
+                model_type="Unknown",
+                status="UNAVAILABLE",
+                promotion_status="UNVERIFIED_EVALUATION_MISSING",
                 qualification_gate="Model_C_Top3 - Model_B_Top3 >= +1.00 pp",
-                observed_gain="+0.07 pp",
-                required_gain="+1.00 pp",
+                observed_gain="Unavailable",
+                required_gain="Unavailable",
                 official_production_model="cashout-location-xgb-v7-compat",
                 production_affected=False,
-                details="Ablation study demonstrated +0.07 pp gain vs required +1.00 pp threshold. Retained validated V7-compat model."
+                details="Evaluation artifact 'blockchain_shadow_metadata_v1.json' was not found or failed validation. Promotion claims are unavailable."
             )
         )
 

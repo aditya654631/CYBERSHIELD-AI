@@ -226,14 +226,15 @@ def get_risk_map_overview(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    user_role = getattr(current_user, "role", None) if isinstance(current_user, User) else None
     query_clusters = db.query(LocationCluster)
 
     # Jurisdiction filter
     target_state = "Delhi"
-    if current_user.role == RoleEnum.STATE_LEA:
+    if user_role == RoleEnum.STATE_LEA:
         target_state = current_user.organization.state if current_user.organization else "Delhi"
         query_clusters = query_clusters.filter(func.lower(LocationCluster.state) == target_state.lower())
-    elif current_user.role == RoleEnum.DISTRICT_LEA:
+    elif user_role == RoleEnum.DISTRICT_LEA:
         target_state = current_user.organization.state if current_user.organization else "Delhi"
         target_district = current_user.organization.district if current_user.organization else "Central"
         query_clusters = query_clusters.filter(
@@ -248,7 +249,8 @@ def get_risk_map_overview(
 
     clusters = query_clusters.order_by(LocationCluster.risk_score.desc()).all()
 
-    hotspots, evidence = _cluster_items(db, clusters, allowed_state=target_state, user=current_user)
+    effective_user = current_user if isinstance(current_user, User) else None
+    hotspots, evidence = _cluster_items(db, clusters, allowed_state=target_state, user=effective_user)
     if risk_level and risk_level != "ALL":
         hotspots = [item for item in hotspots if item["risk_level"] == risk_level.upper() or item.get("operational_priority") == risk_level.upper()]
 

@@ -14,7 +14,7 @@ import json
 import math
 import hashlib
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Any, List, Optional
 import joblib
 import numpy as np
@@ -83,8 +83,8 @@ EXPECTED_HASHES = {
     # Promoted Qualified Model: Location V7-compat
     "location_ranker_v7_compat.joblib": "89057bce1000cb82e10f29077b9e168bc0cbd254e979106998e1d623e072c2a6",
     "location_calibrator_v7_compat.joblib": "1c14d5aba1b0556a47519ea435804a86b34173c76743a77bcf52cea43d3a2c6d",
-    "feature_schema_v7_compat.json": "6a22835ec817aec969f40ecc778182738318efd613e05e822c09b229407f6335",
-    "model_metadata_v7_compat.json": "0f57ab7c3e852472d67a996253d090d767d1d84446486037dd889d9c7259a48f",
+    "feature_schema_v7_compat.json": "fc303d7e8b995e1a9903706d4a7da21431c8424e27edf30b4757f900f7642444",
+    "model_metadata_v7_compat.json": "d402ab6c397327fbce5916621e1da51766ee87b7a5449fa152c0e969b10c59f4",
     # Active Production Models / Base Dependency: Location V4 & Time V3
     "location_ranker_v4.joblib": "9ed5792ced4f8a6e79dc91e587e3c130d2fbadb5af6a73640397dc506dd9cdc9",
     "location_calibrator_v4.joblib": "65ceb736838d14cb865111aac6eddfad3838704ddf2fffc63a6b2bdd998a3664",
@@ -676,6 +676,63 @@ class MLPredictionProvider:
         if analysis_basis == "linked_synthetic_scenario":
             limitations.append("Linked transaction movements are synthetic scenario data, not observed movements for this complaint.")
 
+        # Phase 5: Faithful, immutable inference snapshot captured at prediction time
+        feature_names = list(
+            FEATURE_COLUMNS_LOCATION_V7_COMPAT
+            if "v7-compat" in self.model_version
+            else FEATURE_COLUMNS_LOCATION_V3_1
+        )
+        active_matrix = X_loc_compat if "v7-compat" in self.model_version else X_loc
+        schema_file = f"feature_schema_{self.location_feature_version}.json"
+        schema_hash = EXPECTED_HASHES.get(schema_file)
+
+        candidate_features_dict = {}
+        official_scores_dict = {}
+        candidate_metadata_list = []
+
+        for c_idx, c_obj in enumerate(candidates):
+            cid_str = str(c_obj["id"])
+            candidate_features_dict[cid_str] = [float(val) for val in active_matrix[c_idx]]
+            official_scores_dict[cid_str] = float(round(cal_probs[c_idx], 4))
+            r_pos = ranked_indices.index(c_idx) + 1 if c_idx in ranked_indices else None
+            candidate_metadata_list.append({
+                "cluster_id": int(c_obj["id"]),
+                "location_name": str(c_obj.get("location_name") or c_obj.get("name") or f"Cluster {c_obj['id']}"),
+                "district": str(c_obj.get("district") or c_obj.get("zone") or ""),
+                "latitude": float(c_obj["lat"]) if c_obj.get("lat") is not None else None,
+                "longitude": float(c_obj["lon"]) if c_obj.get("lon") is not None else None,
+                "official_score": float(round(cal_probs[c_idx], 4)),
+                "rank": r_pos
+            })
+
+        inference_snapshot = {
+            "snapshot_version": "1.0",
+            "model_version": self.model_version,
+            "time_model_version": self.time_model_version,
+            "feature_schema_version": self.location_feature_version,
+            "feature_schema_hash": schema_hash,
+            "model_hash": self.location_hash,
+            "location_model_hash": self.location_hash,
+            "calibrator_hash": self.calibrator_hash,
+            "candidate_pool_size": len(candidates),
+            "feature_names": feature_names,
+            "candidate_features": candidate_features_dict,
+            "official_candidate_scores": official_scores_dict,
+            "candidate_metadata": candidate_metadata_list,
+            "provenance": {
+                "terminal_zone": term_zone,
+                "all_tx_zones": list(all_tx_zones),
+                "origin_zone": origin_zone,
+                "victim_lat": v_lat,
+                "victim_lon": v_lon,
+                "context_type": ctx_type,
+                "analysis_basis": analysis_basis,
+                "graph_nodes": loc_res["provenance"].get("graph_node_count"),
+                "graph_edges": loc_res["provenance"].get("graph_edge_count")
+            },
+            "prediction_timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
         return PredictionResultDict({
             "prediction_id": 0,
             "complaint_id": complaint.id,
@@ -713,6 +770,7 @@ class MLPredictionProvider:
             "top_locations": top_locations,
             "time_prediction": time_prediction,
             "limitations": limitations,
+            "inference_snapshot": inference_snapshot,
             "provenance": {
                 "location_model_sha256": self.location_hash,
                 "calibrator_sha256": self.calibrator_hash,

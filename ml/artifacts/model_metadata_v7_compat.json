@@ -48,5 +48,10 @@
       "sha256": "fc303d7e8b995e1a9903706d4a7da21431c8424e27edf30b4757f900f7642444"
     }
   },
+  "promotion_status": {
+    "location_v4_accepted": true,
+    "time_v3_accepted": true,
+    "location_v7_compat_accepted": true
+  },
   "synthetic_disclosure": "Trained on multi-regime controlled synthetic Delhi cybercrime scenario corpus. NOT real NCRP data."
 }

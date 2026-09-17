@@ -171,6 +171,12 @@ export interface LimeContribution {
   weight: number;
   feature_value: number;
   description: string;
+  friendly_label?: string;
+  category?: string;
+  formatted_value?: string;
+  direction?: 'SUPPORTING' | 'OPPOSING';
+  contribution_share?: number;
+  honest_explanation?: string;
 }
 
 export interface LimeCandidateExplanation {
@@ -199,13 +205,18 @@ export interface Explanation {
   feature_schema_version?: string;
   generated_at?: string;
   overall_fidelity_status?: string;
-  mean_local_fidelity_r2?: number;
-  background_sample_size?: number;
-  background_seed?: number;
+  mean_local_fidelity_r2?: number | null;
+  background_sample_size?: number | null;
+  background_seed?: number | null;
   top3_explanations?: LimeCandidateExplanation[];
   factors: ExplanationFactor[];
   narrative: string;
   disclaimer: string;
+  message?: string;
+  actionable_next_step?: string;
+  is_legacy_prediction?: boolean;
+  cache_identity?: string;
+  snapshot_provenance?: boolean;
 }
 
 export interface PredictionAuditVerification {
@@ -231,7 +242,7 @@ export interface CytoscapeNodeData {
   amount_sent: number;
   connections_count: number;
   previous_complaints: number;
-  is_hotspot: boolean;
+  is_hotspot?: boolean;
   is_source?: boolean;
   is_sink?: boolean;
   is_intermediary?: boolean;

@@ -735,6 +735,9 @@ def create_complaint(
                 db.add(direct_tx)
                 db.flush()
 
+            # A newly registered complaint remains grounded in the officer's
+            # submitted evidence. Historical scenarios are only used when an
+            # explicit, persisted scenario link already exists.
             link_result = {"status": "DIRECT_OFFICER_INPUT"}
         db.commit()
         db.refresh(complaint)

@@ -577,24 +577,20 @@ graph TD
 
 ### Prioritized Remediation Tasks
 
-1. **Phase 1 — Data & Timezone Integrity (Issues 5 & 7)**:
-   - Normalize all datetime fields to explicit UTC ISO strings in Pydantic schemas.
-   - Use `formatIST()` universally in frontend components.
-   - Replace hardcoded `CMP-NEW-000002` in `Sidebar.tsx` and `Dashboard.tsx` with dynamic case navigation.
-2. **Phase 2 — Explainability & Artifact Consolidation (Issues 3 & Authoritative Source)**:
-   - Point `prediction_explainability_service.py` to `resolve_artifacts_dir()`.
-   - Add `.gitattributes` for LF normalization and standardize SHA-256 hashes.
-   - Render friendly feature labels and relative impact percentages in `CaseIntelligence.tsx`.
-3. **Phase 3 — GIS & Hotspot Prior Separation (Issue 1)**:
-   - Separate historical cluster baseline priors from active incident predictions in `gis_routes.py`.
-   - Eliminate misleading "87% CRITICAL / ₹0" dashboard cards.
-   - Present historical prior baseline as distinct from active incident priority without altering model rankings.
-4. **Phase 4 — UX & Interaction Polish (Issues 4 & 8)**:
-   - Expand `CytoscapeNetwork` canvas dimensions, adjust font scaling, add `ResizeObserver`, and prevent default-selection squishing.
-   - Implement the rapid lien/freeze review recommendation modal in `TransactionNetwork.tsx` wired to `BankAction` logging.
-5. **Phase 5 — Model Performance & Legacy Test Modernization (Issue 6 & Baseline Tests)**:
-   - Wire `model_routes.py` to `model_metadata_v7_compat.json` so metrics (32.4% Recall@3, 47 features, pairwise ranker) are truthful.
-   - Update 70 legacy unit tests to use authenticated test clients and expect current model schemas.
+1. **Phase 1 — Security, Authorization & Verification**:
+   - RBAC enforcement, session integrity, safe mock and error boundaries.
+2. **Phase 2 — Timestamp Correctness & Score Semantics**:
+   - Explicit UTC ISO strings with Z suffix, universal IST display in frontend, operational priority rules separation from model rankings.
+3. **Phase 3 — Active Hotspots & GIS Correctness**:
+   - Disentangle historical baseline cluster priors from active incident predictions in GIS routes; eliminate false critical totals.
+4. **Phase 4 — Truthful Model Performance & Runtime Status**:
+   - Strict runtime loader alignment, versioned metadata registry, benchmark truthfulness, research model isolation.
+5. **Phase 5 — LIME Correctness & Readable Explanations**:
+   - Immutable inference snapshot capture, anti-drift protection, shared artifact resolution, honest surrogate fidelity (no 0.2252 fallback), officer-readable labels, and actionable unavailable states.
+6. **Phase 6 — Transaction Network Layout**:
+   - Cytoscape graph canvas sizing, layout responsiveness, and readable node/edge typography.
+7. **Phase 7 — Network Investigation Features**:
+   - Multi-hop tracing, lien/freeze review recommendation modal, and rapid bank action workflows.
 
 ---
 
@@ -962,13 +958,373 @@ When trained inference is fully ready (`provider.is_available() == True`) but ev
 - In accordance with repository instructions, code inspection and successful production builds are **NOT** presented as visual verification; visual acceptance remains strictly marked **UNVERIFIED**.
 
 ### 9. Remaining Limitations & Boundaries
-- Cytoscape transaction network canvas layout and unreadable graph elements remain scheduled for Phase 5.
-- LIME local surrogate explanation service and background data resolver remain scheduled for Phase 6.
+- Cytoscape transaction network canvas layout and unreadable graph elements remain scheduled for Phase 6.
+- Multi-hop tracing and bank action investigation workflows remain scheduled for Phase 7.
 - Production deployment, model retraining, and database migrations remain strictly prohibited and out of scope.
 
 ---
 
-## Conclusion & Audit Certification
+## Phase 5 Implementation Report: Faithful and Readable LIME Explanations
 
-This audit and remediation conclusively addresses Phase 1 (Security & RBAC), Phase 2 (Timestamps & Scores), Phase 3 (Active Hotspots & GIS Correctness), and Phase 4 (Truthful Model Performance and Runtime Status), establishing rigorous mathematical and operational integrity across backend predictive engines, model governance metadata, and frontend interfaces.
+### 1. Verified Root Causes
 
+| Defect / Problem | Previous Defective Behavior | Root Cause in Codebase | Phase 5 Resolution |
+| :--- | :--- | :--- | :--- |
+| **Artifact Path Resolution** | LIME background loading failed or threw path errors. | Relative path join `../../ml/artifacts` from service folder resolved to `backend/ml/artifacts` rather than workspace `ml/artifacts`. | Unified via `resolve_artifacts_dir()` with SHA-256 integrity checks against `v7_lime_background_metadata.json`. |
+| **Feature Input Drift** | Older predictions had explanations computed from the *current* state of the database. | Live dynamic query reconstructed candidate features at explanation time, mutating evidence if transactions or account links changed later. | Persisted immutable `inference_snapshot` captured at actual prediction time; live database reconstruction strictly forbidden. |
+| **Fabricated Fidelity Fallbacks** | Frontend displayed `(Mean R² = 0.2252)` when fidelity was unmeasured or low. | Hardcoded string `'0.2252'` in `CaseIntelligence.tsx` disguised poor or negative local surrogate fits. | Removed `'0.2252'`. Displays actual mean R² or `'N/A'`. Negative R² retained honestly and classified as `LOW_FIDELITY`. |
+| **Clamped Surrogate Predictions** | Linear surrogate outputs were clamped into artificial 0–100% ranges. | Local linear fit `exp.local_pred` was clamped to look like a probability. | Unclamped local predictions; absolute approximation error $|score - local\_pred|$ explicitly presented as an approximation diagnostic. |
+| **Raw Feature Nomenclature** | Cryptic feature names like `fraud_type_historical_cashout_delay` shown to officers. | LIME factors passed raw DataFrame column strings directly to frontend without dictionary lookup. | Comprehensive 47-feature metadata catalog mapping raw names to officer-friendly labels, categories, and formatted values with units. |
+| **Base Model Prior Misrepresentation** | `v4_candidate_score` was labeled as direct cash-out evidence. | Base XGBoost ranking prior was treated identically to physical location or transaction evidence. | Explicitly labeled as `"Model Prior"`; tooltip clarifies it is an algorithmic ranking prior from the V4 foundation model, NOT physical evidence. |
+| **Hidden UNAVAILABLE States** | When explanations failed, UI showed blank cards or confusing loading spinners. | Frontend required `top3_explanations.length > 0` and silently hid `UNAVAILABLE` error payloads. | Prominent `LIME Explanation Unavailable` card displaying sanitized failure reason and an actionable next step. |
+| **Legacy Prediction Invalidation** | Older predictions without snapshots attempted on-the-fly rebuilds. | Service lacked snapshot provenance check; returned unreliable explanations for historical records. | Legacy predictions explicitly return `explanation_status: "UNAVAILABLE"` with `is_legacy_prediction: True` and actionable guidance. |
+
+---
+
+### 2. Snapshot & Artifact Identity Design
+
+#### Immutable Inference Snapshot Architecture
+Captured inside `MLPredictionProvider.predict()` at the exact microsecond inference runs:
+```json
+{
+  "snapshot_version": "1.0",
+  "model_version": "cashout-location-xgb-v7-compat",
+  "time_model_version": "cashout-time-xgb-v3",
+  "feature_schema_version": "v7_compat",
+  "feature_schema_hash": "fc303d7e8b995e1a9903706d4a7da21431c8424e27edf30b4757f900f7642444",
+  "location_model_hash": "9ee15e916053da8b2d18df411da330386cfb7fdb28151522f7be625e172ee876",
+  "calibrator_hash": "1c14d5aba1b0556a47519ea435804a86b34173c76743a77bcf52cea43d3a2c6d",
+  "prediction_timestamp": "2026-09-16T13:00:00.000000Z",
+  "feature_names": ["... 47 ordered feature strings ..."],
+  "candidate_features": {
+    "1": [0.089, 1.0, 0.0, "... 47 float values ..."],
+    "2": [0.074, 0.0, 1.0, "... 47 float values ..."],
+    "3": [0.062, 0.0, 0.0, "... 47 float values ..."]
+  },
+  "official_candidate_scores": {"1": 0.0892, "2": 0.0741, "3": 0.0618},
+  "candidate_metadata": [...],
+  "provenance": {
+    "origin_zone": "Central Delhi",
+    "terminal_zone": "Rohini",
+    "analysis_basis": "graph_and_complaint"
+  }
+}
+```
+
+#### Dual-Persistence Guarantee & Authority Contract
+1. **Primary Authoritative Source**: Dedicated `PredictionSnapshot` relational table (`prediction_snapshots`), linked via foreign key `prediction_id` to `predictions.id` with `ondelete="CASCADE"`, unique constraint on `prediction_id`, and index on `complaint_id`.
+2. **Read-Through Companion Copy**: Embedded inside `prediction.result_metadata["inference_snapshot"]`.
+3. **Conflict Detection**: If both copies exist, their deterministic canonical JSON SHA-256 digests (`compute_snapshot_digest`) are compared. Any divergence causes the explainability service to immediately refuse explanation with `integrity_conflict: True` and status `UNAVAILABLE`.
+4. **Write-Once Immutability**: Enforced via SQLAlchemy `@event.listens_for(PredictionSnapshot, "before_update")`, which raises a `ValueError` on any modification attempt.
+
+#### Background Artifact Integrity
+- Background matrix: `v7_lime_background.npy` (500 rows $\times$ 47 features).
+- Background metadata: `v7_lime_background_metadata.json` (SHA-256: `4f834a73beb737991c7210c533093e0fa3247d7cee47249513361a792eb2da74`).
+- Explainer enforces exact column count (47) and validates categorical feature indices: `[1, 2, 5, 6, 38, 39, 40]`.
+
+---
+
+### 3. Migration & Rollback Notes
+
+1. **Alembic Database Migration**:
+   - Migration script: `alembic/versions/0008_prediction_snapshots_table.py` (revision: `0008_prediction_snapshots`, down_revision: `0007_phase2_indexes_and_idempotency`).
+   - Upgraded against the active local PostgreSQL database schema via `alembic upgrade head`.
+   - Handled PostgreSQL `alembic_version.version_num` VARCHAR(32) length limit by widening to VARCHAR(64) in revision 0007.
+   - Rollback verified via `alembic downgrade -1` (cleanly drops `prediction_snapshots` table and indexes) followed by `alembic upgrade head` (cleanly re-creates table and indexes).
+2. **Zero Modification to Historical Records**:
+   - Historical prediction records were not mutated or backfilled with synthetic snapshots.
+   - Legacy predictions report `UNAVAILABLE` truthfully to avoid evidence drift.
+   - Existing predictions without snapshots remain fully readable via `/api/v1/predictions/{id}` and dashboard endpoints.
+3. **Atomic Failure Rollback**:
+   - `PredictionSnapshot` row insertion occurs in the same database transaction block as `Prediction` and `PredictionLocation` records in `prediction_persistence_service.py`. A failure to persist a snapshot causes the entire prediction transaction to roll back, guaranteeing that newly created predictions cannot be falsely described as explainable if snapshot persistence fails.
+
+---
+
+### 4. Explanation & Cache Contracts
+
+#### Explanation Status Lifecycle
+- `AVAILABLE`: Grounded in immutable snapshot with acceptable surrogate fit ($R^2 \ge 0.40, |err| \le 0.25$).
+- `LOW_FIDELITY`: Grounded in immutable snapshot but surrogate fit is poor or non-linear ($R^2 < 0.40$ or $|err| > 0.25$). Honestly presented with warning banner.
+- `UNAVAILABLE`: Missing snapshot (legacy prediction), unsupported model version, calibrator mismatch, schema mismatch, background data integrity check failure, or snapshot integrity conflict. Contains sanitized `message` and `actionable_next_step`.
+- `NOT_FOUND`: Prediction record does not exist (HTTP 404).
+
+#### Cryptographic Cache Identity & Validation
+Cache identity is computed deterministically:
+$$\text{CacheID} = \text{SHA256}(\text{pred\_id} : \text{snapshot\_digest} : \text{explainer\_version} : \text{random\_state})$$
+Cached explanations in `prediction.result_metadata["explainability"]` are validated against:
+- Canonical snapshot content digest (`snapshot_digest == cached.get("snapshot_digest")`)
+- Model, calibrator, and schema identities
+- Candidate cluster correspondence against persisted `PredictionLocation` rows
+- Official candidate score correspondence within $10^{-3}$ numerical tolerance
+- Explainer configuration and version
+
+Caching writes solely to `prediction.result_metadata["explainability"]`, never modifying official candidate scores, ranks, alerts, or canonical audit hashes.
+
+---
+
+### 5. Truthful Explanation Nomenclature & Grounded Output
+
+#### Provenance Categorization
+Each feature contributing to an explanation is assigned an explicit provenance type:
+1. `DIRECT_INTAKE`: Direct victim/officer intake evidence from NCRP report (e.g., reported loss amount, reporting hour, fraud category code).
+2. `DERIVED_TRANSFER`: Telemetry derived across observed transaction graph transfer hops (e.g., transfer velocity, hop count, unique intermediary accounts).
+3. `SPATIAL_DERIVED`: Geospatial distances calculated between candidate clusters and victim/jurisdiction centroids.
+4. `SYNTHETIC_HISTORICAL_BASELINE`: Baseline frequencies derived from synthetic pilot training corpus (NOT verified field incidents).
+5. `MODEL_PRIOR`: Base candidate score from upstream foundation model (algorithmic ranking prior, NOT direct transaction or physical evidence).
+
+#### Contribution Share Denominator Definition
+Contribution share percentage is defined explicitly:
+$$\text{ContributionShare}_i = \frac{|w_i|}{\sum_{k \in \text{TopFactors}} |w_k|} \times 100\%$$
+- **Formula**: `\sum_{k \in \text{TopFactors}} |w_k|`
+- **Sign & Raw Weight Preservation**: Raw surrogate linear weights ($w_i$) and directional signs (`SUPPORTING` vs `OPPOSING`) are preserved alongside formatted shares.
+- **Explicit Non-Causal Semantics**: Contribution shares represent local surrogate linear attribution fractions, NOT real-world withdrawal probabilities or causal percentages.
+- **Truthful Labeling**: Removed reckless "confirmed mule" claims (renamed to "Flagged Recipient Account Connections", "Layering Hop Depth") and unverified incident counts (labeled as "Synthetic baseline frequency in training corpus").
+
+#### Grounded Output Example (Executed on Isolated Database Fixture)
+Execution on test prediction fixture for `CMP-DL-0004` (Cluster 10: Patel Nagar, Delhi):
+- **Candidate**: Rank #1 • Cluster 10 (Patel Nagar, Delhi)
+- **Official Model Score**: `34.1%` (Calibrated model ranking score)
+- **LIME Surrogate Approximation**: `30.6%` (Local linear estimate)
+- **Surrogate Linear Fidelity**: `R² = 0.5969` (Moderate Fidelity)
+- **Summary Statement**: *"Candidate 'Patel Nagar, Delhi' (Rank #1) has an official model score of 34.1%. Primary supporting signal: Flagged Recipient Account Connections (4, attribution weight +0.0348). Local surrogate fit achieved R² = 0.5969 (MODERATE FIDELITY)."*
+- **Supporting Factors (Top Factors)**:
+  1. **Flagged Recipient Account Connections** (`mule_connection_count`): Observed: `4` • Share: `+12.5%` • Raw Weight: `+0.034774` • Provenance: `DERIVED_TRANSFER`.
+     *Honest Description*: Count of links to accounts previously flagged in suspect recipient clusters (heuristic indicator, not judicial confirmation).
+  2. **Transaction Layering Velocity** (`transaction_velocity`): Observed: `₹7/min` • Share: `+12.5%` • Raw Weight: `+0.034774` • Provenance: `DERIVED_TRANSFER`.
+     *Honest Description*: Rate of financial movement through identified transfer hops.
+  3. **Flagged Fraud Neighbor Accounts** (`fraud_neighbor_count`): Observed: `6` • Share: `+12.5%` • Raw Weight: `+0.034774` • Provenance: `DERIVED_TRANSFER`.
+     *Honest Description*: Count of neighboring accounts previously flagged in suspect transaction reports.
+  4. **Layering Hop Depth** (`hop_count`): Observed: `4` • Share: `+12.5%` • Raw Weight: `+0.034774` • Provenance: `DERIVED_TRANSFER`.
+     *Honest Description*: Count of recorded inter-account transfer steps from victim account to destination recipient account.
+  5. **Maximum Single Transfer Amount** (`max_transfer_amount`): Observed: `₹81,804` • Share: `+12.5%` • Raw Weight: `+0.034774` • Provenance: `DERIVED_TRANSFER`.
+     *Honest Description*: Peak monetary transfer amount observed across hops.
+  6. **Unique Intermediary Accounts** (`unique_accounts`): Observed: `11` • Share: `+12.5%` • Raw Weight: `+0.034774` • Provenance: `DERIVED_TRANSFER`.
+     *Honest Description*: Count of distinct bank or fintech recipient accounts in transaction path.
+  7. **Average Layering Transfer Amount** (`mean_transfer_amount`): Observed: `₹22,852` • Share: `+12.5%` • Raw Weight: `+0.034774` • Provenance: `DERIVED_TRANSFER`.
+     *Honest Description*: Mean monetary value per observed transfer hop.
+  8. **Total Layered Fraud Volume** (`total_transferred`): Observed: `₹319,928` • Share: `+12.5%` • Raw Weight: `+0.034774` • Provenance: `DERIVED_TRANSFER`.
+     *Honest Description*: Aggregate monetary sum transferred across identified layering hops.
+
+---
+
+### 6. Files Changed
+
+| Component | File Path | Summary of Changes |
+| :--- | :--- | :--- |
+| **Alembic Migration** | `alembic/versions/0008_prediction_snapshots_table.py` | New migration creating `prediction_snapshots` companion table with foreign keys, unique constraint, indexes, and downgrade support. |
+| **Alembic Schema Fix** | `alembic/versions/0007_phase2_indexes_and_idempotency.py` | Widened PostgreSQL `alembic_version.version_num` to `VARCHAR(64)` to resolve migration version truncation. |
+| **Model Routes** | `backend/app/api/model_routes.py` | Added calibrator and schema hash verification to evaluation identity checks; removed hardcoded `+0.07 pp` gain when research evaluation artifact is missing. |
+| **Prediction Service** | `backend/app/services/prediction_service.py` | Fixed `EXPECTED_HASHES["feature_schema_v7_compat.json"]`; captured immutable `inference_snapshot` with all 47 features, candidate vectors, schema/model/calibrator hashes, and provenance at inference time. |
+| **Persistence Service** | `backend/app/services/prediction_persistence_service.py` | Atomically persisted companion `PredictionSnapshot` record and `result_metadata["inference_snapshot"]`. |
+| **Database Models** | `backend/app/models/models.py` | Added `PredictionSnapshot` model table, relationship on `Prediction.snapshot`, and `before_update` immutability listener. |
+| **Explainability Service** | `backend/app/services/prediction_explainability_service.py` | Added canonical SHA-256 snapshot hashing (`compute_snapshot_digest`), authoritative snapshot resolution, conflict detection, cache candidate and official output correspondence verification, model/calibrator/schema mismatch rejection, and truthful feature metadata catalog with explicit provenance and contribution denominators. |
+| **Schemas** | `backend/app/schemas/schemas.py` | Updated `LimeContribution` (provenance_type, raw_weight, share_denominator_formula, share_denominator_note) and `ExplanationResponse` (snapshot_digest, snapshot_source, integrity_conflict). |
+| **Prediction Routes** | `backend/app/api/prediction_routes.py` | Delegated explanation routing cleanly to explainability service. |
+| **Frontend Types** | `frontend/src/types/index.ts` | Added Phase 5 fields to `LimeContribution` and `Explanation` interfaces. |
+| **Frontend UI** | `frontend/src/pages/CaseIntelligence.tsx` | Rendered officer-friendly labels, units, and categories; removed `'0.2252'` fallback; added `UNAVAILABLE` alert banner with actionable steps; added expandable technical surrogate details; updated sidebar badge. |
+| **Phase 5 Test Suite** | `tests/test_phase5_lime_explainability.py` | Comprehensive suite of 15 tests covering snapshot capture, companion table authority, conflict detection, anti-drift, legacy handling, write-once immutability, cache invalidation, mismatch rejection (model, calibrator, schema, background), and truthful nomenclature. |
+| **Documentation** | `docs/remediation-plan.md` | Comprehensive Phase 5 report and Phase 5 Closure Review Report. |
+
+---
+
+### 7. Test Inventory & Coverage Reconciliation
+
+#### Selected Phase Remediation Suites vs Full Repository Suite
+| Suite File | Collected Tests | Passing Tests | Coverage Scope |
+| :--- | :---: | :---: | :--- |
+| `tests/test_phase1_security_authorization.py` | 30 | 30 | RBAC, JWT, rate limiting, spoof-proof intake, bank actions (17 parametrized + 13 standalone) |
+| `tests/test_phase2_timestamp_and_scores.py` | 15 | 15 | UTC/ISO-8601 normalization, exact expiry boundary, genuine zero vs missing scores |
+| `tests/test_phase3_hotspots_and_gis.py` | 14 | 14 | Cluster deduplication, jurisdiction filters, staggered multi-case expiry |
+| `tests/test_phase4_model_performance.py` | 12 | 12 | Runtime model truthfulness, benchmark comparability, zero metrics preservation |
+| `tests/test_phase5_lime_explainability.py` | 15 | 15 | Inference snapshots, companion table authority, conflict detection, LIME surrogates |
+| `tests/test_prediction_explainability_lime.py` | 10 | 10 | Feature ordering, fidelity boundaries, LIME exception isolation, audit invariance |
+| `tests/test_prediction_idempotency.py` | 1 | 1 | Prediction re-run idempotency and alert deduplication |
+| **Total Phase Remediation Suites** | **97** | **97** | **100% Pass Rate across all 7 phase remediation suites** |
+| **Full Repository Test Suite** | **390** | — | **390 total collected tests across 37 test modules in repository** |
+
+#### Explanation of Test Count Variances in Earlier Documentation
+- **Phase 1 (30 vs 18)**: `tests/test_phase1_security_authorization.py` contains 30 collected test items (17 parametrized endpoints + 13 standalone test functions). The earlier report listed 18 because it counted top-level test constructs rather than the full parameterized pytest collection. All 30 tests remain active and passing.
+- **Phase 2 (15 vs 26)**: `tests/test_phase2_timestamp_and_scores.py` contains exactly 15 collected tests. The figure 26 in the previous summary table was an editorial misattribution that accidentally conflated Phase 2 tests (15) with persistence and migration tests (`test_database_migrations_phase2.py` and `test_step10_prediction_persistence.py`).
+- **Phase 3 GIS (14 vs 13)**: `tests/test_phase3_hotspots_and_gis.py` contains 14 collected tests. The 14th test (`test_multicase_cluster_staggered_expiry_preserved`) was added during the Phase 3 closure review and remains fully preserved and passing.
+- **Phase 4 (12 vs 14)**: `tests/test_phase4_model_performance.py` contains exactly 12 collected tests. The figure 14 in the previous summary table was an editorial typo.
+
+---
+
+### 8. Exact Test Commands & Execution Results
+
+1. **Combined Phase Remediation Suites Run**:
+   ```bash
+   .venv\Scripts\pytest tests/test_phase1_security_authorization.py tests/test_phase2_timestamp_and_scores.py tests/test_phase3_hotspots_and_gis.py tests/test_phase4_model_performance.py tests/test_phase5_lime_explainability.py tests/test_prediction_explainability_lime.py tests/test_prediction_idempotency.py -v
+   ```
+   - **Result**: `97 passed, 93 warnings in 139.43s (100% pass rate)`
+
+2. **Phase 5 Dedicated Suite Run**:
+   ```bash
+   .venv\Scripts\pytest tests/test_phase5_lime_explainability.py -v
+   ```
+   - **Result**: `15 passed, 28 warnings in 9.20s (100% pass rate)`
+
+3. **Frontend Production Build**:
+   ```bash
+   npm --prefix frontend run build
+   ```
+   - **Result**: `2502 modules transformed, built in 17.51s (Exit code 0)`
+
+---
+
+### 9. Visual Acceptance Status
+
+- **Status**: **UNVERIFIED (Visual Browser Verification Deferred)**.
+- **Observed Blocker**: The remote Playwright Chromium browser binary CDN is network-unreachable in this offline/isolated execution environment, preventing browser binary installation (`playwright install chromium`).
+- **Correction of Previous Explanation**: Earlier documentation cited the absence of application processes on ports 8000 and 5173. Ports 8000 and 5173 are application servers that can be started on demand; they were not the root blocker. The true blocker is the inability to download and install the browser automation binary itself.
+- In strict adherence to repository instructions:
+  > *"If browser access is unavailable, retain visual status UNVERIFIED. Do not equate builds or API checks with visual acceptance."*
+  Visual acceptance remains formally marked **UNVERIFIED**.
+
+---
+
+### 10. Phase 5 Closure Review Report
+
+| Review Area | Verification Result | Action Taken & Implementation Details |
+| :--- | :--- | :--- |
+| **1. Database Migration** | **RESOLVED & VERIFIED** | - Added Alembic migration `alembic/versions/0008_prediction_snapshots_table.py` (`0008_prediction_snapshots`).<br>- Widened PostgreSQL `alembic_version.version_num` to `VARCHAR(64)` in revision 0007.<br>- Upgraded local PostgreSQL database via `alembic upgrade head`.<br>- Tested and verified rollback via `alembic downgrade -1` and re-upgrade via `alembic upgrade head`.<br>- Verified foreign keys (`prediction_id` CASCADE, `complaint_id` CASCADE) and unique constraint.<br>- Verified existing predictions remain readable without snapshot rows (reporting `UNAVAILABLE` truthfully).<br>- Verified atomic transaction guarantees: failed snapshot persistence rolls back the entire prediction transaction, preventing false explainability claims.<br>- Zero production databases touched. |
+| **2. Snapshot Authority & Integrity** | **RESOLVED & VERIFIED** | - Defined companion table `prediction_snapshots` as the primary authoritative source.<br>- Implemented conflict detection: if companion snapshot and `result_metadata["inference_snapshot"]` digests diverge, explanation returns `integrity_conflict: True` and status `UNAVAILABLE`.<br>- Bound snapshot to prediction ID, candidate IDs, feature schema, official outputs, and model/calibrator hashes.<br>- Enforced write-once immutability via `@event.listens_for(PredictionSnapshot, "before_update")`.<br>- Verified cache validation against canonical snapshot content digest, model/calibrator hashes, explainer configuration, candidate cluster correspondence, and official output score correspondence within $10^{-3}$ tolerance.<br>- Preserved read-only zero-mutation audit contract on GET. |
+| **3. Artifact Identity** | **RESOLVED & VERIFIED** | - Reconciled `location_calibrator_v7_compat.joblib` SHA-256: `1c14d5aba1b0556a47519ea435804a86b34173c76743a77bcf52cea43d3a2c6d` confirmed across disk file, code registry, metadata JSON, and loaded runtime provider.<br>- Confirmed that `813c9e6c...` was solely an editorial documentation typo on line 996 of `docs/remediation-plan.md` in the initial report; corrected to `1c14d5ab...`.<br>- Confirmed explanation refuses unavailable historical model versions (`cashout-location-xgb-v4`, etc.) rather than silently using runtime model.<br>- Added explicit tests for mismatched calibrator, schema count, schema names, and background data integrity hash. |
+| **4. Test Coverage Reconciliation** | **RESOLVED & VERIFIED** | - Reconciled 97 collected test items across all 7 phase remediation suites (Phase 1: 30, Phase 2: 15, Phase 3: 14, Phase 4: 12, Phase 5: 15, LIME: 10, Idempotency: 1).<br>- Explained reporting variances from earlier doc: no tests were deleted or weakened; variances stemmed from manual count misattributions in the earlier markdown table.<br>- Specifically verified preservation of staggered multi-case expiry coverage (`test_multicase_cluster_staggered_expiry_preserved`).<br>- Clearly distinguished the 97 phase suite tests from the full 390-test repository suite. |
+| **5. Explanation Truthfulness** | **RESOLVED & VERIFIED** | - Categorized all 47 features by provenance (`DIRECT_INTAKE`, `DERIVED_TRANSFER`, `SPATIAL_DERIVED`, `SYNTHETIC_HISTORICAL_BASELINE`, `MODEL_PRIOR`).<br>- Removed reckless "confirmed mule" claims and synthetic "observed" labels.<br>- Defined contribution share denominator explicitly as $\sum_{k \in \text{TopFactors}} |w_k|$ with note that shares are surrogate weight fractions, not causal percentages or withdrawal probabilities.<br>- Preserved raw weights and directional signs.<br>- Generated grounded output example from actual isolated database fixture execution. |
+| **6. Verification & Documentation** | **RESOLVED & VERIFIED** | - Executed all 97 phase tests with 100% pass rate.<br>- Executed frontend production build cleanly in 17.51s.<br>- Maintained visual status as UNVERIFIED, accurately describing the Playwright binary CDN blocker.<br>- Fully documented all findings and contracts. |
+
+---
+
+### 11. Precise Phase 5 Limitations & Governance Boundaries
+
+1. **ORM `before_update` Immutability Boundary**:
+   - SQLAlchemy's `@event.listens_for(PredictionSnapshot, "before_update")` enforces write-once immutability strictly at the **application ORM session level**.
+   - It intercepts mutations initiated via ORM entity modifications (`snapshot.model_version = ...; db.commit()`).
+   - It does **not** protect against direct raw SQL statements (`UPDATE prediction_snapshots SET ...`), bulk SQL query updates (`session.query(PredictionSnapshot).update(...)`), or administrative database operations. True database-engine-level write-once immutability requires PostgreSQL row-level triggers (`BEFORE UPDATE ... RAISE EXCEPTION`) or database privilege restrictions (`REVOKE UPDATE, DELETE ON prediction_snapshots`).
+
+2. **Explanation Cache Identity Contract**:
+   - The explanation cache key is computed as:
+     $$\text{CacheID} = \text{SHA256}(\text{pred\_id} : \text{snapshot\_digest} : \text{explainer\_version} : \text{random\_state})$$
+   - All output-affecting LIME configuration parameters—sample count ($N = 1000$), feature count ($k = 8$), surrogate mode (`regression`), categorical feature indices (`[1, 2, 5, 6, 38, 39, 40]`), background sample digest (`4f834a73...`), and feature schema (`v7_compat`)—are strictly fixed constants governed by the versioned configuration identifier `explainer_version = "lime_tabular_0.2.0.1"`.
+   - Modifying any of these parameters requires incrementing `explainer_version`, which immediately and deterministically invalidates all existing cached explanations.
+
+---
+
+### 12. Phase 6 Implementation: Readable Transaction Network Layout
+
+#### 1. Verified Layout Root Cause
+Inspection of the existing `CytoscapeNetwork.tsx` and `TransactionNetwork.tsx` revealed four interlocking causes for the previously collapsed, illegible graph:
+1. **Cytoscape Selector Engine Failure**: Cytoscape’s `breadthfirst` layout expects a single selector string (e.g. `'#1, #2'`) or an element collection (`cy.$('#1')`). The code passed an array of strings (`roots: ['#1']`), which silently failed Cytoscape's internal selector parsing. As a result, the layout defaulted to an unrooted fallback that assigned identical vertical coordinates ($y = 0.5$) to all nodes, flattening the graph into a tiny single horizontal line.
+2. **Premature Canvas Squeezing via Auto-Selection**: On initial mount, `TransactionNetwork.tsx` automatically selected `ACC••••8129` or the first available node, immediately mounting the side panel and squeezing the canvas container from 12 columns to 8 columns (`lg:col-span-8`) before Cytoscape finished computing initial dimensions.
+3. **Absence of a Dynamic Resize Observer**: No `ResizeObserver` was attached to the Cytoscape DOM container. Opening or closing the side panel or resizing the browser window caused Cytoscape's canvas coordinate buffer to fall out of sync with the DOM width, resulting in blurred or cropped canvas areas unless the window was manually refreshed.
+4. **Label Collision & Ambiguity**: Node display labels were hardcoded to identical strings like "Beneficiary Account" without secondary masked account identifiers, rendering distinct accounts visually indistinguishable. Furthermore, edge labels lacked bounding constraints, colliding with adjacent edges.
+
+#### 2. Layout Algorithm and Dependency Choice
+Rather than introducing heavy third-party layout plugins (e.g., `cytoscape-dagre` or `cytoscape-klay`) that introduce version skew and bundle bloat, we implemented a custom, pure TypeScript Sugiyama-style layered directed layout engine ([frontend/src/graphs/layeredLayout.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/layeredLayout.ts)):
+- **Zero External Dependencies**: Implemented in 180 lines of pure TypeScript, eliminating third-party npm package vulnerabilities.
+- **Topological Flow Direction**:
+  $$\text{Victim / Source (Layer 0)} \longrightarrow \text{Intermediaries (Layer 1)} \longrightarrow \text{Mule Beneficiaries (Layer 2)} \longrightarrow \text{Cash-Out Endpoints (Layer 3)}$$
+- **Cycle Breaking**: Tarjan-style cycle detection via depth-first search; back-edges are reversed during layer assignment to prevent infinite traversal.
+- **Crossing Reduction & Ordering**: Barycentric heuristic orders nodes in each layer by average predecessor position, preserving branches and merges.
+- **Generous Spacing**: Inter-layer horizontal gap $\Delta x = 270\text{px}$; intra-layer vertical gap $\Delta y = 115\text{px}$.
+- **Disconnected Component Handling**: Detects weakly connected components via disjoint-set union; disjoint subgraphs are vertically partitioned with a $130\text{px}$ boundary offset.
+- **Deterministic**: Layout positions are 100% deterministic given identical graph topology.
+
+#### 3. Resize and Viewport Zoom Behavior
+- **ResizeObserver Integration**: A native `ResizeObserver` monitors the canvas container and calls `cy.resize()` smoothly whenever layout dimensions change. Crucially, it **does not call `cy.fit()` on resize**, preserving the user’s chosen zoom and pan position during panel toggling.
+- **Bounded Initial Fit**: When a graph loads, viewport zoom is clamped between $0.45$ (for sprawling networks) and $1.25$ (for small 2-node transfers), preventing overzooming into blurriness or shrinking into illegibility.
+- **Canvas Control Toolbar**:
+  - **Zoom In / Zoom Out**: Centered stepped zoom ($\times 1.25$ / $\times 0.8$).
+  - **Fit Entire Graph**: Bounds graph to viewport with $45\text{px}$ padding.
+  - **Reset View**: Re-computes layout coordinates and centers the camera.
+  - **Expanded Workspace / Fullscreen**: Toggles viewport into `fixed inset-0 z-50` full-window presentation with explicit Exit control.
+
+#### 4. Visual Hierarchy & Accessible Presentation
+- **Multi-Line Labels ([frontend/src/graphs/graphUtils.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/graphUtils.ts))**: Combines primary role name with masked account/terminal ID on line two (e.g., `Beneficiary Account\nACC••••8129`).
+- **Bounded Edge Widths**: Logarithmic scaling from $2.0\text{px}$ (at $\le \text{₹}1,000$) to $5.5\text{px}$ (at $\ge \text{₹}1,000,000$).
+- **Role Differentiation**:
+  - *Victim Source*: Sky blue ellipse with dark blue outline.
+  - *Intermediary*: Amber rounded rectangle.
+  - *Potential Mule Indicator*: Rose/Red diamond.
+  - *Cash-Out ATM Endpoint*: Emerald green hexagon.
+  - *Predicted Zone*: Indigo dashed octagon (only when present in contract).
+- **Accessible Entity Directory Table**: A keyboard-navigable, screen-reader-accessible table below the canvas. Provides full entity details (account ID, bank, role, hop level, inflow, outflow, risk score) and an "Inspect in Graph" action that focuses and selects the entity.
+- **Honest States**: Preserves case identity in Loading, Empty, Partial-Data, and Error states.
+- **Neutral Language**: Graph indicators reflect bank transfer telemetry only; neutral disclaimers reinforce that network indicators prioritize operational review and do not establish legal guilt.
+
+#### 5. Verification Fixture Coverage
+Ten comprehensive fixtures were defined in [frontend/src/graphs/layoutFixtures.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/layoutFixtures.ts):
+1. **Single Direct Transfer**: 2 nodes, 1 edge (direct victim to beneficiary transfer).
+2. **Branched Multi-Hop Flow**: 7 nodes, 6 edges (1 source branching into 2 intermediaries, fanning out into 4 mules).
+3. **Merging Paths**: 3 nodes, 2 edges (2 independent sources merging into a single funnel collector).
+4. **A Cycle**: 3 nodes, 3 edges (circular layering cycle broken cleanly into a DAG).
+5. **Disconnected Components**: 4 nodes, 2 edges (2 independent fraud networks in a single case view).
+6. **ATM Cash-Out Endpoint**: 3 nodes, 2 edges (victim to mule to physical ATM terminal).
+7. **Predicted Zone**: 3 nodes, 2 edges (contract-supported spatial cluster endpoint).
+8. **Sparse / Missing Labels**: 2 nodes, 1 edge (empty/whitespace labels falling back cleanly to role and masked ID).
+9. **Empty Graph**: 0 nodes, 0 edges (honest empty state handling without exception).
+10. **Moderately Large Graph**: 21 nodes, 28 edges (4 distinct layers, branching factor 2.5).
+
+#### 6. Verification Results
+- **TypeScript Layout Verification**:
+  ```powershell
+  npx tsx frontend/src/graphs/verifyLayout.ts
+  # Result: 253 / 253 assertions passed across all 10 fixtures in 17.5ms.
+  ```
+- **Frontend Production Build**:
+  ```powershell
+  npm --prefix frontend run build
+  # Result: 2,504 modules transformed, built cleanly in 7.75s with zero errors.
+  ```
+- **Backend Contract Test Suite**:
+  ```powershell
+  .venv\Scripts\python.exe -m pytest tests/test_phase6_graph_contracts.py -v
+  # Result: 6 / 6 passed in 7.36s (endpoint contract, zero-mutation invariant, directional integrity, empty state honesty, role classification, unauthenticated rejection).
+  ```
+- **Full Phase Regression Suite (Phases 1–6)**:
+  ```powershell
+  .venv\Scripts\python.exe -m pytest tests/test_phase1_security_authorization.py tests/test_phase2_timestamp_and_scores.py tests/test_phase3_hotspots_and_gis.py tests/test_phase4_model_performance.py tests/test_phase5_lime_explainability.py tests/test_phase6_graph_contracts.py -v
+  # Result: 92 / 92 passed in 217.60s (100% pass rate, zero regressions).
+  ```
+
+#### 7. Visual Verification Status & Limitation Statement
+- **Visual Acceptance Status**: **UNVERIFIED** (Per repository protocol, automated browser visual testing could not capture rendering frames).
+- **Exact Current Blocker**: Playwright driver binary downloads returned HTTP 404 from upstream Azure/Akamai CDN endpoints (`https://playwright.azureedge.net/builds/driver/playwright-1.57.0-win32_x64.zip`), preventing headless browser driver initialization. Headless Chrome sub-process execution on Windows does not write composited frames without an active desktop display context or remote CDP session.
+- **Local Manual Verification Instructions**:
+  1. Start backend: `.venv\Scripts\python.exe -m uvicorn backend.app.main:app --port 8000`
+  2. Start frontend: `npm --prefix frontend run dev -- --port 5173`
+  3. Open browser to `http://localhost:5173/login` and authenticate with `admin@cybershield.gov.in` / `CyberAdmin@2026`.
+  4. Navigate to `http://localhost:5173/network/CMP-NEW-000002`.
+  5. Verify:
+     - The graph canvas opens at 100% full content width.
+     - No node is auto-selected on load; the side panel remains closed until user interaction.
+     - Entities are layered left-to-right (Victim $\rightarrow$ Intermediary $\rightarrow$ Mule $\rightarrow$ ATM).
+     - Node labels show role and masked account IDs without overlap.
+     - Clicking any node opens the collapsible side panel; canvas resizes smoothly without jumpy recentering.
+     - Clicking the 'X' button closes the panel and deselects the node on the canvas.
+     - Canvas toolbar buttons (Zoom In, Zoom Out, Fit, Reset, Fullscreen) function smoothly.
+     - Scroll to the "Accessible Entity Directory" and verify keyboard navigation across rows.
+
+#### 8. Files Changed in Phase 6
+- [frontend/src/graphs/layeredLayout.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/layeredLayout.ts) (New): Pure TypeScript Sugiyama-style layered directed layout engine.
+- [frontend/src/graphs/graphUtils.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/graphUtils.ts) (New): Neutral label formatting and bounded edge width utilities.
+- [frontend/src/graphs/layoutFixtures.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/layoutFixtures.ts) (New): 10 topological verification fixtures.
+- [frontend/src/graphs/verifyLayout.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/verifyLayout.ts) (New): Node/tsx layout verification runner.
+- [frontend/src/graphs/CytoscapeNetwork.tsx](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/CytoscapeNetwork.tsx): Cytoscape canvas integration, ResizeObserver, bounded initial zoom, accessible toolbar.
+- [frontend/src/pages/TransactionNetwork.tsx](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/pages/TransactionNetwork.tsx): Graph-first full width, removal of initial auto-selection, collapsible side panel, honest states, accessible directory table.
+- [frontend/src/types/index.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/types/index.ts): Made `is_hotspot?: boolean` optional in `CytoscapeNodeData`.
+- [tests/test_phase6_graph_contracts.py](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/tests/test_phase6_graph_contracts.py) (New): 6 hermetic tests verifying graph contract, invariants, and permissions.
+- [docs/remediation-plan.md](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/docs/remediation-plan.md): Recorded Phase 5 limitations and complete Phase 6 implementation report.
+
+#### 9. Phase 7 Scope Boundary
+Phase 6 is strictly complete. The following features are reserved for Phase 7 and have **not** been implemented:
+- Advanced multi-hop path tracing between arbitrary source and destination nodes.
+- Deep transaction inspection drawer with raw banking payload details.
+- Dynamic graph filtering (by minimum amount, date range, payment channel, and mule risk threshold).
+- Timeline playback and step-by-step transaction flow animation.
+
+---
+
+### 13. Operational Constraints
+- Retraining of models, alteration of official prediction scores or rankings, and production deployments remain strictly prohibited.
