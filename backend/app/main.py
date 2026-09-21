@@ -156,6 +156,8 @@ def readiness_check():
         "model_verified": model_verified,
         "active_model_version": provider.model_version if model_ready else "MODEL_UNAVAILABLE",
         "artifact_verification_status": verification.get("status", "UNKNOWN"),
+        "load_error": provider.load_error,
+        "verification_details": verification,
         "timestamp": datetime.now(timezone.utc).isoformat()
     }
 
