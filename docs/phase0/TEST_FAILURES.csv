@@ -1,0 +1,177 @@
+﻿test,status,message
+tests.test_complaint_scenario_linking::test_api_create_complaint_clean_and_zero_fabricated_data,failed,"AssertionError: assert 'NOT_LINKED' == 'LINKED'
+  
+  - LINKED
+  + NOT_LINKED
+  ? ++++"
+tests.test_delhi_intake_map_regression::test_map_counts_latest_active_predictions_and_complete_atm_inventory,failed,"AssertionError: assert '+00:00' in '18 Sep 2026, 00:22 – 01:22 IST'"
+tests.test_dynamic_transaction_graph::test_empty_context_returns_empty_graph,failed,"AssertionError: assert [{'data': {'i...-8877', ...}}] == []
+  
+  Left contains 2 more items, first extra item: {'data': {'id': '6013', 'label': 'Ananya Roy', 'node_type': 'victim', 'masked_id': 'XXXX-XXXX-3005', ...}}
+  Use -v to get more diff"
+tests.test_dynamic_transaction_graph::test_non_delhi_has_no_demo_graph_fallback,failed,assert 2 == 0
+tests.test_dynamic_transaction_graph::test_direct_cmp_dl_graph_uses_own_transactions,failed,assert 4 == 3
+tests.test_dynamic_transaction_graph::test_no_cmp1042_fallback_for_empty_graph,failed,assert 2 == 0
+tests.test_dynamic_transaction_graph::test_step6_transaction_context_unchanged,failed,"AssertionError: assert 'DIRECT' == 'LINKED_SYNTHETIC_SCENARIO'
+  
+  - LINKED_SYNTHETIC_SCENARIO
+  + DIRECT"
+tests.test_ml_pipeline::test_ml_artifacts_exist_and_loadable,failed,"AssertionError: assert 'cashout-location-xgb-v7-compat' in ['cashout-location-xgb-v4', 'cashout-location-xgb-v3.1', 'cashout-location-xgb-v2', 'cashout-location-xgb-v1']
+ +  where 'cashout-location-xgb-v7-compat' = <built-in method get of dict object at 0x000001AA189DB2C0>('model_version')
+ +    where <built-in method get of dict object at 0x000001AA189DB2C0> = {'model_version': 'cashout-location-xgb-v7-compat', 'time_model_version': 'cashout-time-xgb-v3', 'training_timestamp': '2026-09-13T15:59:21.518911+00:00', 'algorithm': 'pairwise_xgb_ranker', ...}.get
+ +      where {'model_version': 'cashout-location-xgb-v7-compat', 'time_model_version': 'cashout-time-xgb-v3', 'training_timestamp': '2026-09-13T15:59:21.518911+00:00', 'algorithm': 'pairwise_xgb_ranker', ...} = <backend.app.services.prediction_service.MLPredictionProvider object at 0x000001AA1C1AFD90>.metadata"
+tests.test_ml_pipeline::test_ml_predict_proba_and_predict,failed,"AssertionError: assert 'cashout-location-xgb-v7-compat' in ['cashout-location-xgb-v4', 'cashout-location-xgb-v3.1', 'cashout-location-xgb-v2', 'cashout-location-xgb-v1']"
+tests.test_ml_pipeline::test_fallback_on_ml_error,failed,"AssertionError: assert 'unavailable' == 'deterministic_demo'
+  
+  - deterministic_demo
+  + unavailable"
+tests.test_ml_quality_improvements::test_12_new_model_version_loaded_only_if_accepted,failed,"AssertionError: assert 'cashout-loca...xgb-v7-compat' == 'cashout-location-xgb-v4'
+  
+  - cashout-location-xgb-v4
+  ?                       ^
+  + cashout-location-xgb-v7-compat
+  ?                       ^^^^^^^^"
+tests.test_ml_remediation::test_v2_artifacts_exist_and_loadable,failed,"AssertionError: assert 'cashout-location-xgb-v7-compat' in ['cashout-location-xgb-v4', 'cashout-location-xgb-v3.1', 'cashout-location-xgb-v2']
+ +  where 'cashout-location-xgb-v7-compat' = <built-in method get of dict object at 0x000001AA15563C40>('model_version')
+ +    where <built-in method get of dict object at 0x000001AA15563C40> = {'model_version': 'cashout-location-xgb-v7-compat', 'time_model_version': 'cashout-time-xgb-v3', 'training_timestamp': '2026-09-13T15:59:21.518911+00:00', 'algorithm': 'pairwise_xgb_ranker', ...}.get
+ +      where {'model_version': 'cashout-location-xgb-v7-compat', 'time_model_version': 'cashout-time-xgb-v3', 'training_timestamp': '2026-09-13T15:59:21.518911+00:00', 'algorithm': 'pairwise_xgb_ranker', ...} = <backend.app.services.prediction_service.MLPredictionProvider object at 0x000001AA11D8C850>.metadata"
+tests.test_ml_remediation::test_prediction_service_v2_inference,failed,"AssertionError: assert 'cashout-location-xgb-v7-compat' in ['cashout-location-xgb-v4', 'cashout-location-xgb-v3.1', 'cashout-location-xgb-v2']
+ +  where 'cashout-location-xgb-v7-compat' = {'prediction_id': 0, 'complaint_id': 2, 'complaint_number': 'CMP-DL-0001', 'status': 'SUCCESS', 'prediction_mode': 'tr...thetic_pilot_baselines', 'zero_target_lookup': True}, 'created_at': datetime.datetime(2026, 9, 17, 17, 52, 44, 944881)}.model_version"
+tests.test_ml_remediation::test_model_performance_api_v2_metrics,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_phase3_hotspots_and_gis::test_historical_only_cluster_with_high_baseline_risk,failed,assert None is not None
+tests.test_phase3_hotspots_and_gis::test_cluster_with_one_eligible_active_prediction,failed,assert None is not None
+tests.test_phase3_hotspots_and_gis::test_closed_and_resolved_complaint_exclusion,failed,assert None is not None
+tests.test_phase3_hotspots_and_gis::test_multiple_predictions_only_latest_row_evaluated,failed,"assert 7 not in [7, 13, 9, 12]"
+tests.test_phase3_hotspots_and_gis::test_duplicate_case_contribution_within_one_cluster,failed,assert 2 == 1
+tests.test_schema_hardening::test_relationship_and_mapper_configuration,failed,"assert 2 == 3
+ +  where 2 = len([<backend.app.models.models.PredictionLocation object at 0x000001AA119701D0>, <backend.app.models.models.PredictionLocation object at 0x000001AA11970290>])
+ +    where [<backend.app.models.models.PredictionLocation object at 0x000001AA119701D0>, <backend.app.models.models.PredictionLocation object at 0x000001AA11970290>] = <backend.app.models.models.Prediction object at 0x000001AA155E7680>.locations"
+tests.test_schema_hardening::test_complaint_account_association_and_uniqueness,failed,"sqlalchemy.exc.IntegrityError: (sqlite3.IntegrityError) UNIQUE constraint failed: complaint_accounts.complaint_id, complaint_accounts.account_id
+[SQL: INSERT INTO complaint_accounts (complaint_id, account_id, association_type, created_at) VALUES (?, ?, ?, ?)]
+[parameters: (1, 1, 'SUSPECT', '2026-09-17 17:53:07.337331')]
+(Background on this error at: https://sqlalche.me/e/20/gkpj)"
+tests.test_schema_hardening::test_unique_prediction_rank_constraint,failed,Failed: DID NOT RAISE IntegrityError
+tests.test_step10_prediction_persistence::test_cmp_new_000002_live_persistence,failed,AssertionError: assert 'operational estimate window' in '4–75 min after complaint report'
+tests.test_step10_prediction_persistence::test_cmp_new_000004_outside_scope_zero_persistence,failed,"AssertionError: assert 'SUCCESS' == 'OUTSIDE_OPERATIONAL_SCOPE'
+  
+  - OUTSIDE_OPERATIONAL_SCOPE
+  + SUCCESS"
+tests.test_step11_gis_persistence_integration::test_gis_uses_latest_persisted_prediction,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step11_gis_persistence_integration::test_cmp_new_000002_gis_identity_and_primary_invariant,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step11_gis_persistence_integration::test_cmp_new_000003_gis_diversity_and_coordinates,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step11_gis_persistence_integration::test_cmp_dl_0001_gis_identity,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step11_gis_persistence_integration::test_outside_scope_zero_prediction_data,failed,"assert 401 == 404
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step11_gis_persistence_integration::test_cmp_1042_demo_provenance_and_database_ids,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step11_gis_persistence_integration::test_end_to_end_equivalence_invariant,failed,KeyError: 'top_locations'
+tests.test_step12_prediction_alert_integration::test_alert_created_from_exact_prediction_id,failed,"AssertionError: assert 'Karol Bagh, Delhi' == 'Connaught Place, Delhi'
+  
+  - Connaught Place, Delhi
+  + Karol Bagh, Delhi"
+tests.test_step12_prediction_alert_integration::test_primary_cluster_and_location_identity,failed,"assert 8 == 7
+ +  where 8 = <backend.app.models.models.PredictionLocation object at 0x000001AA11999010>.cluster_id"
+tests.test_step12_prediction_alert_integration::test_alert_content_consistent_with_persisted_prediction,failed,"AssertionError: assert 'Civil Lines, Delhi' == 'Green Park, Delhi'
+  
+  - Green Park, Delhi
+  + Civil Lines, Delhi"
+tests.test_step12_prediction_alert_integration::test_outside_scope_zero_alert,failed,"assert 200 == 404
+ +  where 200 = <Response [200 OK]>.status_code"
+tests.test_step13_dashboard_db_integration::test_01_dashboard_endpoint_is_get_only,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_02_active_complaint_count_matches_db,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_03_high_risk_latest_prediction_count_matches_db,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_04_repeated_prediction_history_does_not_inflate_kpi,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_05_active_alert_count_matches_db,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_06_acknowledged_alert_count_matches_db,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_07_risk_distribution_matches_latest_persisted_predictions,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_08_recent_complaints_exact_db_ordering,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_09_recent_predictions_exact_db_ordering,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_10_rank_1_location_identity_matches_prediction_location,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_11_recent_alerts_exact_db_ordering,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_12_outside_scope_complaint_no_fabricated_prediction,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_14_empty_dataset_behavior,failed,assert 1.0 == 0.0
+tests.test_step13_dashboard_db_integration::test_15_nullable_partial_data_behavior,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_16_to_20_forbidden_calls_zero,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_21_dashboard_get_causes_zero_db_mutations,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_22_dashboard_refresh_repeat_remains_zero_write,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step13_dashboard_db_integration::test_23_direct_db_counts_equal_api_counts,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step14_auth_audit::test_complaint_creation_ignores_body_spoofed_officer,failed,"assert 403 == 200
+ +  where 403 = <Response [403 Forbidden]>.status_code"
+tests.test_step14_auth_audit::test_prediction_run_records_authenticated_officer_in_audit,failed,"assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code"
+tests.test_step14_auth_audit::test_alert_generation_records_authenticated_officer_in_audit,failed,"assert 403 == 200
+ +  where 403 = <Response [403 Forbidden]>.status_code"
+tests.test_step14_auth_audit::test_alert_acknowledgement_records_authenticated_officer,failed,"assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code"
+tests.test_step14_auth_audit::test_alert_escalation_records_authenticated_officer,failed,"assert 404 == 200
+ +  where 404 = <Response [404 Not Found]>.status_code"
+tests.test_step14_auth_audit::test_audit_api_returns_user_id,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step14_auth_audit::test_read_only_endpoints_generate_zero_fake_audits,failed,"assert 401 == 200
+ +  where 401 = <Response [401 Unauthorized]>.status_code"
+tests.test_step14_auth_audit::test_jwt_secret_environment_enforcement,failed,"pydantic_core._pydantic_core.ValidationError: 1 validation error for Settings
+  Value error, Production configuration error: PostgreSQL is required in production environment. SQLite is prohibited. [type=value_error, input_value={'DATABASE_URL': 'sqlite:...m-secret-key-987654321'}, input_type=dict]
+    For further information visit https://errors.pydantic.dev/2.13/v/value_error"
+tests.test_step14_auth_audit::test_cmp_new_000126_and_historical_integrity_preserved,failed,assert None is not None
+tests.test_step9_prediction_flow::test_v3_1_artifact_loading_and_sha256,failed,"AssertionError: assert 'cashout-location-xgb-v7-compat' in ('cashout-location-xgb-v3.1', 'cashout-location-xgb-v4')
+ +  where 'cashout-location-xgb-v7-compat' = <backend.app.services.prediction_service.MLPredictionProvider object at 0x000001AA11A01750>.model_version"
+tests.test_step9_prediction_flow::test_actual_prediction_and_calibration,failed,"AssertionError: assert 'cashout-location-xgb-v7-compat' in ('cashout-location-xgb-v3.1', 'cashout-location-xgb-v4')"
+tests.test_step9_prediction_flow::test_cmp_new_000004_outside_operational_scope,failed,"AssertionError: assert 'SUCCESS' == 'OUTSIDE_OPERATIONAL_SCOPE'
+  
+  - OUTSIDE_OPERATIONAL_SCOPE
+  + SUCCESS"
+tests.test_synthetic_seed::test_delhi_geography_coverage_and_coordinates,failed,"assert 250 == 240
+ +  where 250 = len([<backend.app.models.models.ATMLocation object at 0x000001AA11972C90>, <backend.app.models.models.ATMLocation object a...s.ATMLocation object at 0x000001AA11973890>, <backend.app.models.models.ATMLocation object at 0x000001AA11972810>, ...])"
+tests.test_transaction_scenario_linking::test_linked_complaint_resolves_source_scenario_transactions,failed,"AssertionError: assert 'DIRECT' == 'LINKED_SYNTHETIC_SCENARIO'
+  
+  - LINKED_SYNTHETIC_SCENARIO
+  + DIRECT"
+tests.test_transaction_scenario_linking::test_source_transaction_ownership_is_not_rewritten,failed,"assert 3003 == 1262
+ +  where 3003 = <backend.app.models.models.Transaction object at 0x000001AA1C6EB330>.complaint_id
+ +  and   1262 = <backend.app.models.models.Complaint object at 0x000001AA155E7F00>.id"
+tests.test_transaction_scenario_linking::test_transaction_context_uses_persisted_source_not_rematching,failed,"AssertionError: assert '[SCENARIO:CMP-DL-1261' in 'Scanned fake QR code sent via WhatsApp claiming refund.'
+ +  where 'Scanned fake QR code sent via WhatsApp claiming refund.' = <backend.app.models.models.Complaint object at 0x000001AA1BB646B0>.description"
+tests.test_transaction_scenario_linking::test_only_source_scenario_transactions_are_returned,failed,"AssertionError: assert {49460} == {21019, 21020...3, 21024, ...}
+  
+  Extra items in the left set:
+  49460
+  Extra items in the right set:
+  21019
+  21020
+  21021...
+  
+  ...Full output truncated (41 lines hidden), use '-vv' to show"
+tests.test_transaction_scenario_linking::test_different_linked_complaints_resolve_different_transaction_sets,failed,AssertionError: assert None == 'CMP-DL-1261'
+tests.test_transaction_scenario_linking::test_non_delhi_unlinked_complaint_returns_empty_context,failed,"AssertionError: assert 'DIRECT' == 'EMPTY'
+  
+  - EMPTY
+  + DIRECT"
+tests.test_transaction_scenario_linking::test_unlinked_complaint_does_not_fallback_to_cmp1042,failed,"assert 1 == 0
+ +  where 1 = len([49462])"
+tests.test_transaction_scenario_linking::test_direct_transaction_precedence_behavior,failed,"AssertionError: assert 'EMPTY' == 'DIRECT'
+  
+  - DIRECT
+  + EMPTY"
+tests.test_transaction_scenario_linking::test_step4_transaction_dataset_preserved,skipped,Live infrastructure tests require --run-live option

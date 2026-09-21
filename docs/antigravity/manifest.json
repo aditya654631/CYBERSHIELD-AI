@@ -1,0 +1,100 @@
+[
+  {
+    "phase": "00",
+    "title": "Baseline protection and measured audit",
+    "dependencies": "None",
+    "ps_mapping": "PS-01\u201325: evidence baseline",
+    "file": "PHASE_00.md"
+  },
+  {
+    "phase": "01",
+    "title": "Stabilize tests and truthful product claims",
+    "dependencies": "00",
+    "ps_mapping": "PS-03\u201307, PS-15; reliability foundation",
+    "file": "PHASE_01.md"
+  },
+  {
+    "phase": "02",
+    "title": "Causal transaction updates and immutable prediction versions",
+    "dependencies": "01",
+    "ps_mapping": "PS-06, PS-08, PS-09",
+    "file": "PHASE_02.md"
+  },
+  {
+    "phase": "03",
+    "title": "Server-side authorization and scoped sensitive access",
+    "dependencies": "01,02",
+    "ps_mapping": "PS-15, PS-20, PS-21",
+    "file": "PHASE_03.md"
+  },
+  {
+    "phase": "04",
+    "title": "Complete GIS filters and coherent case drilldowns",
+    "dependencies": "02,03",
+    "ps_mapping": "PS-10\u201314",
+    "file": "PHASE_04.md"
+  },
+  {
+    "phase": "05",
+    "title": "Durable alerts, delivery attempts and acknowledgement",
+    "dependencies": "02,03,04",
+    "ps_mapping": "PS-08, PS-16, PS-19, PS-20",
+    "file": "PHASE_05.md"
+  },
+  {
+    "phase": "06",
+    "title": "Evidence documentation and investigator report",
+    "dependencies": "02,03,05",
+    "ps_mapping": "PS-17, PS-18",
+    "file": "PHASE_06.md"
+  },
+  {
+    "phase": "07",
+    "title": "Controlled cross-state/cross-district handoff",
+    "dependencies": "03,05,06",
+    "ps_mapping": "PS-20\u201322",
+    "file": "PHASE_07.md"
+  },
+  {
+    "phase": "08",
+    "title": "Bank adapter and truthful external action lifecycle",
+    "dependencies": "03,05,07",
+    "ps_mapping": "PS-22, PS-23",
+    "file": "PHASE_08.md"
+  },
+  {
+    "phase": "09",
+    "title": "Verified outcomes and operational measurements",
+    "dependencies": "02,05,06,08",
+    "ps_mapping": "PS-24, PS-25",
+    "file": "PHASE_09.md"
+  },
+  {
+    "phase": "10",
+    "title": "Reproducible location-model evaluation and data readiness",
+    "dependencies": "01,02,09",
+    "ps_mapping": "PS-03\u201307, PS-25",
+    "file": "PHASE_10.md"
+  },
+  {
+    "phase": "11",
+    "title": "Honest timing uncertainty and stable LIME explanation",
+    "dependencies": "02,10",
+    "ps_mapping": "Optional timing/LIME quality supporting PS-17, PS-25",
+    "file": "PHASE_11.md"
+  },
+  {
+    "phase": "12",
+    "title": "Configurable geography and second-region readiness",
+    "dependencies": "03,04,07,10",
+    "ps_mapping": "PS-07, PS-12, PS-21; national context",
+    "file": "PHASE_12.md"
+  },
+  {
+    "phase": "13",
+    "title": "Integrated pilot readiness and final PS acceptance",
+    "dependencies": "00\u201312 local gates; external gates explicitly tracked",
+    "ps_mapping": "PS-01\u201325",
+    "file": "PHASE_13.md"
+  }
+]

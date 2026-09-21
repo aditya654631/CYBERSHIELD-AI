@@ -15,25 +15,103 @@ import {
   Activity,
   AlertCircle,
   BellRing,
-  Info
+  Info,
+  Calendar,
+  RotateCcw,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { HotspotCluster, ATMLocationItem, Complaint, Prediction, PredictionLocationItem } from '../types';
+import { HotspotCluster, ATMLocationItem, Complaint, Prediction, PredictionLocationItem, GISOverviewResponse, RegionItem } from '../types';
 import { CashOutRiskMap } from '../maps/CashOutRiskMap';
 import { PredictionTiming } from '../components/PredictionTiming';
 import { modelScore, predictionScoreNote } from '../utils/predictionDisplay';
+
+const DELHI_DISTRICTS = [
+  'ALL',
+  'Central',
+  'New Delhi',
+  'South',
+  'South East',
+  'South West',
+  'North',
+  'North East',
+  'North West',
+  'West',
+  'East',
+  'Shahdara',
+];
+
+const CRIME_CATEGORIES = [
+  'ALL',
+  'UPI Fraud',
+  'Phishing',
+  'Investment Scam',
+  'Impersonation',
+  'Loan App Scam',
+  'Job Fraud',
+  'Sextortion',
+  'SIM Swap',
+  'ATM Card Cloning',
+];
 
 export const RiskMap: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Complaints & Selection
+  // URL Initialized Filter State
+  const initialTimeBasis = searchParams.get('time_basis') || 'predicted_window';
+  const initialStartTime = searchParams.get('start_time') || '';
+  const initialEndTime = searchParams.get('end_time') || '';
+  const initialCrimeCategory = searchParams.get('crime_category') || 'ALL';
+  const initialDistrict = searchParams.get('district') || 'ALL';
+  const initialRisk = searchParams.get('risk_level') || 'ALL';
   const initialCaseParam = searchParams.get('case') || searchParams.get('complaint') || '';
+  const initialRegionParam = searchParams.get('region_id') || searchParams.get('region') || 'delhi';
+
+  // Region State (Phase 12)
+  const [regions, setRegions] = useState<RegionItem[]>([]);
+  const [selectedRegionId, setSelectedRegionId] = useState<string>(initialRegionParam);
+
+  // Filter State
+  const [timeBasis, setTimeBasis] = useState<string>(initialTimeBasis);
+  const [startTime, setStartTime] = useState<string>(initialStartTime);
+  const [endTime, setEndTime] = useState<string>(initialEndTime);
+  const [crimeCategory, setCrimeCategory] = useState<string>(initialCrimeCategory);
+  const [districtFilter, setDistrictFilter] = useState<string>(initialDistrict);
+  const [riskFilter, setRiskFilter] = useState<string>(initialRisk);
+  const [filterValidationError, setFilterValidationError] = useState<string | null>(null);
+  const [showFilterPanel, setShowFilterPanel] = useState<boolean>(true);
+
+  // Load Regions Catalog (Phase 12)
+  useEffect(() => {
+    api.getRegions()
+      .then((data) => {
+        setRegions(data);
+      })
+      .catch((err) => console.warn('[GIS] Failed to load regions:', err));
+  }, []);
+
+  const currentRegion = regions.find((r) => r.id === selectedRegionId) || null;
+  const availableDistricts = currentRegion && currentRegion.districts && currentRegion.districts.length > 0
+    ? ['ALL', ...currentRegion.districts]
+    : DELHI_DISTRICTS;
+
+  const handleRegionChange = (newRegionId: string) => {
+    setSelectedRegionId(newRegionId);
+    setDistrictFilter('ALL');
+    setSelectedClusterId(null);
+    setSelectedCluster(null);
+    syncParamsToUrl({ region_id: newRegionId, district: 'ALL', cluster: undefined });
+  };
+
+  // Complaints & Selection
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [selectedComplaintId, setSelectedComplaintId] = useState<string>(initialCaseParam);
   const [selectedComplaint, setSelectedComplaint] = useState<Complaint | null>(null);
 
-  // Cluster Selection & Route Integration (Phase 3)
+  // Cluster Selection & Route Integration (Phase 3 & 4)
   const [selectedClusterId, setSelectedClusterId] = useState<number | null>(null);
   const [selectedCluster, setSelectedCluster] = useState<HotspotCluster | null>(null);
   const [clusterNotice, setClusterNotice] = useState<string | null>(null);
@@ -50,8 +128,11 @@ export const RiskMap: React.FC = () => {
 
   // Generic GIS Context (Monitored Clusters & Prototype ATMs)
   const [hotspots, setHotspots] = useState<HotspotCluster[]>([]);
+  const [activeCandidates, setActiveCandidates] = useState<HotspotCluster[]>([]);
   const [atms, setAtms] = useState<ATMLocationItem[]>([]);
+  const [gisSummary, setGisSummary] = useState<any>(null);
   const [gisLoading, setGisLoading] = useState<boolean>(true);
+  const [gisApiError, setGisApiError] = useState<string | null>(null);
   const [mapHeight, setMapHeight] = useState<string>('620px');
 
   useEffect(() => {
@@ -71,13 +152,9 @@ export const RiskMap: React.FC = () => {
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
-  // Filters for Generic Hotspots
-  const [districtFilter, setDistrictFilter] = useState('ALL');
-  const [riskFilter, setRiskFilter] = useState('ALL');
-
   // Layer Toggles
   const [showPredictionZones, setShowPredictionZones] = useState<boolean>(true);
-  const [showHotspots, setShowHotspots] = useState<boolean>(false);
+  const [showHotspots, setShowHotspots] = useState<boolean>(true);
   const [showAtms, setShowAtms] = useState<boolean>(false);
 
   // 1. Initial Load: Fetch Complaints List from Real API
@@ -91,7 +168,7 @@ export const RiskMap: React.FC = () => {
         const paramId = searchParams.get('case') || searchParams.get('complaint');
 
         if (paramId) {
-          const inList = comps.find(c => c.complaint_number === paramId);
+          const inList = comps.find((c) => c.complaint_number === paramId);
           if (inList) {
             setSelectedComplaintId(paramId);
             setSelectedComplaint(inList);
@@ -128,27 +205,80 @@ export const RiskMap: React.FC = () => {
     loadComplaints();
   }, []);
 
-  // 2. Fetch Generic GIS Context (Clusters & ATMs)
+  // Sync Search Params when filters change
+  const syncParamsToUrl = (newParams: Record<string, string | undefined>) => {
+    const current: Record<string, string> = {};
+    searchParams.forEach((val, key) => {
+      current[key] = val;
+    });
+
+    Object.entries(newParams).forEach(([k, v]) => {
+      if (v && v !== 'ALL' && v !== '') {
+        current[k] = v;
+      } else {
+        delete current[k];
+      }
+    });
+
+    setSearchParams(current, { replace: true });
+  };
+
+  // 2. Fetch GIS Context with Multi-Dimensional Filters
   useEffect(() => {
+    // Client-side quick range validation
+    if (startTime && endTime) {
+      const s = new Date(startTime).getTime();
+      const e = new Date(endTime).getTime();
+      if (!isNaN(s) && !isNaN(e) && s > e) {
+        setFilterValidationError('Reversed time range: Start Time cannot be after End Time.');
+        return;
+      }
+    }
+    setFilterValidationError(null);
+
     const fetchGISContext = async () => {
       setGisLoading(true);
+      setGisApiError(null);
       try {
-        const data = await api.getRiskMap({
+        const queryParams = {
+          region_id: selectedRegionId,
           district: districtFilter !== 'ALL' ? districtFilter : undefined,
           risk_level: riskFilter !== 'ALL' ? riskFilter : undefined,
+          crime_category: crimeCategory !== 'ALL' ? crimeCategory : undefined,
+          time_basis: timeBasis,
+          start_time: startTime || undefined,
+          end_time: endTime || undefined,
+        };
+
+        const data: GISOverviewResponse = await api.getRiskMap(queryParams);
+        setHotspots(data.hotspots || []);
+        setActiveCandidates(data.active_candidates || data.hotspots?.filter((h) => h.is_active_candidate) || []);
+        setAtms(data.atms || []);
+        setGisSummary(data.summary || null);
+
+        // Update URL query params
+        syncParamsToUrl({
+          region_id: selectedRegionId,
+          district: districtFilter,
+          risk_level: riskFilter,
+          crime_category: crimeCategory,
+          time_basis: timeBasis !== 'predicted_window' ? timeBasis : undefined,
+          start_time: startTime || undefined,
+          end_time: endTime || undefined,
         });
-        setHotspots(data.hotspots);
-        setAtms(data.atms);
-      } catch (err) {
-        console.error('[GIS] Failed to load generic GIS context', err);
+      } catch (err: any) {
+        console.error('[GIS] Failed to load GIS context', err);
+        const detail = err.response?.data?.detail || 'Failed to fetch GIS risk map data.';
+        setGisApiError(detail);
       } finally {
         setGisLoading(false);
       }
     };
-    fetchGISContext();
-  }, [districtFilter, riskFilter]);
 
-  // 2b. Cluster URL Parameter Navigation & Validation (Requirement 10)
+    fetchGISContext();
+  }, [selectedRegionId, districtFilter, riskFilter, crimeCategory, timeBasis, startTime, endTime]);
+
+  // 2b. Cluster URL Parameter Navigation & Validation (Phase 3 & 4)
   useEffect(() => {
     const clusterParam = searchParams.get('cluster');
     if (clusterParam && hotspots.length > 0) {
@@ -183,7 +313,7 @@ export const RiskMap: React.FC = () => {
     }
   }, [searchParams, hotspots]);
 
-  // 3. Reactive Single Source of Truth: Fetch Persisted Prediction on Complaint Change (Requirement 2 & 19)
+  // 3. Reactive Single Source of Truth: Fetch Persisted Prediction on Complaint Change
   useEffect(() => {
     if (!selectedComplaintId) {
       setPredictionLoading(false);
@@ -191,16 +321,17 @@ export const RiskMap: React.FC = () => {
     }
     let cancelled = false;
 
-    // Update query param for deep linking / refresh stability (Requirement 22)
+    // Update query param for deep linking / refresh stability
     if (searchParams.get('case') !== selectedComplaintId) {
-      setSearchParams({ case: selectedComplaintId }, { replace: true });
+      syncParamsToUrl({ case: selectedComplaintId });
     }
 
-    const matchedComp = complaints.find(c => c.complaint_number === selectedComplaintId) || null;
+    const matchedComp = complaints.find((c) => c.complaint_number === selectedComplaintId) || null;
     if (matchedComp) {
       setSelectedComplaint(matchedComp);
     } else {
-      api.getComplaint(selectedComplaintId)
+      api
+        .getComplaint(selectedComplaintId)
         .then((comp) => {
           if (!cancelled && comp?.complaint_number) {
             setSelectedComplaint(comp);
@@ -212,7 +343,6 @@ export const RiskMap: React.FC = () => {
         .catch(() => {});
     }
 
-    // CRITICAL (Requirement 19): Clear previous prediction markers immediately before new fetch
     setPredictionLoading(true);
     setCurrentPrediction(null);
     setTopLocations([]);
@@ -221,7 +351,6 @@ export const RiskMap: React.FC = () => {
 
     const fetchPersistedPrediction = async () => {
       try {
-        // Read-only GET request strictly to Step-10 persisted prediction API
         const pred = await api.getPrediction(selectedComplaintId);
         if (cancelled) return;
         if (!pred) {
@@ -237,7 +366,6 @@ export const RiskMap: React.FC = () => {
         const locs = [...(pred.top_locations || [])].sort((a, b) => a.rank - b.rank).slice(0, 3);
         setTopLocations(locs);
 
-        // Verify Requirement 9: Prediction.primary_cluster_id == PredictionLocation rank=1 cluster_id
         if (pred.primary_cluster_id != null && locs.length > 0) {
           const rank1Cid = locs[0].cluster_id;
           if (rank1Cid != null && pred.primary_cluster_id !== rank1Cid) {
@@ -248,7 +376,6 @@ export const RiskMap: React.FC = () => {
         }
       } catch (err: any) {
         if (cancelled) return;
-        // 404 or Outside Scope Handling (Requirement 17)
         if (err?.response?.status === 404) {
           setPredictionError(
             `No persisted prediction found for ${selectedComplaintId}. This complaint may be outside the model's operational scope (Delhi Pilot).`
@@ -264,8 +391,48 @@ export const RiskMap: React.FC = () => {
     };
 
     fetchPersistedPrediction();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, [selectedComplaintId]);
+
+  // Quick Preset Helper Handlers
+  const handleQuickPreset = (preset: 'next2h' | 'next6h' | 'today' | 'all') => {
+    const now = new Date();
+    if (preset === 'next2h') {
+      const start = new Date(now.getTime());
+      const end = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+      setStartTime(start.toISOString().slice(0, 16));
+      setEndTime(end.toISOString().slice(0, 16));
+      setTimeBasis('predicted_window');
+    } else if (preset === 'next6h') {
+      const start = new Date(now.getTime());
+      const end = new Date(now.getTime() + 6 * 60 * 60 * 1000);
+      setStartTime(start.toISOString().slice(0, 16));
+      setEndTime(end.toISOString().slice(0, 16));
+      setTimeBasis('predicted_window');
+    } else if (preset === 'today') {
+      const start = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+      const end = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+      setStartTime(start.toISOString().slice(0, 16));
+      setEndTime(end.toISOString().slice(0, 16));
+    } else if (preset === 'all') {
+      setStartTime('');
+      setEndTime('');
+    }
+  };
+
+  const handleResetFilters = () => {
+    setTimeBasis('predicted_window');
+    setStartTime('');
+    setEndTime('');
+    setCrimeCategory('ALL');
+    setDistrictFilter('ALL');
+    setRiskFilter('ALL');
+    setFilterValidationError(null);
+    setGisApiError(null);
+    setSearchParams(selectedComplaintId ? { case: selectedComplaintId } : {}, { replace: true });
+  };
 
   const handleGenerateAlertFromMap = async () => {
     if (!currentPrediction?.prediction_id) return;
@@ -284,8 +451,15 @@ export const RiskMap: React.FC = () => {
   };
 
   const isTrained = currentPrediction?.prediction_mode === 'trained_ml';
-  const isDemo = currentPrediction?.prediction_mode === 'deterministic_demo';
   const highlightClusterName = topLocations.length > 0 ? topLocations[0].location_name : undefined;
+
+  const isFilterActive =
+    districtFilter !== 'ALL' ||
+    riskFilter !== 'ALL' ||
+    crimeCategory !== 'ALL' ||
+    timeBasis !== 'predicted_window' ||
+    Boolean(startTime) ||
+    Boolean(endTime);
 
   return (
     <div className="space-y-6 pb-12">
@@ -299,19 +473,41 @@ export const RiskMap: React.FC = () => {
             </h1>
           </div>
           <p className="text-xs text-slate-500 mt-0.5 font-sans">
-            Persisted Top-3 Cash-Out Intelligence & High-Risk Operational Zone Surveillance
+            Multi-Dimensional Cash-Out Surveillance, Time-Window Overlap & Interception Routing
           </p>
         </div>
 
-        {/* Dynamic Complaint Selector (Correction 2) */}
+        {/* Dynamic Selectors */}
         <div className="flex flex-wrap items-center gap-3">
+          {/* Geographic Region Selector (Phase 12) */}
           <div className="flex items-center space-x-2 bg-[#F6F8FC] px-3 py-1.5 rounded-md border border-[#DCE5F0] w-full sm:w-auto">
-            <span className="text-xs text-blue-700 font-semibold shrink-0">Case:</span>
+            <span className="text-xs text-blue-700 font-semibold shrink-0">Region:</span>
+            <select
+              value={selectedRegionId}
+              onChange={(e) => handleRegionChange(e.target.value)}
+              className="bg-transparent text-xs text-slate-800 focus:outline-none cursor-pointer font-medium w-full sm:max-w-[210px]"
+            >
+              {regions.length === 0 ? (
+                <option value="delhi">National Capital Territory of Delhi</option>
+              ) : (
+                regions.map((r) => (
+                  <option key={r.id} value={r.id} className="bg-white text-slate-800">
+                    {r.name} {r.is_synthetic ? '(Synthetic)' : ''}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          {/* Dynamic Complaint Selector */}
+          <div className="flex items-center space-x-2 bg-[#F6F8FC] px-3 py-1.5 rounded-md border border-[#DCE5F0] w-full sm:w-auto">
+            <span className="text-xs text-blue-700 font-semibold shrink-0">Active Case:</span>
             <select
               value={selectedComplaintId}
               onChange={(e) => setSelectedComplaintId(e.target.value)}
               className="bg-transparent text-xs text-slate-800 focus:outline-none cursor-pointer font-medium w-full sm:max-w-[220px]"
             >
+              <option value="" className="bg-white text-slate-500">-- Overview (No Single Case) --</option>
               {selectedComplaintId && !complaints.some((c) => c.complaint_number === selectedComplaintId) && (
                 <option value={selectedComplaintId} className="bg-white text-slate-800">
                   {selectedComplaint
@@ -347,7 +543,7 @@ export const RiskMap: React.FC = () => {
                   : 'bg-white text-slate-600 border-[#DCE5F0] hover:bg-slate-50'
               }`}
             >
-              Hotspot Clusters
+              Hotspot Clusters ({hotspots.length})
             </button>
             <button
               onClick={() => setShowAtms(!showAtms)}
@@ -357,13 +553,284 @@ export const RiskMap: React.FC = () => {
                   : 'bg-white text-slate-600 border-[#DCE5F0] hover:bg-slate-50'
               }`}
             >
-              Prototype ATMs
+              Prototype ATMs ({atms.length})
             </button>
           </div>
         </div>
       </div>
 
-      {/* Cluster Navigation Feedback Alerts (Requirement 10) */}
+      {/* Region Operational Scope & Validation Status Banner (Phase 12) */}
+      {currentRegion && (
+        <div
+          className={`p-3.5 rounded-lg border text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs ${
+            currentRegion.model_support_status === 'MODEL_SUPPORTED'
+              ? 'bg-blue-50/80 border-blue-200 text-blue-900'
+              : currentRegion.model_support_status === 'VALIDATION_PENDING'
+              ? 'bg-amber-50 border-amber-300 text-amber-900'
+              : 'bg-red-50 border-red-200 text-red-900'
+          }`}
+        >
+          <div className="flex items-start sm:items-center space-x-2.5">
+            {currentRegion.model_support_status === 'MODEL_SUPPORTED' ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5 sm:mt-0" />
+            ) : (
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+            )}
+            <div>
+              <span className="font-bold">
+                {currentRegion.name} ({currentRegion.catalog_version}):{' '}
+              </span>
+              <span>
+                {currentRegion.model_support_status === 'MODEL_SUPPORTED'
+                  ? `Production Qualified (${currentRegion.supported_model_version}). 100% operational prediction support.`
+                  : currentRegion.model_support_status === 'VALIDATION_PENDING'
+                  ? `Geographic Validation Pending (${currentRegion.is_synthetic ? 'Synthetic MMR Fixture' : 'Catalog Fixture'}). Operational predictions disabled until ground-truth dataset and promotion gates pass.`
+                  : 'Predictions unsupported for this region.'}
+              </span>
+            </div>
+          </div>
+          <div className="text-[11px] text-slate-500 shrink-0 font-mono">
+            {currentRegion.total_clusters} Clusters | {currentRegion.total_atms} Reference ATMs | Radius: {currentRegion.cluster_radius_km}km
+          </div>
+        </div>
+      )}
+
+      {/* Multi-Dimensional Filter Control Bar (Phase 4) */}
+      <div className="p-4 bg-white rounded-lg border border-[#DCE5F0] shadow-xs space-y-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <SlidersHorizontal className="w-4 h-4 text-blue-600" />
+            <h2 className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+              Surveillance Filters & Time Basis
+            </h2>
+            {isFilterActive && (
+              <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                Filters Active
+              </span>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            {isFilterActive && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                className="px-2.5 py-1 text-xs font-medium text-slate-600 hover:text-red-600 hover:bg-red-50 rounded border border-[#DCE5F0] transition-colors flex items-center space-x-1 cursor-pointer"
+              >
+                <RotateCcw className="w-3 h-3" />
+                <span>Reset Filters</span>
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => setShowFilterPanel(!showFilterPanel)}
+              className="p-1 text-slate-400 hover:text-slate-600 rounded"
+            >
+              {showFilterPanel ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+          </div>
+        </div>
+
+        {showFilterPanel && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-3 pt-2 border-t border-[#DCE5F0] text-xs">
+            {/* 1. Time Basis Filter */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 flex items-center space-x-1">
+                <Clock className="w-3 h-3 text-blue-600" />
+                <span>Time Basis:</span>
+              </label>
+              <select
+                value={timeBasis}
+                onChange={(e) => setTimeBasis(e.target.value)}
+                className="w-full bg-[#F6F8FC] border border-[#DCE5F0] rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500 font-medium"
+              >
+                <option value="predicted_window">Predicted Window (Default)</option>
+                <option value="complaint_time">Complaint Ingest Time</option>
+                <option value="incident_time">Incident Occurred Time</option>
+              </select>
+            </div>
+
+            {/* 2. Start Time */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 flex items-center space-x-1">
+                <Calendar className="w-3 h-3 text-blue-600" />
+                <span>From (IST / ISO):</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full bg-[#F6F8FC] border border-[#DCE5F0] rounded px-2 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* 3. End Time */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 flex items-center space-x-1">
+                <Calendar className="w-3 h-3 text-blue-600" />
+                <span>To (IST / ISO):</span>
+              </label>
+              <input
+                type="datetime-local"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full bg-[#F6F8FC] border border-[#DCE5F0] rounded px-2 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* 4. Crime Category */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 flex items-center space-x-1">
+                <Shield className="w-3 h-3 text-blue-600" />
+                <span>Crime Category:</span>
+              </label>
+              <select
+                value={crimeCategory}
+                onChange={(e) => setCrimeCategory(e.target.value)}
+                className="w-full bg-[#F6F8FC] border border-[#DCE5F0] rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              >
+                {CRIME_CATEGORIES.map((cat) => (
+                  <option key={cat} value={cat}>
+                    {cat}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 5. District Filter */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 flex items-center space-x-1">
+                <MapPin className="w-3 h-3 text-blue-600" />
+                <span>District:</span>
+              </label>
+              <select
+                value={districtFilter}
+                onChange={(e) => setDistrictFilter(e.target.value)}
+                className="w-full bg-[#F6F8FC] border border-[#DCE5F0] rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              >
+                {availableDistricts.map((dist) => (
+                  <option key={dist} value={dist}>
+                    {dist === 'ALL' ? 'All Districts' : dist}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* 6. Risk Level */}
+            <div className="space-y-1">
+              <label className="text-[11px] font-semibold text-slate-700 flex items-center space-x-1">
+                <AlertTriangle className="w-3 h-3 text-blue-600" />
+                <span>Risk Level:</span>
+              </label>
+              <select
+                value={riskFilter}
+                onChange={(e) => setRiskFilter(e.target.value)}
+                className="w-full bg-[#F6F8FC] border border-[#DCE5F0] rounded px-2.5 py-1.5 text-xs text-slate-800 focus:outline-none focus:border-blue-500"
+              >
+                <option value="ALL">All Risk Levels</option>
+                <option value="CRITICAL">CRITICAL</option>
+                <option value="HIGH">HIGH</option>
+                <option value="MEDIUM">MEDIUM</option>
+                <option value="LOW">LOW</option>
+              </select>
+            </div>
+          </div>
+        )}
+
+        {/* Quick Time Window Presets Bar */}
+        {showFilterPanel && (
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-100 text-[11px]">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="text-slate-500 font-medium">Quick Time Windows:</span>
+              <button
+                type="button"
+                onClick={() => handleQuickPreset('next2h')}
+                className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 rounded text-slate-700 font-medium transition-colors"
+              >
+                Next 2 Hours
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickPreset('next6h')}
+                className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 rounded text-slate-700 font-medium transition-colors"
+              >
+                Next 6 Hours
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickPreset('today')}
+                className="px-2 py-0.5 bg-slate-100 hover:bg-blue-50 hover:text-blue-700 border border-slate-200 rounded text-slate-700 font-medium transition-colors"
+              >
+                Today (24h)
+              </button>
+              <button
+                type="button"
+                onClick={() => handleQuickPreset('all')}
+                className="px-2 py-0.5 bg-slate-100 hover:bg-slate-200 border border-slate-200 rounded text-slate-700 font-medium transition-colors"
+              >
+                All Windows
+              </button>
+            </div>
+
+            <div className="text-slate-400 italic">
+              Basis: <strong className="text-slate-700 not-italic">{timeBasis === 'predicted_window' ? 'Predicted Window Overlap (Default)' : timeBasis === 'complaint_time' ? 'Complaint Reporting Time' : 'Incident Occurrence Time'}</strong>
+            </div>
+          </div>
+        )}
+
+        {/* Validation or API Error Alerts */}
+        {filterValidationError && (
+          <div className="p-2.5 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-center space-x-2">
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+            <span>{filterValidationError}</span>
+          </div>
+        )}
+
+        {gisApiError && (
+          <div className="p-2.5 bg-amber-50 border border-amber-200 rounded text-xs text-amber-800 flex items-center space-x-2">
+            <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+            <span>{gisApiError}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Global Deduplicated GIS KPI Stats Banner */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="p-3 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
+          <div className="text-[10px] uppercase font-bold text-slate-500">Active Candidate Clusters</div>
+          <div className="text-xl font-bold text-amber-600 mt-0.5">
+            {gisSummary?.total_active_candidates ?? activeCandidates.length}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-0.5">With active case routing</div>
+        </div>
+
+        <div className="p-3 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
+          <div className="text-[10px] uppercase font-bold text-slate-500">Total Monitored Hotspots</div>
+          <div className="text-xl font-bold text-[#173A63] mt-0.5">
+            {gisSummary?.total_hotspots ?? hotspots.length}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-0.5">
+            {gisSummary?.total_historical_hotspots ?? hotspots.filter((h) => !h.is_active_candidate).length} baseline
+          </div>
+        </div>
+
+        <div className="p-3 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
+          <div className="text-[10px] uppercase font-bold text-slate-500">Unique Active Cases</div>
+          <div className="text-xl font-bold text-blue-600 mt-0.5">
+            {gisSummary?.total_unique_active_cases ?? '—'}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Globally deduplicated</div>
+        </div>
+
+        <div className="p-3 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
+          <div className="text-[10px] uppercase font-bold text-slate-500">Associated Active Exposure</div>
+          <div className="text-xl font-bold text-red-600 mt-0.5">
+            ₹{Number(gisSummary?.total_associated_amount || 0).toLocaleString('en-IN')}
+          </div>
+          <div className="text-[10px] text-slate-400 mt-0.5">Deduplicated complaint sums</div>
+        </div>
+      </div>
+
+      {/* Cluster Navigation Feedback Alerts */}
       {clusterNotice && (
         <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg text-xs text-blue-800 flex items-center justify-between">
           <div className="flex items-center space-x-2">
@@ -373,7 +840,7 @@ export const RiskMap: React.FC = () => {
           <button
             type="button"
             onClick={() => setClusterNotice(null)}
-            className="text-blue-600 hover:text-blue-800 font-bold ml-2 text-sm leading-none"
+            className="text-blue-600 hover:text-blue-800 font-bold ml-2 text-sm leading-none cursor-pointer"
           >
             ×
           </button>
@@ -389,7 +856,7 @@ export const RiskMap: React.FC = () => {
           <button
             type="button"
             onClick={() => setClusterError(null)}
-            className="text-amber-600 hover:text-amber-800 font-bold ml-2 text-sm leading-none"
+            className="text-amber-600 hover:text-amber-800 font-bold ml-2 text-sm leading-none cursor-pointer"
           >
             ×
           </button>
@@ -409,6 +876,7 @@ export const RiskMap: React.FC = () => {
             height={mapHeight}
             highlightCluster={selectedCluster?.cluster_name || highlightClusterName}
             selectedClusterId={selectedClusterId}
+            regionCenter={currentRegion?.center}
           />
           <div className="mt-3 flex flex-wrap items-center justify-between text-[11px] text-slate-500 px-2">
             <span>
@@ -422,7 +890,7 @@ export const RiskMap: React.FC = () => {
           </div>
         </div>
 
-        {/* Selected Prediction Intelligence Panel (Requirement 6) */}
+        {/* Selected Prediction Intelligence Panel */}
         <div className="lg:col-span-4 space-y-4">
           <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
             {/* Panel Header */}
@@ -457,7 +925,7 @@ export const RiskMap: React.FC = () => {
             ) : currentPrediction ? (
               /* Success State: Render Persisted Prediction Details */
               <div className="space-y-4">
-                {/* Provenance Header (Section 28) */}
+                {/* Provenance Header */}
                 <div className="p-3 bg-[#F6F8FC] rounded-lg border border-[#DCE5F0] space-y-2 text-xs">
                   <div className="text-[10px] font-bold text-slate-500 uppercase tracking-wider pb-1 border-b border-[#DCE5F0]">
                     Prediction Metadata
@@ -488,7 +956,9 @@ export const RiskMap: React.FC = () => {
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-slate-500">Time Model:</span>
-                    <span className="text-slate-700 font-mono">{currentPrediction.time_prediction?.model_version || (currentPrediction as any).time_model_version || 'unavailable'}</span>
+                    <span className="text-slate-700 font-mono">
+                      {currentPrediction.time_prediction?.model_version || (currentPrediction as any).time_model_version || 'unavailable'}
+                    </span>
                   </div>
                   <div className="pt-2 border-t border-[#DCE5F0]">
                     <div className="text-slate-500 mb-1">Predicted time window</div>
@@ -496,7 +966,7 @@ export const RiskMap: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Top-3 Locations Breakdown (Section 28) */}
+                {/* Top-3 Locations Breakdown */}
                 <div className="space-y-2.5">
                   <div>
                     <h4 className="text-xs font-bold text-slate-700 uppercase">
@@ -635,7 +1105,7 @@ export const RiskMap: React.FC = () => {
                 </div>
               </div>
             ) : selectedCluster && !selectedComplaintId ? (
-              /* Cluster Focus Panel (Phase 3 Requirement 10) */
+              /* Cluster Focus Panel */
               <div className="space-y-4">
                 <div className="p-3 bg-[#F6F8FC] rounded-lg border border-[#DCE5F0]">
                   <div className="flex items-center justify-between mb-2">
@@ -730,36 +1200,173 @@ export const RiskMap: React.FC = () => {
                 )}
               </div>
             ) : (
-              /* Outside Scope / Unavailable State (Requirement 17) */
+              /* Outside Scope / Overview State */
               <div className="py-8 px-4 text-center space-y-3">
-                <AlertCircle className="w-8 h-8 text-amber-500 mx-auto" />
-                <h4 className="text-sm font-bold text-slate-900">Prediction Unavailable</h4>
+                <Compass className="w-8 h-8 text-blue-500 mx-auto" />
+                <h4 className="text-sm font-bold text-slate-900">
+                  {selectedComplaintId ? 'Prediction Unavailable' : 'Surveillance Overview'}
+                </h4>
                 <div className="text-xs text-slate-500 leading-relaxed">
-                  {predictionError || 'No persisted prediction found for this complaint.'}
+                  {selectedComplaintId
+                    ? predictionError || 'No persisted prediction found for this complaint.'
+                    : 'Select a case from the top selector or click an active candidate cluster below to focus tactical intelligence.'}
                 </div>
-                {selectedComplaintId && <button onClick={() => navigate(`/cases/${selectedComplaintId}`)} className="px-3 py-2 bg-blue-600 text-white rounded text-xs font-semibold">Open case and run analysis</button>}
-                <div className="p-3 bg-[#F6F8FC] rounded-lg border border-[#DCE5F0] text-[11px] text-slate-600 text-left space-y-1">
-                  <div className="pb-1 mb-1 border-b border-[#DCE5F0] font-semibold text-slate-700">
-                    Model Provenance
-                  </div>
-                  <div><span className="text-slate-500">Prediction Mode:</span> <strong className="text-slate-800 font-mono">unavailable</strong></div>
-                  <div><span className="text-slate-500">Location Model:</span> <strong className="text-slate-800 font-mono">unavailable</strong></div>
-                  <div><span className="text-slate-500">Time Model:</span> <strong className="text-slate-800 font-mono">unavailable</strong></div>
-                  <div className="pt-1"><strong className="text-slate-800">Operational Jurisdiction:</strong> Delhi Pilot (60 Clusters)</div>
-                  {selectedComplaint && (
-                    <>
-                      <div><strong className="text-slate-800">Reported State:</strong> {selectedComplaint.state || 'Unknown'}</div>
-                      <div><strong className="text-slate-800">Reported District:</strong> {selectedComplaint.district || 'Unknown'}</div>
-                    </>
-                  )}
-                  <div className="text-amber-700 text-[10px] pt-1">
-                    Zero prediction markers rendered to maintain strict model integrity.
-                  </div>
-                </div>
+                {selectedComplaintId && (
+                  <button
+                    onClick={() => navigate(`/cases/${selectedComplaintId}`)}
+                    className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs font-semibold"
+                  >
+                    Open Case Intelligence
+                  </button>
+                )}
               </div>
             )}
           </div>
         </div>
+      </div>
+
+      {/* Active Interception Clusters Table (Phase 4) */}
+      <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#DCE5F0]">
+          <div>
+            <h3 className="text-sm font-bold text-[#173A63] flex items-center gap-2">
+              <Shield className="w-4 h-4 text-blue-600" />
+              <span>Surveillance Clusters ({hotspots.length} Scoped Results)</span>
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Filtered by: {timeBasis} • Category: {crimeCategory} • District: {districtFilter}
+            </p>
+          </div>
+          <div className="text-xs text-slate-500">
+            Showing <strong className="text-amber-600">{activeCandidates.length} Active Candidates</strong> and{' '}
+            <strong className="text-slate-700">{hotspots.length - activeCandidates.length} Baseline Hotspots</strong>
+          </div>
+        </div>
+
+        {gisLoading ? (
+          <div className="text-center py-8">
+            <Activity className="w-6 h-6 text-blue-600 animate-spin mx-auto mb-2" />
+            <span className="text-xs text-slate-500">Updating geospatial clusters...</span>
+          </div>
+        ) : hotspots.length === 0 ? (
+          <div className="text-center py-8 text-slate-500 text-xs">
+            No clusters match the current filter criteria. Try expanding the time window or resetting filters.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs text-slate-600 border-collapse">
+              <thead>
+                <tr className="bg-[#F6F8FC] border-b border-[#DCE5F0] text-[11px] font-bold text-slate-700 uppercase">
+                  <th className="py-2.5 px-3">Type</th>
+                  <th className="py-2.5 px-3">Cluster Name</th>
+                  <th className="py-2.5 px-3">District</th>
+                  <th className="py-2.5 px-3">Risk Level</th>
+                  <th className="py-2.5 px-3">Priority</th>
+                  <th className="py-2.5 px-3 text-right">Active Cases</th>
+                  <th className="py-2.5 px-3 text-right">Exposure (₹)</th>
+                  <th className="py-2.5 px-3">Interception Window (IST)</th>
+                  <th className="py-2.5 px-3">Linked Cases</th>
+                  <th className="py-2.5 px-3 text-center">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {hotspots.map((cluster) => {
+                  const isSelected = selectedClusterId === cluster.id;
+                  return (
+                    <tr
+                      key={cluster.id}
+                      className={`hover:bg-slate-50/80 transition-colors ${
+                        isSelected ? 'bg-blue-50/60 font-medium' : ''
+                      }`}
+                    >
+                      <td className="py-2 px-3">
+                        <span
+                          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+                            cluster.is_active_candidate
+                              ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                              : 'bg-slate-100 text-slate-600 border border-slate-200'
+                          }`}
+                        >
+                          {cluster.is_active_candidate ? 'Active' : 'Baseline'}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-semibold text-slate-900">
+                        {cluster.cluster_name}
+                      </td>
+                      <td className="py-2 px-3 text-slate-600">{cluster.district}</td>
+                      <td className="py-2 px-3">
+                        <span
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                            cluster.risk_level === 'CRITICAL'
+                              ? 'bg-red-50 text-red-700 border border-red-200'
+                              : cluster.risk_level === 'HIGH'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          {cluster.risk_level}
+                        </span>
+                      </td>
+                      <td className="py-2 px-3 font-semibold text-slate-700">
+                        {cluster.operational_priority || 'STANDARD'}
+                      </td>
+                      <td className="py-2 px-3 text-right font-bold text-slate-800">
+                        {cluster.active_cases || 0}
+                      </td>
+                      <td className="py-2 px-3 text-right font-bold text-red-600">
+                        ₹{Number(cluster.associated_complaint_amount || 0).toLocaleString('en-IN')}
+                      </td>
+                      <td className="py-2 px-3 text-[11px] text-slate-600">
+                        {cluster.expected_window || 'Baseline surveillance'}
+                      </td>
+                      <td className="py-2 px-3">
+                        {cluster.linked_complaint_numbers && cluster.linked_complaint_numbers.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {cluster.linked_complaint_numbers.slice(0, 3).map((cNum) => (
+                              <button
+                                key={cNum}
+                                onClick={() => setSelectedComplaintId(cNum)}
+                                className="px-1.5 py-0.5 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded text-[10px] font-mono border border-blue-200"
+                              >
+                                {cNum}
+                              </button>
+                            ))}
+                            {cluster.linked_complaint_numbers.length > 3 && (
+                              <span className="text-[10px] text-slate-400">
+                                +{cluster.linked_complaint_numbers.length - 3} more
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="py-2 px-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedClusterId(cluster.id);
+                            setSelectedCluster(cluster);
+                            if (cluster.linked_complaint_numbers && cluster.linked_complaint_numbers.length > 0) {
+                              setSelectedComplaintId(cluster.linked_complaint_numbers[0]);
+                            } else {
+                              setSelectedComplaintId('');
+                              setSelectedComplaint(null);
+                            }
+                            syncParamsToUrl({ cluster: String(cluster.id) });
+                          }}
+                          className="px-2 py-1 bg-white hover:bg-blue-50 text-blue-700 border border-[#DCE5F0] rounded text-xs font-semibold transition-colors"
+                        >
+                          Focus
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

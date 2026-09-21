@@ -39,21 +39,24 @@ logger = logging.getLogger("cybershield.ml_feature_service")
 
 
 def _complaint_to_dict(complaint: Complaint) -> Dict[str, Any]:
-    """Converts a SQLAlchemy Complaint model instance into a safe dictionary with deterministic Delhi origin."""
+    """Converts a SQLAlchemy Complaint model instance into a safe dictionary with deterministic origin resolution."""
     inc_dt = getattr(complaint, "incident_time", None) or getattr(complaint, "incident_timestamp", None)
     rep_dt = getattr(complaint, "reported_at", None)
 
-    # Deterministic Delhi Origin Resolution if coordinates or zone need resolution
     v_lat = float(complaint.victim_lat) if complaint.victim_lat is not None else None
     v_lon = float(complaint.victim_lon) if complaint.victim_lon is not None else None
     v_dist = getattr(complaint, "victim_district", None) or getattr(complaint, "district", None)
     locality_str = getattr(complaint, "locality", None) or getattr(complaint, "victim_location", None) or ""
+    c_state = getattr(complaint, "victim_state", None) or getattr(complaint, "state", None) or "Delhi"
+    region_id = getattr(complaint, "region_id", None) or ("delhi" if str(c_state).strip().lower() in ("delhi", "new delhi") else None)
 
-    origin_res = resolve_delhi_origin(locality=locality_str, district=v_dist, lat=v_lat, lon=v_lon)
-    if origin_res["resolved_district"] is not None:
-        v_dist = origin_res["resolved_district"]
-    if v_lat is None or v_lon is None:
-        v_lat, v_lon = origin_res["resolved_lat"], origin_res["resolved_lon"]
+    # For Delhi cases, execute deterministic Delhi origin resolution
+    if region_id == "delhi" or str(c_state).strip().lower() in ("delhi", "new delhi"):
+        origin_res = resolve_delhi_origin(locality=locality_str, district=v_dist, lat=v_lat, lon=v_lon)
+        if origin_res["resolved_district"] is not None:
+            v_dist = origin_res["resolved_district"]
+        if v_lat is None or v_lon is None:
+            v_lat, v_lon = origin_res["resolved_lat"], origin_res["resolved_lon"]
 
     return {
         "complaint_id": complaint.id,
@@ -65,55 +68,95 @@ def _complaint_to_dict(complaint: Complaint) -> Dict[str, Any]:
         "incident_time": inc_dt.isoformat() if inc_dt else None,
         "reported_at": rep_dt.isoformat() if rep_dt else None,
         "complaint_timestamp": rep_dt.isoformat() if rep_dt else None,
-        "victim_state": getattr(complaint, "victim_state", None) or getattr(complaint, "state", None) or "Delhi",
+        "victim_state": c_state,
         "victim_district": v_dist,
-        "victim_city": getattr(complaint, "victim_city", None) or getattr(complaint, "victim_location", None) or "Delhi",
+        "victim_city": getattr(complaint, "victim_city", None) or getattr(complaint, "victim_location", None) or c_state,
         "victim_lat": v_lat,
         "victim_lon": v_lon,
+        "region_id": region_id,
         "status": getattr(complaint, "status", None) or getattr(complaint, "case_status", None),
         "risk_score": float(complaint.risk_score) if complaint.risk_score is not None else None,
         "risk_level": complaint.risk_level
     }
 
 
-def _load_clusters_from_db(db: Session) -> List[Dict[str, Any]]:
-    """Loads Delhi pilot location clusters strictly (excludes legacy MP clusters)."""
-    clusters = (
-        db.query(LocationCluster)
-        .filter((func.lower(LocationCluster.state) == "delhi") | (func.lower(LocationCluster.city) == "delhi"))
-        .order_by(LocationCluster.id.asc())
-        .all()
-    )
-    res = []
-    for c in clusters:
-        if c.center_lat is None or c.center_lon is None:
-            continue
-        lat, lon = float(c.center_lat), float(c.center_lon)
-        if not (math.isfinite(lat) and math.isfinite(lon) and 28.38 <= lat <= 28.92 and 76.80 <= lon <= 77.45):
-            continue
-        res.append({
-            "id": c.id,
-            "name": c.cluster_name,
-            "city": c.city or "Delhi",
-            "state": c.state or "Delhi",
-            "district": c.district,
-            "zone": c.district,
-            "lat": lat,
-            "lon": lon,
-            "atm_density": float(c.atm_count or 0),
-            "base_risk": float(c.risk_score or 0.0),
-            "historical_cashout_count": float(c.historical_fraud_count or 0),
-            # This legacy feature is a synthetic training proxy, not a measured total.
-            "historical_cashout_amount": float(c.historical_fraud_count or 0) * 50000.0
-        })
-    return res
+def _load_clusters_from_db(db: Session, region_id: str = "delhi") -> List[Dict[str, Any]]:
+    """
+    Loads location clusters for a specific region.
+    For Delhi (region_id='delhi'), strictly preserves the 60 Delhi pilot clusters and bounds.
+    For non-Delhi regions, queries clusters registered under that region_id.
+    """
+    if region_id == "delhi":
+        clusters = (
+            db.query(LocationCluster)
+            .filter(
+                (LocationCluster.region_id == "delhi") |
+                (func.lower(LocationCluster.state) == "delhi") |
+                (func.lower(LocationCluster.city) == "delhi")
+            )
+            .order_by(LocationCluster.id.asc())
+            .all()
+        )
+        res = []
+        for c in clusters:
+            if c.center_lat is None or c.center_lon is None:
+                continue
+            lat, lon = float(c.center_lat), float(c.center_lon)
+            # Exact Delhi territorial bounding box
+            if not (math.isfinite(lat) and math.isfinite(lon) and 28.38 <= lat <= 28.92 and 76.80 <= lon <= 77.45):
+                continue
+            res.append({
+                "id": c.id,
+                "name": c.cluster_name,
+                "city": c.city or "Delhi",
+                "state": c.state or "Delhi",
+                "district": c.district,
+                "zone": c.district,
+                "lat": lat,
+                "lon": lon,
+                "atm_density": float(c.atm_count or 0),
+                "base_risk": float(c.risk_score or 0.0),
+                "historical_cashout_count": float(c.historical_fraud_count or 0),
+                "historical_cashout_amount": float(c.historical_fraud_count or 0) * 50000.0
+            })
+        return res
+    else:
+        clusters = (
+            db.query(LocationCluster)
+            .filter(LocationCluster.region_id == region_id)
+            .order_by(LocationCluster.id.asc())
+            .all()
+        )
+        res = []
+        for c in clusters:
+            if c.center_lat is None or c.center_lon is None:
+                continue
+            lat, lon = float(c.center_lat), float(c.center_lon)
+            if not (math.isfinite(lat) and math.isfinite(lon)):
+                continue
+            res.append({
+                "id": c.id,
+                "name": c.cluster_name,
+                "city": c.city or "",
+                "state": c.state or "",
+                "district": c.district,
+                "zone": c.district,
+                "lat": lat,
+                "lon": lon,
+                "atm_density": float(c.atm_count or 0),
+                "base_risk": float(c.risk_score or 0.0),
+                "historical_cashout_count": float(c.historical_fraud_count or 0),
+                "historical_cashout_amount": float(c.historical_fraud_count or 0) * 50000.0
+            })
+        return res
 
 
 def build_location_features(
     db: Session,
     complaint_id: int,
     top_k: int = 25,
-    model_version: str = "v3.1"
+    model_version: str = "v3.1",
+    analysis_as_of: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
     Builds the candidate matrix for a given complaint.
@@ -139,7 +182,7 @@ def build_location_features(
     comp_dict = _complaint_to_dict(complaint)
 
     # 1. Step 6 Transaction Context
-    context = resolve_transaction_context(db, complaint)
+    context = resolve_transaction_context(db, complaint, analysis_as_of=analysis_as_of)
     transactions = context.get("transactions", [])
     context_type = context.get("context_type", "EMPTY")
     source_scenario = context.get("source_scenario")
@@ -166,12 +209,32 @@ def build_location_features(
                 if acc.district:
                     all_tx_zones.add(str(acc.district))
 
-    # 2. Step 7 Dynamic NetworkX Graph
-    graph_data = build_complaint_graph(db, complaint_id)
+    # 2. Step 7 Dynamic NetworkX Graph (strictly include_outcomes=False for prediction features)
+    graph_data = build_complaint_graph(db, complaint_id, analysis_as_of=analysis_as_of, include_outcomes=False)
     graph_metrics = graph_data.get("metrics", {})
 
     # 3. Spatial Candidate Generation (Zero Target Prior)
-    db_clusters = _load_clusters_from_db(db)
+    region_id = comp_dict.get("region_id") or "delhi"
+    if region_id != "delhi":
+        from backend.app.services.geography_catalog_service import get_region_by_id
+        r_obj = get_region_by_id(db, region_id)
+        if not r_obj or r_obj.model_support_status != "MODEL_SUPPORTED":
+            return {
+                "status": "UNSUPPORTED_REGION",
+                "feature_names": selected_feature_names,
+                "feature_count": len(selected_feature_names),
+                "candidate_rows": np.empty((0, len(selected_feature_names)), dtype=np.float32),
+                "candidates": [],
+                "missing_features": ["candidates"],
+                "provenance": {
+                    "complaint_id": complaint_id,
+                    "region_id": region_id,
+                    "error": f"Model inference unsupported for region '{region_id}'."
+                },
+                "model_contract_version": model_version
+            }
+
+    db_clusters = _load_clusters_from_db(db, region_id=region_id)
     cand_gen = CandidateLocationGenerator(clusters=db_clusters)
     if model_version == "v3.1":
         candidates = cand_gen.generate_candidates_for_complaint(
@@ -257,7 +320,8 @@ def build_location_features(
 
 def build_time_features(
     db: Session,
-    complaint_id: int
+    complaint_id: int,
+    analysis_as_of: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
     Builds the 20-feature Time Model V2 vector for a given complaint.
@@ -287,13 +351,13 @@ def build_time_features(
     comp_dict = _complaint_to_dict(complaint)
 
     # 1. Step 6 Transaction Context
-    context = resolve_transaction_context(db, complaint)
+    context = resolve_transaction_context(db, complaint, analysis_as_of=analysis_as_of)
     transactions = context.get("transactions", [])
     context_type = context.get("context_type", "EMPTY")
     source_scenario = context.get("source_scenario")
 
-    # 2. Step 7 Dynamic NetworkX Graph
-    graph_data = build_complaint_graph(db, complaint_id)
+    # 2. Step 7 Dynamic NetworkX Graph (strictly include_outcomes=False for prediction features)
+    graph_data = build_complaint_graph(db, complaint_id, analysis_as_of=analysis_as_of, include_outcomes=False)
     graph_metrics = graph_data.get("metrics", {})
 
     # 3. Multimodal Time Feature Extraction
@@ -319,7 +383,8 @@ def build_time_features(
         "source_scenario": source_scenario,
         "transaction_count": len(transactions),
         "graph_node_count": graph_metrics.get("node_count", 0),
-        "graph_edge_count": graph_metrics.get("edge_count", 0)
+        "graph_edge_count": graph_metrics.get("edge_count", 0),
+        "analysis_as_of": context.get("analysis_as_of")
     }
 
     return {
@@ -336,11 +401,12 @@ def build_time_features(
 def build_multimodal_features(
     db: Session,
     complaint_id: int,
-    top_k: int = 25
+    top_k: int = 25,
+    analysis_as_of: Optional[Any] = None
 ) -> Dict[str, Any]:
     """Convenience wrapper returning both Location V3 and Time V2 feature payloads."""
-    loc_res = build_location_features(db, complaint_id, top_k=top_k)
-    time_res = build_time_features(db, complaint_id)
+    loc_res = build_location_features(db, complaint_id, top_k=top_k, analysis_as_of=analysis_as_of)
+    time_res = build_time_features(db, complaint_id, analysis_as_of=analysis_as_of)
     return {
         "location": loc_res,
         "time": time_res

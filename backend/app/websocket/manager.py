@@ -15,12 +15,16 @@ class ConnectionInfo:
         role: Optional[str] = None,
         state: Optional[str] = None,
         district: Optional[str] = None,
+        organization_id: Optional[int] = None,
+        organization_type: Optional[str] = None,
     ):
         self.websocket = websocket
         self.user_id = user_id
-        self.role = role.upper() if role else "ANALYST"
+        self.role = role.upper() if role else "UNKNOWN"
         self.state = state
         self.district = district
+        self.organization_id = organization_id
+        self.organization_type = (organization_type or "").upper() or None
         self.connected_at = datetime.now(timezone.utc)
 
 
@@ -40,6 +44,7 @@ class ConnectionManager:
         role = getattr(user, "role", None)
         state = getattr(user, "state", None)
         district = getattr(user, "district", None)
+        organization = getattr(user, "organization", None)
 
         conn_info = ConnectionInfo(
             websocket=websocket,
@@ -47,6 +52,8 @@ class ConnectionManager:
             role=role,
             state=state,
             district=district,
+            organization_id=getattr(user, "organization_id", None),
+            organization_type=getattr(organization, "org_type", None),
         )
         self._connections.append(conn_info)
         logger.info(
@@ -67,6 +74,7 @@ class ConnectionManager:
         target_state: Optional[str],
         target_district: Optional[str],
         required_roles: Optional[List[str]],
+        target_organization_ids: Optional[List[int]],
     ) -> bool:
         """Evaluates whether an event should be delivered to a connection based on jurisdiction & RBAC."""
         # 1. Role requirement check
@@ -75,9 +83,25 @@ class ConnectionManager:
             if conn.role not in normalized_roles:
                 return False
 
-        # National / Auditor roles can see all events
-        if conn.role in ("I4C_ADMIN", "ADMIN", "AUDITOR"):
+        if conn.role in ("UNKNOWN", "ADMIN"):
+            return False
+
+        # National access is explicit; auditors receive only events that explicitly
+        # include AUDITOR in required_roles.
+        if conn.role == "I4C_ADMIN":
             return True
+        if conn.role in ("ANALYST", "AUDITOR") and conn.organization_type == "I4C":
+            return True
+
+        if conn.role == "BANK_OFFICER":
+            return bool(
+                target_organization_ids
+                and conn.organization_id in target_organization_ids
+            )
+
+        # An untargeted operational event is never broadcast broadly.
+        if not target_state and not target_organization_ids:
+            return False
 
         # 2. State jurisdiction check
         if target_state:
@@ -101,6 +125,7 @@ class ConnectionManager:
         target_state: Optional[str] = None,
         target_district: Optional[str] = None,
         required_roles: Optional[List[str]] = None,
+        target_organization_ids: Optional[List[int]] = None,
     ):
         """
         Broadcasts message to authorized connected clients with per-connection error isolation
@@ -116,7 +141,9 @@ class ConnectionManager:
         payload = json.dumps(message)
 
         for conn in list(self._connections):
-            if not self._should_deliver(conn, target_state, target_district, required_roles):
+            if not self._should_deliver(
+                conn, target_state, target_district, required_roles, target_organization_ids
+            ):
                 continue
 
             try:

@@ -3,7 +3,10 @@ from sqlalchemy.orm import Session
 from backend.app.models.db import get_db
 from backend.app.models.models import User
 from backend.app.schemas.schemas import LoginRequest, Token, UserResponse
-from backend.app.auth.security import verify_password, create_access_token, get_current_user
+from backend.app.auth.security import (
+    verify_password, create_access_token, get_current_user,
+    has_valid_role_organization_scope,
+)
 from backend.app.auth.rate_limiter import login_rate_limiter
 from backend.app.services.audit_service import log_audit
 
@@ -33,6 +36,12 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not has_valid_role_organization_scope(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User role and organization scope are not configured for access",
+        )
+
     # 3. Successful login: clear rate limit counters
     login_rate_limiter.record_success(req, request.email)
 
@@ -57,7 +66,7 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
             "full_name": user.full_name,
             "role": user.role,
             "badge_number": user.badge_number,
-            "organization_name": user.organization.name if user.organization else "National Cybercrime Coordination Centre (I4C)",
+            "organization_name": user.organization.name if user.organization else None,
             "state": user.state,
             "district": user.district
         }

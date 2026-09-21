@@ -41,10 +41,20 @@ HIGH_CENTRALITY_THRESHOLD = 0.20
 MAX_RECURSIVE_HOPS = 3
 
 
-def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
+def build_complaint_graph(
+    db: Session,
+    complaint_id: int,
+    analysis_as_of: Optional[datetime.datetime] = None,
+    include_outcomes: bool = True
+) -> Dict[str, Any]:
     """
     Builds a fully data-driven NetworkX directed transaction graph from Step-6 context
     with case-scoped recursive multi-hop traversal and attributed cash-out endpoints.
+
+    Parameters:
+        analysis_as_of: Point-in-time cutoff. Future transfers relative to this cutoff are excluded.
+        include_outcomes: When False (e.g. ML feature extraction), withdrawal records are strictly excluded
+                         to prevent target/outcome leakage into prediction features.
 
     Returns Cytoscape-compatible structure:
         - nodes: List[CytoscapeNode]
@@ -55,13 +65,15 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
     if not complaint:
         return _empty_graph_response()
 
-    context = resolve_transaction_context(db, complaint)
+    context = resolve_transaction_context(db, complaint, analysis_as_of=analysis_as_of)
     seed_transactions: List[Transaction] = list(context.get("transactions") or [])
 
     if not seed_transactions:
         # Fallback to direct complaint transactions if unlinked but present
+        rep_cutoff = analysis_as_of or complaint.reported_at or datetime.datetime.utcnow()
         seed_transactions = db.query(Transaction).filter(
-            Transaction.complaint_id == complaint.id
+            Transaction.complaint_id == complaint.id,
+            Transaction.timestamp <= rep_cutoff
         ).order_by(Transaction.timestamp.asc(), Transaction.id.asc()).all()
 
     if not seed_transactions:
@@ -93,6 +105,8 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
     reported_cutoff = complaint.reported_at or datetime.datetime.utcnow()
     window_end = (reported_cutoff + datetime.timedelta(days=2)) if reported_cutoff else None
 
+    effective_analysis_cutoff = analysis_as_of or window_end
+
     all_transactions: List[Transaction] = list(seed_transactions)
     visited_tx_ids: Set[int] = {tx.id for tx in seed_transactions}
     current_hop_txs: List[Transaction] = list(seed_transactions)
@@ -107,10 +121,13 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         if not frontier_account_ids:
             break
 
-        candidate_outgoing = db.query(Transaction).filter(
+        cand_query = db.query(Transaction).filter(
             Transaction.sender_account_id.in_(frontier_account_ids),
             ~Transaction.id.in_(visited_tx_ids)
-        ).order_by(Transaction.timestamp.asc(), Transaction.id.asc()).all()
+        )
+        if effective_analysis_cutoff:
+            cand_query = cand_query.filter(Transaction.timestamp <= effective_analysis_cutoff)
+        candidate_outgoing = cand_query.order_by(Transaction.timestamp.asc(), Transaction.id.asc()).all()
 
         valid_next_txs = []
         for ctx in candidate_outgoing:
@@ -233,10 +250,15 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
     # Unrelated historical withdrawals outside this window/scope are strictly excluded.
     non_source_acc_ids = [aid for aid in account_ids if str(aid) not in sources]
     attributed_withdrawals: List[Any] = []
-    if non_source_acc_ids:
-        candidate_wdls = db.query(WithdrawalModel).filter(
+    # Phase 02: Only query/attribute withdrawals if include_outcomes=True (investigation UI overlay).
+    # When building graphs for ML feature extraction, include_outcomes=False prevents target/outcome leakage.
+    if include_outcomes and non_source_acc_ids:
+        wdl_query = db.query(WithdrawalModel).filter(
             WithdrawalModel.account_id.in_(non_source_acc_ids)
-        ).order_by(WithdrawalModel.timestamp.asc()).all()
+        )
+        if analysis_as_of:
+            wdl_query = wdl_query.filter(WithdrawalModel.timestamp <= analysis_as_of)
+        candidate_wdls = wdl_query.order_by(WithdrawalModel.timestamp.asc()).all()
 
         for aid in non_source_acc_ids:
             in_txs = [t for t in transactions if t.receiver_account_id == aid]
@@ -246,6 +268,8 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
             min_in_time = min(t.timestamp for t in in_txs)
             max_in_time = max(t.timestamp for t in in_txs)
             max_window = max_in_time + datetime.timedelta(hours=72)
+            if analysis_as_of:
+                max_window = min(max_window, analysis_as_of)
 
             cumulative_wd = 0.0
             for w in candidate_wdls:
@@ -322,6 +346,21 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
             "central_intermediary": bool(is_intermediary and betweenness_centrality.get(node_id, 0.0) >= HIGH_CENTRALITY_THRESHOLD)
         }
 
+        # Potential Mule Indicator heuristic check:
+        # True only when existing backend heuristic qualifies:
+        # rapid_pass_through OR rapid_fan_out OR central_intermediary OR risk_score >= 0.70
+        node_risk = float(acc.risk_score or 0.0) if acc else 0.0
+        is_potential_mule = bool(
+            not is_source and
+            node_type != "victim" and (
+                node_flags["rapid_pass_through"] or
+                node_flags["rapid_fan_out"] or
+                node_flags["central_intermediary"] or
+                node_risk >= 0.70
+            )
+        )
+        node_flags["is_potential_mule_indicator"] = is_potential_mule
+
         # Retain structural node_type (victim, intermediary, sink, account); is_mule is captured as an account attribute
         final_node_type = node_type
 
@@ -348,6 +387,7 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
                 "is_sink": is_sink,
                 "is_intermediary": is_intermediary,
                 "is_mule": bool(acc and acc.is_mule),
+                "is_potential_mule_indicator": is_potential_mule,
                 "pattern_flags": node_flags
             }
         })
@@ -426,8 +466,10 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
                 "is_source": False,
                 "is_sink": True,
                 "is_intermediary": False,
+                "is_potential_mule_indicator": False,
                 "pattern_flags": {
                     "is_cash_out_endpoint": True,
+                    "is_potential_mule_indicator": False,
                     "atm_locality": atm.district if atm else "Delhi",
                     "atm_address": atm.address if atm else "Delhi ATM Terminal",
                     "withdrawal_amount": w_amt,
@@ -500,15 +542,10 @@ def build_complaint_graph(db: Session, complaint_id: int) -> Dict[str, Any]:
         "high_centrality_intermediary": bool(any(betweenness_centrality.get(n, 0.0) >= HIGH_CENTRALITY_THRESHOLD for n in G.nodes() if G.in_degree(n) > 0 and G.out_degree(n) > 0))
     }
 
-    # Defensible mule indicators count: only nodes satisfying specific pattern flags or risk
+    # Defensible potential mule indicators count: only nodes satisfying specific pattern flags or risk
     flagged_mule_nodes = sum(
         1 for n in nodes_list
-        if not n["data"]["is_source"] and n["data"]["node_type"] not in ["victim", "atm"] and (
-            n["data"]["pattern_flags"].get("rapid_pass_through") or
-            n["data"]["pattern_flags"].get("rapid_fan_out") or
-            n["data"]["pattern_flags"].get("central_intermediary") or
-            n["data"].get("risk_score", 0.0) >= 0.70
-        )
+        if n["data"].get("is_potential_mule_indicator")
     )
 
     metrics = {

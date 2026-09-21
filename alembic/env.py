@@ -34,6 +34,8 @@ def get_url() -> str:
     x_args = context.get_x_argument(as_dictionary=True)
     if "db_url" in x_args and x_args["db_url"]:
         raw_url = x_args["db_url"].strip()
+    elif config.get_main_option("sqlalchemy.url"):
+        raw_url = config.get_main_option("sqlalchemy.url").strip()
     else:
         raw_url = settings.DATABASE_URL.strip()
 

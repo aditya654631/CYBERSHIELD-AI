@@ -22,6 +22,7 @@ from backend.app.services.scenario_linking_service import (
     get_transactions_for_complaint
 )
 from backend.app.services.delhi_origin_resolver import resolve_delhi_origin
+from backend.app.services.geography_catalog_service import resolve_region_for_complaint
 
 router = APIRouter(prefix="/complaints", tags=["Complaints"])
 
@@ -100,6 +101,7 @@ def _enrich_complaint_response(db: Session, complaint: Complaint) -> Complaint:
         complaint.alert_status = "NOT GENERATED"
 
     complaint.locality = getattr(complaint, "locality", None) or complaint.victim_location
+    complaint.region_id = getattr(complaint, "region_id", None)
     complaint.provenance_mode = (
         getattr(complaint, "provenance_mode", None)
         if getattr(complaint, "provenance_mode", None) in ("CONTROLLED_SYNTHETIC_DEMO", "SYNTHETIC_DEMO")
@@ -183,6 +185,7 @@ def _batch_enrich_complaints(db: Session, complaints: List[Complaint]) -> List[C
             c.alert_status = "NOT GENERATED"
 
         c.locality = getattr(c, "locality", None) or c.victim_location
+        c.region_id = getattr(c, "region_id", None)
         c.provenance_mode = (
             getattr(c, "provenance_mode", None)
             if getattr(c, "provenance_mode", None) in ("CONTROLLED_SYNTHETIC_DEMO", "SYNTHETIC_DEMO")
@@ -203,6 +206,7 @@ def list_complaints(
     district: Optional[str] = None,
     prediction_status: Optional[str] = None,
     alert_status: Optional[str] = None,
+    region_id: Optional[str] = None,
     search: Optional[str] = None,
     limit: int = 25,
     skip: int = 0,
@@ -219,6 +223,10 @@ def list_complaints(
     # If I4C_ADMIN optionally filters by state
     if current_user.role == RoleEnum.I4C_ADMIN and state and state.upper() != "ALL":
         query = query.filter(func.lower(Complaint.state) == state.lower())
+
+    # Region filter
+    if region_id and region_id.upper() != "ALL":
+        query = query.filter(Complaint.region_id == region_id.strip().lower())
 
     # Operational Filters
     if fraud_type and fraud_type != "ALL":
@@ -511,24 +519,25 @@ def _generate_synthetic_multihop_trail(
             ))
     db.flush()
 
-    # 6. Resolve 2 Real Existing Delhi ATMLocation rows from PostgreSQL
+    # 6. Resolve Real Existing Delhi ATMLocation rows from PostgreSQL
     delhi_atms = (
         db.query(ATMLocation)
         .filter(
             (func.lower(ATMLocation.state) == "delhi") |
-            (ATMLocation.district.ilike("%delhi%"))
+            (ATMLocation.state.ilike("%delhi%")) |
+            (ATMLocation.district.ilike("%delhi%")) |
+            (ATMLocation.city.ilike("%delhi%")) |
+            (ATMLocation.region_id == "delhi")
         )
         .order_by(ATMLocation.id.asc())
         .limit(5)
         .all()
     )
-    if len(delhi_atms) < 2:
-        delhi_atms = db.query(ATMLocation).order_by(ATMLocation.id.asc()).limit(5).all()
 
     if len(delhi_atms) < 2:
         raise HTTPException(
             status_code=500,
-            detail="Insufficient ATMLocation records found in PostgreSQL. Controlled demo trace requires at least 2 real ATM records."
+            detail="Insufficient Delhi ATMLocation records found in PostgreSQL. Controlled demo trace requires at least 2 real Delhi ATM records."
         )
 
     atm_1 = delhi_atms[0]
@@ -569,8 +578,10 @@ def create_complaint(
         existing_tx = db.query(Transaction).filter(Transaction.transaction_ref == data.transaction_ref.strip()).first()
         if existing_tx and existing_tx.complaint_id:
             existing_comp = db.query(Complaint).filter(Complaint.id == existing_tx.complaint_id).first()
-            if existing_comp:
+            if existing_comp and verify_complaint_access(existing_comp, current_user, db):
                 return _enrich_complaint_response(db, existing_comp)
+            if existing_comp:
+                raise HTTPException(status_code=409, detail="Transaction reference conflict detected or reference unavailable.")
 
     comp_num = generate_complaint_number(db)
 
@@ -579,33 +590,57 @@ def create_complaint(
 
     # Untrusted request body protection: Non-I4C officers cannot spoof their state/district
     if current_user.role == RoleEnum.STATE_LEA:
-        victim_state = current_user.organization.state if current_user.organization else "Delhi"
+        if not current_user.organization or not current_user.organization.state:
+            raise HTTPException(status_code=403, detail="Officer organization scope is not configured")
+        victim_state = current_user.organization.state
     elif current_user.role == RoleEnum.DISTRICT_LEA:
-        victim_state = current_user.organization.state if current_user.organization else "Delhi"
-        data.district = current_user.organization.district if current_user.organization else data.district
+        if not current_user.organization or not current_user.organization.state or not current_user.organization.district:
+            raise HTTPException(status_code=403, detail="Officer organization scope is not configured")
+        victim_state = current_user.organization.state
+        data.district = current_user.organization.district
     else:
         victim_state = data.state or "Delhi"
 
     locality = data.locality or data.victim_location or None
 
-    # Deterministic Delhi Origin Resolution (Priority: Coords -> Cluster -> Alias -> District -> Unresolved)
-    origin_res = resolve_delhi_origin(
-        locality=locality,
+    # Deterministic Region Resolution
+    resolved_region_id, resolved_region = resolve_region_for_complaint(
+        db=db,
+        state=victim_state,
         district=data.district,
         lat=data.victim_lat,
-        lon=data.victim_lon
+        lon=data.victim_lon,
+        explicit_region_id=data.region_id,
     )
-    is_delhi = victim_state.strip().lower() == "delhi"
+
+    is_delhi = (victim_state.strip().lower() == "delhi") or (resolved_region_id == "delhi")
     if is_delhi:
         victim_state = "Delhi"
-    victim_district = (
-        data.district or origin_res["resolved_district"] or "UNRESOLVED"
-    ) if is_delhi else (data.district or "UNRESOLVED")
+        resolved_region_id = "delhi"
+        origin_res = resolve_delhi_origin(
+            locality=locality,
+            district=data.district,
+            lat=data.victim_lat,
+            lon=data.victim_lon
+        )
+        victim_district = (
+            data.district or origin_res["resolved_district"] or "UNRESOLVED"
+        )
+    else:
+        origin_res = {"resolved_district": None}
+        victim_district = data.district or "UNRESOLVED"
+
     victim_lat = data.victim_lat
     victim_lon = data.victim_lon
     victim_location = data.victim_location or ", ".join(
-        part for part in (locality, data.district or origin_res["resolved_district"] if is_delhi else data.district, victim_state) if part
+        part for part in (locality, data.district or origin_res.get("resolved_district") if is_delhi else data.district, victim_state) if part
     )
+
+    # Geographic officer scope enforcement against target region if defined
+    if current_user.role in (RoleEnum.STATE_LEA, RoleEnum.DISTRICT_LEA):
+        org_region = getattr(current_user.organization, "region_id", None)
+        if org_region and resolved_region_id and org_region != resolved_region_id:
+            raise HTTPException(status_code=403, detail="Officer organization scope is outside the target region")
 
     # User Mandatory Rule: Explicit demo_mode: true ONLY triggers controlled synthetic expansion.
     is_demo = bool(data.demo_mode is True)
@@ -624,6 +659,7 @@ def create_complaint(
             locality=locality,
             state=victim_state,
             district=victim_district,
+            region_id=resolved_region_id,
             payment_channel=data.payment_channel,
             reported_at=reported_time,
             incident_time=incident_time,
@@ -634,7 +670,9 @@ def create_complaint(
             risk_level="PENDING_EVALUATION",
             risk_score=None,
             prediction_status="NOT RUN",
-            case_status="ACTIVE"
+            case_status="ACTIVE",
+            owner_organization_id=current_user.organization_id,
+            owner_user_id=current_user.id,
         )
         db.add(complaint)
         db.flush()

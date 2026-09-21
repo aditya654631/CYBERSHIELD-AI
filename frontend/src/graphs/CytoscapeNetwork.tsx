@@ -65,11 +65,13 @@ export const CytoscapeNetwork: React.FC<CytoscapeNetworkProps> = ({
     const elements: any[] = [];
 
     graphData.nodes.forEach((n) => {
+      const isMuleIndicator = Boolean(n.data.is_potential_mule_indicator);
       const safeDisplay = formatSafeDisplayLabel(
         n.data.label,
         n.data.node_type,
         n.data.is_source,
-        n.data.masked_id
+        n.data.masked_id,
+        isMuleIndicator
       );
 
       elements.push({
@@ -77,6 +79,7 @@ export const CytoscapeNetwork: React.FC<CytoscapeNetworkProps> = ({
         data: {
           ...n.data,
           display_label: safeDisplay,
+          is_potential_mule_indicator: isMuleIndicator,
         },
       });
     });
@@ -159,19 +162,7 @@ export const CytoscapeNetwork: React.FC<CytoscapeNetworkProps> = ({
             'height': 46,
           },
         },
-        // Role 4: Flagged Account / Mule Indicator (Neutral Labeling)
-        {
-          selector: 'node[node_type = "mule"]',
-          style: {
-            'background-color': '#ffe4e6',
-            'border-color': '#e11d48',
-            'border-width': 3,
-            'shape': 'diamond',
-            'width': 48,
-            'height': 48,
-          },
-        },
-        // Role 5: Terminal Recipient / Sink
+        // Role 4: Terminal Recipient / Sink (Normal sink remains terminal rectangle)
         {
           selector: 'node[node_type = "sink"], node[?is_sink]',
           style: {
@@ -181,6 +172,18 @@ export const CytoscapeNetwork: React.FC<CytoscapeNetworkProps> = ({
             'shape': 'roundrectangle',
             'width': 46,
             'height': 46,
+          },
+        },
+        // Role 5: Potential Mule Indicator (Under Review) - Red Diamond ONLY when is_potential_mule_indicator === true
+        {
+          selector: 'node[?is_potential_mule_indicator]',
+          style: {
+            'background-color': '#ffe4e6',
+            'border-color': '#e11d48',
+            'border-width': 3,
+            'shape': 'diamond',
+            'width': 48,
+            'height': 48,
           },
         },
         // Role 6: ATM Cash-Out Endpoint
@@ -446,7 +449,7 @@ export const CytoscapeNetwork: React.FC<CytoscapeNetworkProps> = ({
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="w-2.5 h-2.5 rotate-45 bg-[#e11d48] shrink-0"></span>
-                <span>Flagged / Review</span>
+                <span>Potential Mule Indicator / Under Review</span>
               </div>
               <div className="flex items-center space-x-1.5">
                 <span className="w-2.5 h-2.5 rounded-xs bg-[#7c3aed] shrink-0"></span>

@@ -16,6 +16,7 @@ const Analytics = React.lazy(() => import('./pages/Analytics').then(m => ({ defa
 const ModelPerformance = React.lazy(() => import('./pages/ModelPerformance').then(m => ({ default: m.ModelPerformance })));
 const AuditLog = React.lazy(() => import('./pages/AuditLog').then(m => ({ default: m.AuditLog })));
 const Settings = React.lazy(() => import('./pages/Settings').then(m => ({ default: m.Settings })));
+const OutcomeMetrics = React.lazy(() => import('./pages/OutcomeMetrics').then(m => ({ default: m.OutcomeMetrics })));
 
 const PageLoading: React.FC = () => (
   <div className="flex min-h-[50vh] items-center justify-center">
@@ -88,6 +89,14 @@ export const App: React.FC = () => {
                 }
               />
               <Route path="settings" element={<Settings />} />
+              <Route
+                path="outcome-metrics"
+                element={
+                  <ProtectedRoute allowedRoles={['I4C_ADMIN', 'STATE_LEA', 'DISTRICT_LEA', 'ANALYST', 'AUDITOR']}>
+                    <OutcomeMetrics />
+                  </ProtectedRoute>
+                }
+              />
             </Route>
 
             <Route path="*" element={<Navigate to="/dashboard" replace />} />

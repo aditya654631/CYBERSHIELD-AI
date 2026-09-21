@@ -20,7 +20,7 @@ import {
   Network,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { Complaint, HotspotCluster } from '../types';
+import { Complaint, HotspotCluster, RegionItem } from '../types';
 import { apiErrorMessage, formatIST, toLocalDateTimeInput } from '../utils/predictionDisplay';
 
 export const Complaints: React.FC = () => {
@@ -30,6 +30,11 @@ export const Complaints: React.FC = () => {
   const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Geography & Region State (Phase 12)
+  const [regions, setRegions] = useState<RegionItem[]>([]);
+  const [regionFilter, setRegionFilter] = useState('ALL');
+  const [newRegionId, setNewRegionId] = useState('delhi');
 
   // Pagination state
   const [page, setPage] = useState(1);
@@ -64,7 +69,7 @@ export const Complaints: React.FC = () => {
   const [newReportedAt, setNewReportedAt] = useState(() => toLocalDateTimeInput());
   const [newDescription, setNewDescription] = useState('Victim deceived into transferring funds through fraudulent investment platform.');
 
-  // Section B - Location (Delhi Pilot)
+  // Section B - Location
   const [newDistrict, setNewDistrict] = useState('South West Delhi');
   const [newLocality, setNewLocality] = useState('Dwarka');
   const [newVictimLat, setNewVictimLat] = useState('');
@@ -85,8 +90,20 @@ export const Complaints: React.FC = () => {
   const [newDemoMode, setNewDemoMode] = useState(false);
 
   useEffect(() => {
-    api.getClusters().then(setLocationCatalog).catch(() => setLocationCatalog([]));
+    api.getClusters({ region_id: newRegionId }).then(setLocationCatalog).catch(() => setLocationCatalog([]));
+  }, [newRegionId]);
+
+  useEffect(() => {
+    api.getRegions().then(setRegions).catch(() => setRegions([]));
   }, []);
+
+  const activeModalRegion = regions.find((r) => r.id === newRegionId) || null;
+  const modalDistricts = activeModalRegion && activeModalRegion.districts && activeModalRegion.districts.length > 0
+    ? activeModalRegion.districts
+    : [
+        'Central Delhi', 'East Delhi', 'New Delhi', 'North Delhi', 'North East Delhi',
+        'North West Delhi', 'Shahdara', 'South Delhi', 'South East Delhi', 'South West Delhi', 'West Delhi'
+      ];
 
   const districtLocalities = locationCatalog.filter((location) => location.district === newDistrict);
 
@@ -113,7 +130,7 @@ export const Complaints: React.FC = () => {
         alert_status: alertStatus !== 'ALL' ? alertStatus : undefined,
         page: targetPage,
         limit: pageSize,
-        state: 'Delhi',
+        region_id: regionFilter !== 'ALL' ? regionFilter : undefined,
       });
       setComplaints(data.complaints);
       setTotalRecords(data.total);
@@ -125,11 +142,11 @@ export const Complaints: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, caseStatus, fraudType, district, predictionStatus, alertStatus, pageSize, page]);
+  }, [debouncedSearch, caseStatus, fraudType, district, predictionStatus, alertStatus, regionFilter, pageSize, page]);
 
   useEffect(() => {
     fetchComplaints(page);
-  }, [debouncedSearch, caseStatus, fraudType, district, predictionStatus, alertStatus, page]);
+  }, [debouncedSearch, caseStatus, fraudType, district, predictionStatus, alertStatus, regionFilter, page]);
 
   // Handle Search Submission
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -145,6 +162,7 @@ export const Complaints: React.FC = () => {
     setCaseStatus('ALL');
     setFraudType('ALL');
     setDistrict('ALL');
+    setRegionFilter('ALL');
     setPredictionStatus('ALL');
     setAlertStatus('ALL');
     setPage(1);
@@ -163,9 +181,12 @@ export const Complaints: React.FC = () => {
       if (latVal != null && (!Number.isFinite(latVal) || latVal < -90 || latVal > 90 || !Number.isFinite(lonVal) || lonVal! < -180 || lonVal! > 180)) {
         throw new Error('Enter valid latitude and longitude coordinates.');
       }
-      if (!newLocality.trim()) throw new Error('Enter a Delhi locality.');
+      if (!newLocality.trim()) throw new Error('Enter a locality name.');
       if (newIncidentTime && newReportedAt && new Date(newIncidentTime) > new Date(newReportedAt)) throw new Error('Reported time must be on or after incident time.');
       if (newTransactionTime && newReportedAt && new Date(newTransactionTime) > new Date(newReportedAt)) throw new Error('Transaction time must be on or before reported time.');
+
+      const activeReg = regions.find((r) => r.id === newRegionId) || null;
+      const victimState = activeReg?.state || 'Delhi';
 
       const created = await api.createComplaint({
         victim_name: newVictimName.trim(),
@@ -174,10 +195,11 @@ export const Complaints: React.FC = () => {
         incident_time: newIncidentTime ? new Date(newIncidentTime).toISOString() : undefined,
         reported_at: newReportedAt ? new Date(newReportedAt).toISOString() : undefined,
         description: newDescription.trim(),
-        state: 'Delhi',
+        region_id: newRegionId,
+        state: victimState,
         district: newDistrict,
         locality: newLocality.trim(),
-        victim_location: `${newLocality.trim()}, ${newDistrict}, Delhi`,
+        victim_location: `${newLocality.trim()}, ${newDistrict}, ${victimState}`,
         victim_lat: latVal,
         victim_lon: lonVal,
         payment_channel: newChannel,
@@ -375,7 +397,30 @@ export const Complaints: React.FC = () => {
         </div>
 
         {/* Operational Filter Dropdowns */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-2.5 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5 pt-1">
+          {/* Filter: Region */}
+          <div>
+            <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
+              Region
+            </label>
+            <select
+              value={regionFilter}
+              onChange={(e) => {
+                setRegionFilter(e.target.value);
+                setDistrict('ALL');
+                setPage(1);
+              }}
+              className="w-full px-2 py-1.5 bg-slate-50 border border-slate-300 rounded text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+            >
+              <option value="ALL">All Regions</option>
+              {regions.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Filter: Case Status */}
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
@@ -423,7 +468,7 @@ export const Complaints: React.FC = () => {
           {/* Filter: Districts */}
           <div>
             <label className="block text-[10px] font-semibold text-slate-500 uppercase tracking-wider mb-1">
-              Delhi District
+              District
             </label>
             <select
               value={district}
@@ -975,23 +1020,70 @@ export const Complaints: React.FC = () => {
                 </div>
               </div>
 
-              {/* SECTION B: LOCATION (DELHI PILOT) */}
+              {/* SECTION B: LOCATION & REGION (PHASE 12) */}
               <div className="p-4 bg-slate-50/70 border border-slate-200 rounded-lg space-y-3">
                 <div className="flex items-center justify-between border-b border-slate-200 pb-2">
                   <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
-                    <span>SECTION B — LOCATION (DELHI PILOT)</span>
+                    <span>SECTION B — LOCATION & JURISDICTION</span>
                   </h4>
-                  <span className="text-[11px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-medium">
-                    State: Delhi (Operational Pilot)
+                  <span className={`text-[11px] px-2 py-0.5 rounded border font-medium ${
+                    activeModalRegion?.model_support_status === 'MODEL_SUPPORTED'
+                      ? 'bg-blue-50 text-blue-700 border-blue-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-300'
+                  }`}>
+                    {activeModalRegion?.name || 'Delhi NCT'} ({activeModalRegion?.model_support_status || 'MODEL_SUPPORTED'})
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {activeModalRegion?.model_support_status === 'VALIDATION_PENDING' && (
+                  <div className="p-2.5 bg-amber-50 border border-amber-300 rounded text-amber-900 text-xs flex items-center space-x-2">
+                    <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                    <span>
+                      Notice: <strong>{activeModalRegion.name}</strong> is an experimental geography fixture. Automatic cash-out ML predictions will be refused for this case until ground-truth validation gates pass.
+                    </span>
+                  </div>
+                )}
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  <div>
+                    <label className="block text-slate-700 font-medium mb-1">
+                      Target Region <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={newRegionId}
+                      onChange={(e) => {
+                        const rid = e.target.value;
+                        setNewRegionId(rid);
+                        const reg = regions.find((r) => r.id === rid);
+                        if (reg && reg.districts && reg.districts.length > 0) {
+                          setNewDistrict(reg.districts[0]);
+                        } else {
+                          setNewDistrict('Central Delhi');
+                        }
+                        setNewLocality('');
+                        setNewVictimLat('');
+                        setNewVictimLon('');
+                      }}
+                      className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
+                      required
+                    >
+                      {regions.length === 0 ? (
+                        <option value="delhi">National Capital Territory of Delhi</option>
+                      ) : (
+                        regions.map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.name} {r.is_synthetic ? '(Synthetic Fixture)' : ''}
+                          </option>
+                        ))
+                      )}
+                    </select>
+                  </div>
+
                   <div>
                     <label className="block text-slate-700 font-medium mb-1">State</label>
                     <input
                       type="text"
-                      value="Delhi"
+                      value={activeModalRegion?.state || 'Delhi'}
                       disabled
                       className="w-full px-3 py-1.5 bg-slate-100 border border-slate-200 rounded text-slate-500 cursor-not-allowed font-medium"
                     />
@@ -999,7 +1091,7 @@ export const Complaints: React.FC = () => {
 
                   <div>
                     <label className="block text-slate-700 font-medium mb-1">
-                      Delhi District <span className="text-red-500">*</span>
+                      District <span className="text-red-500">*</span>
                     </label>
                     <select
                       value={newDistrict}
@@ -1012,17 +1104,11 @@ export const Complaints: React.FC = () => {
                       className="w-full px-3 py-1.5 bg-white border border-slate-300 rounded text-slate-900 focus:outline-none focus:ring-1 focus:ring-blue-500 cursor-pointer"
                       required
                     >
-                      <option value="Central Delhi">Central Delhi</option>
-                      <option value="East Delhi">East Delhi</option>
-                      <option value="New Delhi">New Delhi</option>
-                      <option value="North Delhi">North Delhi</option>
-                      <option value="North East Delhi">North East Delhi</option>
-                      <option value="North West Delhi">North West Delhi</option>
-                      <option value="Shahdara">Shahdara</option>
-                      <option value="South Delhi">South Delhi</option>
-                      <option value="South East Delhi">South East Delhi</option>
-                      <option value="South West Delhi">South West Delhi</option>
-                      <option value="West Delhi">West Delhi</option>
+                      {modalDistricts.map((d) => (
+                        <option key={d} value={d}>
+                          {d}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

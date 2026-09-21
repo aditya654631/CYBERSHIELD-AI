@@ -1,0 +1,140 @@
+{
+  "baseline_commit": "90e792eba9f50e135367cf65c3a09658c61471df",
+  "run_directory": "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\scratch\\phase0_20260917T175141Z",
+  "pytest": {
+    "passed": 321,
+    "failed": 74,
+    "skipped": 1
+  },
+  "failure_groups": {
+    "tests.test_complaint_scenario_linking": 1,
+    "tests.test_delhi_intake_map_regression": 1,
+    "tests.test_dynamic_transaction_graph": 5,
+    "tests.test_ml_pipeline": 3,
+    "tests.test_ml_quality_improvements": 1,
+    "tests.test_ml_remediation": 3,
+    "tests.test_phase3_hotspots_and_gis": 5,
+    "tests.test_schema_hardening": 3,
+    "tests.test_step10_prediction_persistence": 2,
+    "tests.test_step11_gis_persistence_integration": 7,
+    "tests.test_step12_prediction_alert_integration": 4,
+    "tests.test_step13_dashboard_db_integration": 18,
+    "tests.test_step14_auth_audit": 9,
+    "tests.test_step9_prediction_flow": 3,
+    "tests.test_synthetic_seed": 1,
+    "tests.test_transaction_scenario_linking": 8
+  },
+  "models_unchanged": true,
+  "commands": [
+    {
+      "name": "pytest",
+      "command": [
+        "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\.venv\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "tests",
+        "-q",
+        "-ra",
+        "--junitxml=C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\scratch\\phase0_20260917T175141Z\\pytest.xml"
+      ],
+      "cwd": "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI",
+      "exit_code": 1,
+      "seconds": 132.72
+    },
+    {
+      "name": "frontend_build",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\frontend\\node_modules\\typescript\\bin\\tsc"
+      ],
+      "cwd": "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\frontend",
+      "exit_code": 0,
+      "seconds": 8.42
+    },
+    {
+      "name": "gateway",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\blockchain\\gateway\\node_modules\\mocha\\bin\\mocha.js",
+        "tests",
+        "--recursive",
+        "--timeout",
+        "20000"
+      ],
+      "cwd": "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\blockchain\\gateway",
+      "exit_code": 0,
+      "seconds": 22.44
+    },
+    {
+      "name": "feature_engine",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\blockchain\\feature-engine\\node_modules\\mocha\\bin\\mocha.js",
+        "tests",
+        "--recursive",
+        "--timeout",
+        "20000"
+      ],
+      "cwd": "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\blockchain\\feature-engine",
+      "exit_code": 0,
+      "seconds": 6.47
+    },
+    {
+      "name": "prediction_chaincode",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\blockchain\\chaincode\\prediction-audit\\node_modules\\mocha\\bin\\mocha.js",
+        "test",
+        "--recursive",
+        "--timeout",
+        "20000"
+      ],
+      "cwd": "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\blockchain\\chaincode\\prediction-audit",
+      "exit_code": 0,
+      "seconds": 11.03
+    },
+    {
+      "name": "geo_chaincode",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\blockchain\\chaincode\\geo-intelligence\\node_modules\\mocha\\bin\\mocha.js",
+        "test",
+        "--recursive",
+        "--timeout",
+        "20000"
+      ],
+      "cwd": "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\blockchain\\chaincode\\geo-intelligence",
+      "exit_code": 0,
+      "seconds": 7.31
+    },
+    {
+      "name": "frontend_vite_build",
+      "command": [
+        "C:\\Program Files\\nodejs\\node.EXE",
+        "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\frontend\\node_modules\\vite\\bin\\vite.js",
+        "build",
+        "--outDir",
+        "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\scratch\\phase0_20260917T175141Z\\frontend_dist"
+      ],
+      "cwd": "C:\\Users\\adity\\Downloads\\CrimeTrace-AI-SIH-main\\CyberShield AI\\frontend",
+      "exit_code": 0,
+      "seconds": 13.12
+    }
+  ],
+  "scope": "Code inspection, isolated API/service tests and builds. No browser visual QA, real accuracy re-evaluation, live financial action, or production load test.",
+  "postgres_snapshot_summary": {
+    "status": "SNAPSHOT_COMPLETE_NATIVE_BACKUP_AND_RESTORE_PENDING",
+    "tables": 17,
+    "rows": 98259,
+    "restore_verified": false
+  },
+  "stale_prediction_reproduction": {
+    "scope": "isolated service-level reproduction",
+    "input_changed_rank2_score": 0.05630000039935112,
+    "old_rank2_score": 0.05130000039935112,
+    "stored_rank2_score": 0.05130000039935112,
+    "old_prediction_id": 1,
+    "returned_prediction_id": 1,
+    "changed_result_reused_old_prediction": true
+  }
+}

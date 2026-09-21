@@ -59,6 +59,7 @@ def test_ml_artifacts_exist_and_loadable():
     assert provider.time_model is not None
     assert provider.metadata is not None
     assert provider.metadata.get("model_version") in [
+        "cashout-location-xgb-v7-compat",
         "cashout-location-xgb-v4",
         "cashout-location-xgb-v3.1",
         "cashout-location-xgb-v2",
@@ -97,6 +98,7 @@ def test_ml_predict_proba_and_predict():
 
         assert result["prediction_mode"] == "trained_ml"
         assert result["model_version"] in [
+            "cashout-location-xgb-v7-compat",
             "cashout-location-xgb-v4",
             "cashout-location-xgb-v3.1",
             "cashout-location-xgb-v2",
@@ -129,15 +131,32 @@ def test_demo_provider_for_cmp_1042():
 
 
 def test_fallback_on_ml_error():
-    """If MLPredictionProvider throws an exception, PredictionService must safely fall back to deterministic_demo."""
+    """If MLPredictionProvider throws an exception, PredictionService must safely return truthful unavailable status."""
     db = SessionLocal()
     try:
         service = PredictionService()
         with patch.object(service.ml_provider, "predict", side_effect=RuntimeError("Simulated GPU/Inference Crash")):
             complaint = db.query(Complaint).filter(Complaint.complaint_number != "CMP-1042").first()
-            if complaint:
-                res = service.run_prediction(db, complaint.id)
-                assert res.prediction_mode == "deterministic_demo"
-                assert res.model_version == "demo-provider-v1"
+            if not complaint:
+                complaint = Complaint(
+                    complaint_number="CMP-TEST-FALLBACK-1",
+                    complainant_name="Fallback User",
+                    complainant_phone="9876543210",
+                    fraud_type="UPI / QR Code Fraud",
+                    amount=50000.0,
+                    victim_lat=28.6139,
+                    victim_lon=77.2090,
+                    victim_state="Delhi",
+                    state="Delhi",
+                    district="CENTRAL_NEW_DELHI",
+                    payment_channel="UPI",
+                    status="OPEN"
+                )
+                db.add(complaint)
+                db.commit()
+                db.refresh(complaint)
+            res = service.run_prediction(db, complaint.id)
+            assert res.prediction_mode == "unavailable"
+            assert res.status == "INFERENCE_FAILED"
     finally:
         db.close()

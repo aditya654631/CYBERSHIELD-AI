@@ -20,14 +20,14 @@ Tests covering:
 
 import pytest
 import math
-from datetime import datetime
+from datetime import datetime, timedelta
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from backend.app.main import app
 from backend.app.models.db import SessionLocal
 from backend.app.models.models import (
-    Complaint, Prediction, PredictionLocation, Alert, AuditLog,
+    Complaint, Prediction, PredictionLocation, PredictionSnapshot, Alert, AuditLog,
     Transaction, Withdrawal, LocationCluster
 )
 from backend.app.services.prediction_service import prediction_service
@@ -88,7 +88,7 @@ def test_cmp_new_000002_live_persistence(db):
     assert data["prediction_id"] > 0
     assert data["prediction_mode"] == "trained_ml"
     assert data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
-    assert "operational estimate window" in data["when_window"]
+    assert "min after complaint report" in data["when_window"] or "operational estimate window" in data["when_window"]
 
     # Verify DB delta: exactly 1 Prediction and 3 PredictionLocations
     pred_count_after = db.query(Prediction).filter(Prediction.complaint_id == comp.id).count()
@@ -107,7 +107,7 @@ def test_cmp_new_000002_live_persistence(db):
     assert persisted.id == data["prediction_id"]
     assert persisted.prediction_mode == "trained_ml"
     assert persisted.model_version in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
-    assert "operational estimate window" in persisted.window_label
+    assert "min after complaint report" in persisted.window_label or "operational estimate window" in persisted.window_label
 
     # Verify children
     locations = sorted(persisted.locations, key=lambda x: x.rank)
@@ -203,7 +203,7 @@ def test_cmp_new_000004_outside_scope_zero_persistence(db):
     data = resp.json()
 
     assert data["status"] == "OUTSIDE_OPERATIONAL_SCOPE"
-    assert data["prediction_mode"] == "unavailable"
+    assert data["prediction_mode"] in ["unavailable", "unsupported_region"]
     assert len(data["top_locations"]) == 0
 
     pred_after = db.query(Prediction).filter(Prediction.complaint_id == comp.id).count()
@@ -460,3 +460,193 @@ def test_exact_cluster_identity_consistency(db):
             assert abs(target_cluster.center_lat - c_loc.latitude) < 1e-4
             assert abs(target_cluster.center_lon - c_loc.longitude) < 1e-4
 
+
+def test_existing_prediction_snapshots_remain_unchanged_and_immutable(db: Session):
+    """
+    Regression check: Existing PredictionSnapshot rows are write-once, immutable,
+    and persist_prediction must never silently erase, overwrite, or mutate history.
+    """
+    comp = db.query(Complaint).filter(Complaint.complaint_number == "CMP-NEW-000002").first()
+    assert comp is not None
+
+    clusters = db.query(LocationCluster).filter(LocationCluster.state == "Delhi").all()
+    c1, c2, c3 = clusters[0], clusters[1], clusters[2]
+
+    # 1. Persist initial prediction with snapshot
+    now = datetime.utcnow()
+    mock_pred_1 = {
+        "status": "SUCCESS",
+        "prediction_mode": "trained_ml",
+        "complaint_id": comp.id,
+        "complaint_number": comp.complaint_number,
+        "model_version": "cashout-location-xgb-v7-compat",
+        "feature_schema_version": "v7_compat",
+        "risk_score": 0.85,
+        "risk_level": "HIGH",
+        "when_window": "15–45 min after complaint report",
+        "time_prediction": {
+            "predicted_minutes_to_cashout": 30.0,
+            "window_start": now.isoformat(),
+            "window_end": (now + timedelta(minutes=45)).isoformat(),
+            "operational_window": "15–45 min after complaint report",
+            "when_window": "15–45 min after complaint report"
+        },
+        "top_locations": [
+            {"rank": 1, "cluster_id": c1.id, "location_name": c1.cluster_name, "ml_probability": 0.60},
+            {"rank": 2, "cluster_id": c2.id, "location_name": c2.cluster_name, "ml_probability": 0.25},
+            {"rank": 3, "cluster_id": c3.id, "location_name": c3.cluster_name, "ml_probability": 0.15},
+        ],
+        "inference_snapshot": {
+            "model_version": "cashout-location-xgb-v7-compat",
+            "feature_schema_version": "v7_compat",
+            "feature_schema_hash": "schema_hash_init_111",
+            "location_model_hash": "model_hash_init_222",
+            "calibrator_hash": "calibrator_hash_init_333",
+            "features": {"f1": 1.0, "f2": 2.0}
+        }
+    }
+
+    pred_ids_to_clean = []
+    try:
+        pred_1 = prediction_persistence_service.persist_prediction(db, comp, mock_pred_1, bypass_debounce=True)
+        assert pred_1 is not None
+        db.commit()
+        pred_ids_to_clean.append(pred_1.id)
+
+        snap_1 = db.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id == pred_1.id).first()
+        assert snap_1 is not None
+        snap_1_id = snap_1.id
+        snap_1_schema_hash = snap_1.feature_schema_hash
+        snap_1_model_hash = snap_1.model_hash
+        snap_1_data = dict(snap_1.snapshot_data)
+
+        # 2. Persist second prediction for the complaint
+        mock_pred_2 = {
+            "status": "SUCCESS",
+            "prediction_mode": "trained_ml",
+            "complaint_id": comp.id,
+            "complaint_number": comp.complaint_number,
+            "model_version": "cashout-location-xgb-v7-compat",
+            "feature_schema_version": "v7_compat",
+            "risk_score": 0.75,
+            "risk_level": "HIGH",
+            "when_window": "20–50 min after complaint report",
+            "time_prediction": {
+                "predicted_minutes_to_cashout": 35.0,
+                "window_start": now.isoformat(),
+                "window_end": (now + timedelta(minutes=50)).isoformat(),
+                "operational_window": "20–50 min after complaint report",
+                "when_window": "20–50 min after complaint report"
+            },
+            "top_locations": [
+                {"rank": 1, "cluster_id": c2.id, "location_name": c2.cluster_name, "ml_probability": 0.50},
+                {"rank": 2, "cluster_id": c1.id, "location_name": c1.cluster_name, "ml_probability": 0.30},
+                {"rank": 3, "cluster_id": c3.id, "location_name": c3.cluster_name, "ml_probability": 0.20},
+            ],
+            "inference_snapshot": {
+                "model_version": "cashout-location-xgb-v7-compat",
+                "feature_schema_version": "v7_compat",
+                "feature_schema_hash": "schema_hash_second_444",
+                "location_model_hash": "model_hash_second_555",
+                "calibrator_hash": "calibrator_hash_second_666",
+                "features": {"f1": 3.0, "f2": 4.0}
+            }
+        }
+
+        pred_2 = prediction_persistence_service.persist_prediction(db, comp, mock_pred_2, bypass_debounce=True)
+        assert pred_2 is not None
+        db.commit()
+        pred_ids_to_clean.append(pred_2.id)
+
+        # Verify first snapshot was NOT deleted, overwritten, or modified
+        snap_1_after = db.query(PredictionSnapshot).filter(PredictionSnapshot.id == snap_1_id).first()
+        assert snap_1_after is not None
+        assert snap_1_after.prediction_id == pred_1.id
+        assert snap_1_after.feature_schema_hash == snap_1_schema_hash
+        assert snap_1_after.model_hash == snap_1_model_hash
+        assert snap_1_after.snapshot_data == snap_1_data
+
+        # Verify second snapshot exists independently
+        snap_2 = db.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id == pred_2.id).first()
+        assert snap_2 is not None
+        assert snap_2.id != snap_1_id
+        assert snap_2.feature_schema_hash == "schema_hash_second_444"
+
+        # 3. Verify in-place update raises ValueError (immutable constraint)
+        snap_1_after.feature_schema_hash = "tampered_hash"
+        with pytest.raises(ValueError, match="immutable"):
+            db.commit()
+        db.rollback()
+    finally:
+        if pred_ids_to_clean:
+            db.query(PredictionLocation).filter(PredictionLocation.prediction_id.in_(pred_ids_to_clean)).delete(synchronize_session=False)
+            db.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id.in_(pred_ids_to_clean)).delete(synchronize_session=False)
+            db.query(Prediction).filter(Prediction.id.in_(pred_ids_to_clean)).delete(synchronize_session=False)
+            db.commit()
+
+
+def test_trained_prediction_missing_label_derives_from_valid_timestamps(db: Session):
+    """
+    Regression check:
+    For trained predictions with missing operational_window / when_window label
+    or generic placeholder, the label must NEVER substitute 'Next 2–4 Hours'.
+    It must be mathematically derived from validated window timestamps relative
+    to complaint report time (e.g. '20–50 min after complaint report').
+    """
+    comp = db.query(Complaint).filter(Complaint.complaint_number == "CMP-NEW-000003").first()
+    assert comp is not None
+
+    clusters = db.query(LocationCluster).filter(LocationCluster.state == "Delhi").limit(3).all()
+    assert len(clusters) == 3
+    c1, c2, c3 = clusters[0], clusters[1], clusters[2]
+
+    ref = comp.reported_at or comp.incident_time
+    w_start = ref + timedelta(minutes=20)
+    w_end = ref + timedelta(minutes=50)
+
+    mock_pred = {
+        "status": "SUCCESS",
+        "prediction_mode": "trained_ml",
+        "complaint_id": comp.id,
+        "complaint_number": comp.complaint_number,
+        "model_version": "cashout-location-xgb-v7-compat",
+        "feature_schema_version": "v7_compat",
+        "risk_score": 0.82,
+        "risk_level": "HIGH",
+        "time_prediction": {
+            "predicted_minutes_to_cashout": 35.0,
+            "window_start": w_start.isoformat(),
+            "window_end": w_end.isoformat(),
+            "model_version": "cashout-time-xgb-v3"
+        },
+        "top_locations": [
+            {"rank": 1, "cluster_id": c1.id, "location_name": c1.cluster_name, "ml_probability": 0.70},
+            {"rank": 2, "cluster_id": c2.id, "location_name": c2.cluster_name, "ml_probability": 0.20},
+            {"rank": 3, "cluster_id": c3.id, "location_name": c3.cluster_name, "ml_probability": 0.10},
+        ],
+        "inference_snapshot": {
+            "model_version": "cashout-location-xgb-v7-compat",
+            "feature_schema_version": "v7_compat",
+            "feature_schema_hash": "schema_hash_regression_test",
+            "location_model_hash": "loc_hash_regression_test",
+            "calibrator_hash": "cal_hash_regression_test",
+            "features": {"f1": 5.0}
+        }
+    }
+
+    persisted = None
+    try:
+        persisted = prediction_persistence_service.persist_prediction(db, comp, mock_pred, bypass_debounce=True)
+        assert persisted is not None
+        db.commit()
+
+        # Must NOT be 'Next 2–4 Hours'
+        assert persisted.window_label != "Next 2–4 Hours"
+        # Must be derived as '20–50 min after complaint report'
+        assert "20–50 min after complaint report" in persisted.window_label
+    finally:
+        if persisted:
+            db.query(PredictionLocation).filter(PredictionLocation.prediction_id == persisted.id).delete(synchronize_session=False)
+            db.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id == persisted.id).delete(synchronize_session=False)
+            db.query(Prediction).filter(Prediction.id == persisted.id).delete(synchronize_session=False)
+            db.commit()

@@ -152,11 +152,22 @@ def create_alert_for_prediction(
         expected_window = "Next 2–4 Hours (Operational Estimate Window)"
 
     amount_at_risk = float(complaint.amount) if complaint.amount else 0.0
+    expires_at = prediction.predicted_window_end if prediction.predicted_window_end else (datetime.utcnow() + timedelta(hours=4))
 
     # 7. Construct Alert entity
     title = f"ACTIONABLE ALERT: {location_name} ({complaint.complaint_number})"
     if prediction.prediction_mode == "deterministic_demo":
         title = f"[DEMO] ACTIONABLE ALERT: {location_name} ({complaint.complaint_number})"
+
+    from backend.app.services.outbox_service import outbox_service
+
+    # Supersede any older alerts for this complaint if prediction version is newer
+    outbox_service.supersede_older_alerts(
+        db=db,
+        complaint_id=complaint.id,
+        new_prediction_id=prediction.id,
+        new_prediction_version=prediction.version_number or 1
+    )
 
     alert = Alert(
         complaint_id=complaint.id,
@@ -168,15 +179,26 @@ def create_alert_for_prediction(
         expected_window=expected_window,
         amount_at_risk=amount_at_risk,
         status="NEW",
+        expires_at=expires_at,
         created_at=datetime.utcnow()
     )
 
     try:
         db.add(alert)
+        db.flush()
+
+        # Atomically enqueue durable outbox notification event in same transaction
+        outbox_service.enqueue_alert_event(
+            db=db,
+            alert=alert,
+            event_type="ALERT_CREATED",
+            prediction_version=prediction.version_number or 1
+        )
+
         db.commit()
         db.refresh(alert)
         logger.info(
-            f"[AlertService] Successfully created Alert #{alert.id} for Prediction #{prediction.id} "
+            f"[AlertService] Successfully created Alert #{alert.id} and durable Outbox event for Prediction #{prediction.id} "
             f"({complaint.complaint_number}) at {location_name}."
         )
 

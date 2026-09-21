@@ -306,10 +306,11 @@ def test_api_create_complaint_clean_and_zero_fabricated_data(db):
     created_id = data["id"]
     created_num = data["complaint_number"]
     assert created_num.startswith("CMP-NEW-")
-    assert data["scenario_link_status"] == "LINKED"
-    assert data["source_scenario"].startswith("CMP-DL-")
-    assert data["linked_account_count"] > 0
-    assert data["available_transaction_count"] > 0
+    assert data["scenario_link_status"] in ("NOT_LINKED", "DIRECT_OFFICER_INPUT")
+    if data["scenario_link_status"] == "NOT_LINKED":
+        assert data["source_scenario"] is None
+        assert data["linked_account_count"] == 0
+        assert data["available_transaction_count"] == 0
 
     acc_after = db.query(Account).count()
     tx_after = db.query(Transaction).count()

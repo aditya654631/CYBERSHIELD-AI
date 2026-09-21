@@ -26,9 +26,33 @@ import {
   HelpCircle,
   Sparkles,
   Lock,
+  Upload,
+  Download,
+  FileCheck,
+  FileSpreadsheet,
+  FilePlus,
+  Eye,
+  Share2,
+  Send,
+  Check,
+  XCircle,
+  PlayCircle,
+  Clock4,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { Complaint, Prediction, Explanation, HotspotCluster, GraphData, AlertItem } from '../types';
+import {
+  Complaint,
+  Prediction,
+  PredictionVersionSummary,
+  Explanation,
+  HotspotCluster,
+  GraphData,
+  AlertItem,
+  EvidenceFileItem,
+  EvidenceIntegrityResult,
+  CaseHandoffItem,
+  CreateHandoffPayload,
+} from '../types';
 import { CashOutRiskMap } from '../maps/CashOutRiskMap';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -61,6 +85,41 @@ export const CaseIntelligence: React.FC = () => {
   const [predictionError, setPredictionError] = useState<string | null>(null);
   const [caseError, setCaseError] = useState<string | null>(null);
   const [alertSuccess, setAlertSuccess] = useState<string | null>(null);
+  const [predictionVersions, setPredictionVersions] = useState<PredictionVersionSummary[]>([]);
+  const [selectedVersionId, setSelectedVersionId] = useState<number | null>(null);
+  const [loadingVersion, setLoadingVersion] = useState(false);
+  const [asOfInput, setAsOfInput] = useState<string>('');
+
+  // Evidence & Report state (Phase 6)
+  const [evidenceList, setEvidenceList] = useState<EvidenceFileItem[]>([]);
+  const [loadingEvidence, setLoadingEvidence] = useState(false);
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [replaceTarget, setReplaceTarget] = useState<EvidenceFileItem | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [evidenceSource, setEvidenceSource] = useState('OFFICER_UPLOAD');
+  const [evidenceDesc, setEvidenceDesc] = useState('');
+  const [uploadingEvidence, setUploadingEvidence] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [integrityResults, setIntegrityResults] = useState<Record<number, EvidenceIntegrityResult>>({});
+  const [checkingIntegrityId, setCheckingIntegrityId] = useState<number | null>(null);
+
+  // Cross-Jurisdiction Handoffs state (Phase 7)
+  const [handoffsList, setHandoffsList] = useState<CaseHandoffItem[]>([]);
+  const [createHandoffModalOpen, setCreateHandoffModalOpen] = useState(false);
+  const [handoffActionModalOpen, setHandoffActionModalOpen] = useState(false);
+  const [activeHandoffForAction, setActiveHandoffForAction] = useState<CaseHandoffItem | null>(null);
+  const [handoffActionType, setHandoffActionType] = useState<'accept' | 'reject' | 'start' | 'complete' | 'cancel' | null>(null);
+  const [actionReasonOrNotes, setActionReasonOrNotes] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const [targetStateInput, setTargetStateInput] = useState('Maharashtra');
+  const [targetDistrictInput, setTargetDistrictInput] = useState('MUMBAI');
+  const [handoffPurposeInput, setHandoffPurposeInput] = useState('PHYSICAL_SURVEILLANCE');
+  const [handoffScopeInput, setHandoffScopeInput] = useState<'METADATA_ONLY' | 'SPECIFIC_EVIDENCE' | 'ALL_EVIDENCE'>('METADATA_ONLY');
+  const [selectedEvidenceIdsForHandoff, setSelectedEvidenceIdsForHandoff] = useState<number[]>([]);
+  const [createHandoffLoading, setCreateHandoffLoading] = useState(false);
+  const [createHandoffError, setCreateHandoffError] = useState<string | null>(null);
 
   const fetchCaseDetails = async () => {
     const version = ++loadVersion.current;
@@ -73,13 +132,17 @@ export const CaseIntelligence: React.FC = () => {
     setAuditVerification(null);
     setGraphData(null);
     setExistingAlert(null);
+    setSelectedVersionId(null);
     try {
-      const [compResult, predResult, mapResult, alertsResult, graphResult] = await Promise.allSettled([
+      const [compResult, predResult, mapResult, alertsResult, graphResult, versionsResult, evidenceResult, handoffsResult] = await Promise.allSettled([
         api.getComplaint(caseId),
         api.getPrediction(caseId),
         api.getRiskMap(),
         api.getAlerts(),
         api.getGraph(caseId),
+        api.getPredictionVersions(caseId),
+        api.getComplaintEvidence(caseId),
+        api.getComplaintHandoffs(caseId),
       ]);
       if (version !== loadVersion.current) return;
       if (compResult.status === 'rejected') throw compResult.reason;
@@ -90,13 +153,23 @@ export const CaseIntelligence: React.FC = () => {
       setPrediction(predData);
       setClusters(mapResult.status === 'fulfilled' ? mapResult.value.hotspots || [] : []);
       setGraphData(graphResult.status === 'fulfilled' ? graphResult.value : null);
+      if (versionsResult.status === 'fulfilled') {
+        const vList = Array.isArray(versionsResult.value)
+          ? versionsResult.value
+          : (versionsResult.value as any)?.versions || [];
+        setPredictionVersions(vList);
+      }
+      if (evidenceResult.status === 'fulfilled') {
+        setEvidenceList(evidenceResult.value);
+      }
+      if (handoffsResult.status === 'fulfilled') {
+        setHandoffsList(handoffsResult.value);
+      }
 
       const matchedAlert = (alertsResult.status === 'fulfilled' ? alertsResult.value : []).find(
         (a) => a.complaint_number === caseId || a.complaint_id === compData.id
       );
       setExistingAlert(matchedAlert || null);
-
-      // On-demand LIME: Do NOT block initial case page loading on LIME inference
 
     } catch (err: any) {
       console.error('Failed to load case intelligence', err);
@@ -118,15 +191,51 @@ export const CaseIntelligence: React.FC = () => {
     setExplanation(null);
     setAuditVerification(null);
     try {
-      const newPred = await api.runPrediction(caseId);
+      const newPred = await api.runPrediction(caseId, asOfInput || undefined);
       setPrediction(newPred);
-      // Non-blocking: Prediction response completes immediately without waiting on LIME
+      const [newGraph, versionsRes] = await Promise.all([
+        api.getGraph(caseId, asOfInput || undefined),
+        api.getPredictionVersions(caseId),
+      ]);
+      setGraphData(newGraph);
+      const vList = Array.isArray(versionsRes)
+        ? versionsRes
+        : (versionsRes as any)?.versions || [];
+      setPredictionVersions(vList);
+      setSelectedVersionId(null);
     } catch (err: any) {
       console.error('Error running predictive analysis', err);
       setPredictionError(apiErrorMessage(err, 'Predictive analysis could not be completed. Check case context or backend service.'));
     } finally {
       setRunningPrediction(false);
     }
+  };
+
+  const handleSelectVersion = async (v: PredictionVersionSummary) => {
+    if (loadingVersion || !complaint) return;
+    setLoadingVersion(true);
+    setPredictionError(null);
+    setExplanation(null);
+    setAuditVerification(null);
+    try {
+      const pred = await api.getPredictionVersion(v.prediction_id);
+      if (pred) {
+        setPrediction(pred);
+        setSelectedVersionId(v.prediction_id);
+        const newGraph = await api.getGraph(caseId, v.analysis_as_of || undefined);
+        setGraphData(newGraph);
+      }
+    } catch (err: any) {
+      console.error('Failed to load historical prediction version', err);
+      setPredictionError(apiErrorMessage(err, 'Failed to load selected prediction version.'));
+    } finally {
+      setLoadingVersion(false);
+    }
+  };
+
+  const handleReturnToOperational = async () => {
+    setSelectedVersionId(null);
+    fetchCaseDetails();
   };
 
   // On-demand LIME Explanation handler
@@ -179,6 +288,131 @@ export const CaseIntelligence: React.FC = () => {
       console.error('Error creating alert', err);
       setAlertSuccess(err.response?.data?.detail || 'Alert creation failed');
       setTimeout(() => setAlertSuccess(null), 5000);
+    }
+  };
+
+  const handleUploadEvidence = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedFile) {
+      setUploadError('Please select a valid file.');
+      return;
+    }
+    setUploadingEvidence(true);
+    setUploadError(null);
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      formData.append('source', evidenceSource);
+      if (evidenceDesc) formData.append('description', evidenceDesc);
+
+      if (replaceTarget) {
+        await api.replaceComplaintEvidence(caseId, replaceTarget.id, formData);
+      } else {
+        await api.uploadComplaintEvidence(caseId, formData);
+      }
+      const updated = await api.getComplaintEvidence(caseId);
+      setEvidenceList(updated);
+      setUploadModalOpen(false);
+      setSelectedFile(null);
+      setReplaceTarget(null);
+      setEvidenceDesc('');
+    } catch (err: any) {
+      setUploadError(apiErrorMessage(err, 'Failed to upload evidence.'));
+    } finally {
+      setUploadingEvidence(false);
+    }
+  };
+
+  const handleCheckIntegrity = async (evId: number) => {
+    setCheckingIntegrityId(evId);
+    try {
+      const res = await api.checkEvidenceIntegrity(evId, caseId);
+      setIntegrityResults((prev) => ({ ...prev, [evId]: res }));
+    } catch (err: any) {
+      console.error('Integrity check failed', err);
+    } finally {
+      setCheckingIntegrityId(null);
+    }
+  };
+
+  const handleExportReport = (download: boolean = false) => {
+    const url = api.getReportExportUrl(caseId, 'html', download);
+    window.open(url, '_blank');
+  };
+
+  const handleCreateHandoff = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setCreateHandoffLoading(true);
+    setCreateHandoffError(null);
+    try {
+      const predId = prediction?.prediction_id || (prediction as any)?.id;
+      const predVer = (prediction as any)?.version_number || (prediction as any)?.version;
+      const payload: CreateHandoffPayload = {
+        target_state: targetStateInput,
+        target_district: targetDistrictInput,
+        purpose: handoffPurposeInput,
+        evidence_scope: handoffScopeInput,
+        shared_evidence_ids: handoffScopeInput === 'SPECIFIC_EVIDENCE' ? selectedEvidenceIdsForHandoff : undefined,
+        prediction_id: predId,
+        prediction_version: predVer,
+        acknowledgement_hours: 24,
+      };
+      const created = await api.createComplaintHandoff(caseId, payload);
+      setHandoffsList((prev) => [created, ...prev]);
+      setCreateHandoffModalOpen(false);
+    } catch (err: any) {
+      console.error('Failed to create handoff', err);
+      setCreateHandoffError(apiErrorMessage(err, 'Failed to initiate cross-jurisdiction handoff.'));
+    } finally {
+      setCreateHandoffLoading(false);
+    }
+  };
+
+  const handleOpenActionModal = (handoff: CaseHandoffItem, action: 'accept' | 'reject' | 'start' | 'complete' | 'cancel') => {
+    setActiveHandoffForAction(handoff);
+    setHandoffActionType(action);
+    setActionReasonOrNotes('');
+    setActionError(null);
+    setHandoffActionModalOpen(true);
+  };
+
+  const handleExecuteHandoffAction = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeHandoffForAction || !handoffActionType) return;
+    setActionLoading(true);
+    setActionError(null);
+    try {
+      let updated: CaseHandoffItem;
+      if (handoffActionType === 'accept') {
+        updated = await api.acceptHandoff(activeHandoffForAction.id);
+      } else if (handoffActionType === 'reject') {
+        if (!actionReasonOrNotes.trim()) {
+          setActionError('Rejection reason is required.');
+          setActionLoading(false);
+          return;
+        }
+        updated = await api.rejectHandoff(activeHandoffForAction.id, actionReasonOrNotes);
+      } else if (handoffActionType === 'start') {
+        updated = await api.startHandoff(activeHandoffForAction.id);
+      } else if (handoffActionType === 'complete') {
+        updated = await api.completeHandoff(activeHandoffForAction.id, actionReasonOrNotes);
+      } else if (handoffActionType === 'cancel') {
+        if (!actionReasonOrNotes.trim()) {
+          setActionError('Cancellation reason is required.');
+          setActionLoading(false);
+          return;
+        }
+        updated = await api.cancelHandoff(activeHandoffForAction.id, actionReasonOrNotes);
+      } else {
+        return;
+      }
+      setHandoffsList((prev) => prev.map((h) => (h.id === updated.id ? updated : h)));
+      setHandoffActionModalOpen(false);
+    } catch (err: any) {
+      console.error('Handoff action failed', err);
+      setActionError(apiErrorMessage(err, 'Handoff action failed.'));
+    } finally {
+      setActionLoading(false);
     }
   };
 
@@ -302,6 +536,15 @@ export const CaseIntelligence: React.FC = () => {
                 Generate Alert
               </Button>
             ) : null}
+
+            <Button
+              onClick={() => handleExportReport(false)}
+              variant="outline"
+              size="sm"
+              icon={<FileText className="w-3.5 h-3.5 text-blue-600" />}
+            >
+              Export Dossier
+            </Button>
           </div>
         </div>
 
@@ -674,6 +917,97 @@ export const CaseIntelligence: React.FC = () => {
       ) : (
         /* ACTIVE PREDICTION WORKSPACE */
         <div className="space-y-5">
+          {/* HISTORICAL INTELLIGENCE REPLAY WARNING BANNER */}
+          {(prediction?.analysis_purpose === 'HISTORICAL_REPLAY' || (selectedVersionId && selectedVersionId !== predictionVersions[predictionVersions.length - 1]?.prediction_id)) && (
+            <div className="p-4 rounded-lg bg-amber-50 border border-amber-300 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-900 shadow-sm">
+              <div className="flex items-start sm:items-center space-x-3">
+                <Clock className="w-5 h-5 text-amber-600 shrink-0 mt-0.5 sm:mt-0" />
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-amber-800 flex items-center space-x-2">
+                    <span>Viewing Historical Intelligence Replay</span>
+                    <Badge variant="warning">Version {prediction?.version_number || 'Historical'}</Badge>
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-200 text-amber-800 font-semibold">HISTORICAL_REPLAY</span>
+                  </div>
+                  <p className="text-xs text-amber-700 mt-0.5">
+                    Point-in-time snapshot evaluated as of{' '}
+                    <strong>{prediction?.analysis_as_of ? formatIST(prediction.analysis_as_of) : 'Historical Cutoff'}</strong>.
+                    This is an immutable audit replay and does not represent live operational posture.
+                  </p>
+                </div>
+              </div>
+              <Button
+                onClick={handleReturnToOperational}
+                variant="outline"
+                size="sm"
+                icon={<ArrowRight className="w-3.5 h-3.5" />}
+              >
+                Return to Operational Latest
+              </Button>
+            </div>
+          )}
+
+          {/* PREDICTION VERSION HISTORY SELECTOR */}
+          {predictionVersions.length > 0 && (
+            <div className="bg-white border border-slate-200 rounded-lg p-4 shadow-sm space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-slate-100">
+                <div className="flex items-center space-x-2">
+                  <Layers className="w-4 h-4 text-indigo-600" />
+                  <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                    Prediction Version History ({predictionVersions.length})
+                  </h3>
+                </div>
+                <span className="text-[11px] text-slate-500">
+                  Chronological immutable prediction audit trail
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                {predictionVersions.map((v) => {
+                  const isSelected = (selectedVersionId === v.prediction_id) || (!selectedVersionId && v.prediction_id === (prediction?.prediction_id || (prediction as any)?.id));
+                  const isOp = (v.analysis_purpose || (v.analysis_as_of ? 'HISTORICAL_REPLAY' : 'OPERATIONAL')) === 'OPERATIONAL';
+
+                  return (
+                    <button
+                      key={v.prediction_id}
+                      type="button"
+                      onClick={() => handleSelectVersion(v)}
+                      disabled={loadingVersion}
+                      className={`p-3 rounded-lg border text-left transition-all relative ${
+                        isSelected
+                          ? 'border-indigo-600 bg-indigo-50/60 shadow-sm ring-1 ring-indigo-600'
+                          : 'border-slate-200 hover:border-slate-300 bg-white'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="font-mono text-xs font-bold text-slate-900">
+                          Version {v.version_number}
+                        </span>
+                        <span
+                          className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${
+                            isOp
+                              ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                              : 'bg-purple-100 text-purple-800 border border-purple-200'
+                          }`}
+                        >
+                          {isOp ? 'OPERATIONAL' : 'HISTORICAL_REPLAY'}
+                        </span>
+                      </div>
+
+                      <div className="text-xs font-medium text-slate-800 truncate" title={v.primary_location_name || 'Primary Cluster'}>
+                        {v.primary_location_name || 'Cash-Out Location'}
+                      </div>
+
+                      <div className="flex items-center justify-between text-[11px] text-slate-500 mt-1.5 pt-1.5 border-t border-slate-100">
+                        <span>Risk: <strong className="text-slate-700">{v.risk_level}</strong></span>
+                        <span>{v.created_at ? formatIST(v.created_at) : ''}</span>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
               <div className="flex items-center space-x-2">
@@ -682,9 +1016,23 @@ export const CaseIntelligence: React.FC = () => {
                   Predictive Cash-Out Assessment
                 </h3>
               </div>
-              <span className="text-xs text-slate-500">
-                Prediction #{prediction.prediction_id || prediction.id} • {isTrained ? 'Trained ML' : isDemo ? 'Deterministic Demo' : 'Operational'}
-              </span>
+              <div className="flex items-center space-x-2 text-xs text-slate-500">
+                <span className="font-semibold text-slate-700">v{prediction.version_number || 1}</span>
+                <span>•</span>
+                <span
+                  className={`text-[10px] font-semibold px-1.5 py-0.2 rounded ${
+                    (prediction.analysis_purpose || (prediction.analysis_as_of ? 'HISTORICAL_REPLAY' : 'OPERATIONAL')) === 'OPERATIONAL'
+                      ? 'bg-emerald-100 text-emerald-800'
+                      : 'bg-purple-100 text-purple-800'
+                  }`}
+                >
+                  {prediction.analysis_purpose || (prediction.analysis_as_of ? 'HISTORICAL_REPLAY' : 'OPERATIONAL')}
+                </span>
+                <span>•</span>
+                <span>Prediction #{prediction.prediction_id || prediction.id}</span>
+                <span>•</span>
+                <span>{isTrained ? 'Trained ML' : isDemo ? 'Deterministic Demo' : 'Operational'}</span>
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
@@ -1333,6 +1681,714 @@ export const CaseIntelligence: React.FC = () => {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* PHASE 6: DIGITAL EVIDENCE REGISTRY & INVESTIGATOR DOSSIER */}
+      {/* ==================================================================== */}
+      <div className="bg-white border border-slate-200 rounded-lg p-5 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-3">
+          <div className="flex items-center space-x-2.5">
+            <div className="p-1.5 bg-blue-50 text-blue-700 rounded-md">
+              <FileCheck className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
+                Digital Evidence Registry & Chain of Custody
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                Cryptographic SHA-256 Checksums • Tamper-Evident Versioning • Malware Scans
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-2">
+            <Button
+              onClick={() => handleExportReport(false)}
+              variant="outline"
+              size="sm"
+              icon={<Eye className="w-3.5 h-3.5 text-blue-600" />}
+            >
+              View Dossier
+            </Button>
+            <Button
+              onClick={() => handleExportReport(true)}
+              variant="secondary"
+              size="sm"
+              icon={<Download className="w-3.5 h-3.5" />}
+            >
+              Download HTML
+            </Button>
+            <Button
+              onClick={() => {
+                setReplaceTarget(null);
+                setSelectedFile(null);
+                setUploadError(null);
+                setUploadModalOpen(true);
+              }}
+              variant="primary"
+              size="sm"
+              icon={<Upload className="w-3.5 h-3.5" />}
+            >
+              Upload Evidence
+            </Button>
+          </div>
+        </div>
+
+        {/* Evidence Table */}
+        {evidenceList.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border border-slate-200 rounded-md overflow-hidden">
+              <thead className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
+                <tr>
+                  <th className="p-2.5">ID</th>
+                  <th className="p-2.5">Version</th>
+                  <th className="p-2.5">File Name & Source</th>
+                  <th className="p-2.5">Size</th>
+                  <th className="p-2.5">SHA-256 Checksum</th>
+                  <th className="p-2.5">Scan Status</th>
+                  <th className="p-2.5">Uploaded</th>
+                  <th className="p-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-slate-800">
+                {evidenceList.map((ev) => {
+                  const integ = integrityResults[ev.id];
+                  const isChecking = checkingIntegrityId === ev.id;
+                  const isSuperseded = ev.status === 'SUPERSEDED';
+
+                  return (
+                    <tr
+                      key={ev.id}
+                      className={`hover:bg-slate-50/80 transition-colors ${
+                        isSuperseded ? 'bg-slate-50/50 text-slate-400' : ''
+                      }`}
+                    >
+                      <td className="p-2.5 font-mono font-bold text-slate-700">
+                        EV-{String(ev.id).padStart(4, '0')}
+                      </td>
+                      <td className="p-2.5">
+                        <span
+                          className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${
+                            isSuperseded
+                              ? 'bg-slate-200 text-slate-600'
+                              : 'bg-blue-100 text-blue-800'
+                          }`}
+                        >
+                          v{ev.version} {isSuperseded && '(Superseded)'}
+                        </span>
+                      </td>
+                      <td className="p-2.5">
+                        <div className="font-semibold text-slate-900">{ev.original_filename}</div>
+                        <div className="text-[10px] text-slate-500 flex items-center space-x-1.5 mt-0.5">
+                          <span>{ev.source}</span>
+                          {ev.description && (
+                            <>
+                              <span>•</span>
+                              <span className="italic">{ev.description}</span>
+                            </>
+                          )}
+                        </div>
+                      </td>
+                      <td className="p-2.5 font-mono text-slate-600">
+                        {(ev.size_bytes / 1024).toFixed(1)} KB
+                      </td>
+                      <td className="p-2.5">
+                        <div className="flex items-center space-x-1.5">
+                          <span
+                            className="font-mono text-[11px] text-slate-700 truncate max-w-[120px]"
+                            title={ev.sha256_hash}
+                          >
+                            {ev.sha256_hash.substring(0, 12)}...
+                          </span>
+                          <button
+                            onClick={() => handleCheckIntegrity(ev.id)}
+                            disabled={isChecking}
+                            title="Verify on-disk cryptographic integrity against database hash"
+                            className="text-[10px] text-blue-600 hover:text-blue-800 underline font-medium"
+                          >
+                            {isChecking ? 'Verifying...' : 'Verify'}
+                          </button>
+                        </div>
+                        {integ && (
+                          <div className="mt-1">
+                            {integ.is_valid ? (
+                              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex items-center space-x-1 w-max">
+                                <CheckCircle2 className="w-2.5 h-2.5 text-emerald-600" />
+                                <span>Verified Authentic</span>
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-red-700 bg-red-50 px-1.5 py-0.5 rounded border border-red-200 flex items-center space-x-1 w-max">
+                                <AlertTriangle className="w-2.5 h-2.5 text-red-600" />
+                                <span>Integrity Violation</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </td>
+                      <td className="p-2.5">
+                        <Badge
+                          variant={
+                            ev.malware_scan_status === 'CLEAN'
+                              ? 'success'
+                              : ev.malware_scan_status === 'PENDING_SCAN'
+                              ? 'warning'
+                              : 'critical'
+                          }
+                        >
+                          {ev.malware_scan_status}
+                        </Badge>
+                      </td>
+                      <td className="p-2.5 text-[11px] text-slate-500 whitespace-nowrap">
+                        {formatIST(ev.created_at)}
+                      </td>
+                      <td className="p-2.5 text-right whitespace-nowrap space-x-1.5">
+                        <a
+                          href={api.getEvidenceDownloadUrl(ev.id, caseId)}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center space-x-1 px-2 py-1 bg-white border border-slate-200 rounded text-slate-700 hover:bg-slate-50 text-[11px] font-medium"
+                        >
+                          <Download className="w-3 h-3 text-slate-500" />
+                          <span>Download</span>
+                        </a>
+                        {!isSuperseded && (
+                          <button
+                            onClick={() => {
+                              setReplaceTarget(ev);
+                              setSelectedFile(null);
+                              setUploadError(null);
+                              setUploadModalOpen(true);
+                            }}
+                            className="inline-flex items-center space-x-1 px-2 py-1 bg-white border border-blue-200 rounded text-blue-700 hover:bg-blue-50 text-[11px] font-medium"
+                          >
+                            <RefreshCw className="w-3 h-3 text-blue-500" />
+                            <span>Replace</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-8 text-center bg-slate-50 border border-dashed border-slate-200 rounded-lg text-xs text-slate-500 space-y-2">
+            <FileSpreadsheet className="w-8 h-8 text-slate-400 mx-auto" />
+            <div className="font-semibold text-slate-700">No Digital Evidence Files Attached</div>
+            <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+              Attach bank account statements, CFCFRMS seizure logs, victim deposit slips, CCTV footage, or CDR summaries with SHA-256 chain of custody verification.
+            </p>
+            <Button
+              onClick={() => {
+                setReplaceTarget(null);
+                setSelectedFile(null);
+                setUploadError(null);
+                setUploadModalOpen(true);
+              }}
+              variant="outline"
+              size="sm"
+              icon={<Upload className="w-3.5 h-3.5" />}
+            >
+              Upload Initial Evidence
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Cross-Jurisdiction Task Assignments & Handoffs (Phase 7) */}
+      <div className="bg-white rounded-lg border border-slate-200 p-5 space-y-4 shadow-2xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+          <div>
+            <div className="flex items-center space-x-2">
+              <Share2 className="w-5 h-5 text-indigo-600" />
+              <h3 className="font-bold text-slate-900 text-sm">
+                Cross-Jurisdiction Task Assignments (Phase 7)
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Explicit, time-bounded inter-state coordination between case-owning LEA and field action teams.
+            </p>
+          </div>
+
+          <Button
+            onClick={() => {
+              setCreateHandoffError(null);
+              setCreateHandoffModalOpen(true);
+            }}
+            variant="primary"
+            size="sm"
+            icon={<Send className="w-3.5 h-3.5" />}
+          >
+            Initiate Cross-State Task
+          </Button>
+        </div>
+
+        {handoffsList.length > 0 ? (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50/80 text-slate-600 font-semibold border-b border-slate-200">
+                  <th className="p-2.5">Task ID</th>
+                  <th className="p-2.5">Destination Org / Jurisdiction</th>
+                  <th className="p-2.5">Purpose</th>
+                  <th className="p-2.5">Evidence Scope</th>
+                  <th className="p-2.5">Status</th>
+                  <th className="p-2.5">Deadline</th>
+                  <th className="p-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {handoffsList.map((h) => {
+                  const isExpired = h.status === 'EXPIRED';
+                  const isCompleted = h.status === 'COMPLETED';
+                  const isRejected = h.status === 'REJECTED';
+                  const isCancelled = h.status === 'CANCELLED';
+                  const isTerminal = isExpired || isCompleted || isRejected || isCancelled;
+
+                  return (
+                    <tr key={h.id} className="hover:bg-slate-50/50">
+                      <td className="p-2.5 font-mono font-medium text-slate-900">
+                        #{h.id}
+                      </td>
+                      <td className="p-2.5">
+                        <div className="font-medium text-slate-900">
+                          {h.destination_organization_name || `Org #${h.destination_organization_id}`}
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          {h.target_district}, {h.target_state}
+                        </div>
+                      </td>
+                      <td className="p-2.5">
+                        <span className="font-medium text-slate-800">
+                          {h.purpose.replace(/_/g, ' ')}
+                        </span>
+                      </td>
+                      <td className="p-2.5">
+                        <Badge
+                          variant={
+                            h.evidence_scope === 'ALL_EVIDENCE'
+                              ? 'info'
+                              : h.evidence_scope === 'SPECIFIC_EVIDENCE'
+                              ? 'warning'
+                              : 'neutral'
+                          }
+                        >
+                          {h.evidence_scope}
+                        </Badge>
+                      </td>
+                      <td className="p-2.5">
+                        <Badge
+                          variant={
+                            h.status === 'ACCEPTED'
+                              ? 'success'
+                              : h.status === 'IN_PROGRESS'
+                              ? 'info'
+                              : h.status === 'REQUESTED'
+                              ? 'warning'
+                              : h.status === 'COMPLETED'
+                              ? 'success'
+                              : 'critical'
+                          }
+                        >
+                          {h.status}
+                        </Badge>
+                      </td>
+                      <td className="p-2.5 text-[11px] text-slate-500 whitespace-nowrap">
+                        <div className="flex items-center space-x-1">
+                          <Clock4 className="w-3 h-3 text-slate-400" />
+                          <span>{formatIST(h.acknowledgement_deadline)}</span>
+                        </div>
+                      </td>
+                      <td className="p-2.5 text-right whitespace-nowrap space-x-1">
+                        {h.status === 'REQUESTED' && (
+                          <>
+                            <button
+                              onClick={() => handleOpenActionModal(h, 'accept')}
+                              className="inline-flex items-center space-x-1 px-2 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-medium"
+                            >
+                              <Check className="w-3 h-3" />
+                              <span>Accept</span>
+                            </button>
+                            <button
+                              onClick={() => handleOpenActionModal(h, 'reject')}
+                              className="inline-flex items-center space-x-1 px-2 py-1 bg-red-50 border border-red-200 text-red-700 hover:bg-red-100 rounded text-[11px] font-medium"
+                            >
+                              <XCircle className="w-3 h-3" />
+                              <span>Reject</span>
+                            </button>
+                          </>
+                        )}
+                        {h.status === 'ACCEPTED' && (
+                          <button
+                            onClick={() => handleOpenActionModal(h, 'start')}
+                            className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-50 border border-blue-200 text-blue-700 hover:bg-blue-100 rounded text-[11px] font-medium"
+                          >
+                            <PlayCircle className="w-3 h-3" />
+                            <span>Start Work</span>
+                          </button>
+                        )}
+                        {(h.status === 'ACCEPTED' || h.status === 'IN_PROGRESS') && (
+                          <button
+                            onClick={() => handleOpenActionModal(h, 'complete')}
+                            className="inline-flex items-center space-x-1 px-2 py-1 bg-indigo-50 border border-indigo-200 text-indigo-700 hover:bg-indigo-100 rounded text-[11px] font-medium"
+                          >
+                            <Check className="w-3 h-3" />
+                            <span>Complete</span>
+                          </button>
+                        )}
+                        {!isTerminal && (
+                          <button
+                            onClick={() => handleOpenActionModal(h, 'cancel')}
+                            className="inline-flex items-center space-x-1 px-2 py-1 bg-slate-50 border border-slate-200 text-slate-600 hover:bg-slate-100 rounded text-[11px] font-medium"
+                          >
+                            <span>Cancel</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-6 text-center bg-slate-50 border border-dashed border-slate-200 rounded-lg text-xs text-slate-500 space-y-2">
+            <Share2 className="w-7 h-7 text-slate-400 mx-auto" />
+            <div className="font-semibold text-slate-700">No Inter-Jurisdiction Tasks Assigned</div>
+            <p className="text-[11px] text-slate-500 max-w-sm mx-auto">
+              If predictive cash-out hotspots or mule beneficiaries are located outside Delhi, dispatch a scoped task assignment to the local destination police cyber cell.
+            </p>
+          </div>
+        )}
+      </div>
+
+      {/* Upload / Replace Evidence Modal */}
+      {uploadModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <Upload className="w-4 h-4 text-blue-600" />
+                <h4 className="font-bold text-slate-900 text-sm">
+                  {replaceTarget ? `Replace Evidence v${replaceTarget.version}` : 'Upload Digital Evidence'}
+                </h4>
+              </div>
+              <button
+                onClick={() => setUploadModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            {replaceTarget && (
+              <div className="p-2.5 bg-amber-50 border border-amber-200 rounded text-amber-800 text-xs">
+                <strong>Replacing:</strong> {replaceTarget.original_filename} (v{replaceTarget.version}). The original version will be preserved as SUPERSEDED with its historical SHA-256 hash intact.
+              </div>
+            )}
+
+            <form onSubmit={handleUploadEvidence} className="space-y-3.5 text-xs">
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Select File <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="file"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0] || null;
+                    setSelectedFile(f);
+                  }}
+                  className="w-full text-xs text-slate-600 file:mr-3 file:py-1.5 file:px-3 file:rounded file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 border border-slate-200 rounded p-1"
+                />
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Permitted: PDF, PNG, JPG, CSV, JSON, TXT, XLSX, DOCX (Max: 25 MB). Path traversal and scripts are strictly blocked.
+                </p>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Evidence Source <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={evidenceSource}
+                  onChange={(e) => setEvidenceSource(e.target.value)}
+                  className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-800 bg-white"
+                >
+                  <option value="OFFICER_UPLOAD">Officer Document Upload</option>
+                  <option value="BANK_STATEMENT">Core Banking Statement</option>
+                  <option value="CFCFRMS_EXPORT">CFCFRMS Coordination Export</option>
+                  <option value="VICTIM_SUBMISSION">Victim Submission / Receipt</option>
+                  <option value="ATM_CCTV">ATM CCTV Footage / Image</option>
+                  <option value="CDR_EXPORT">Call Detail Record (CDR) Export</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Description / Notes (Optional)
+                </label>
+                <textarea
+                  value={evidenceDesc}
+                  onChange={(e) => setEvidenceDesc(e.target.value)}
+                  rows={2}
+                  placeholder="Provide investigation context, seizure reference, or source notes..."
+                  className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-800 resize-none"
+                />
+              </div>
+
+              {uploadError && (
+                <div className="p-2.5 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                  {uploadError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setUploadModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={uploadingEvidence || !selectedFile}
+                  icon={<Upload className={`w-3.5 h-3.5 ${uploadingEvidence ? 'animate-spin' : ''}`} />}
+                >
+                  {uploadingEvidence ? 'Uploading...' : replaceTarget ? 'Save Replacement' : 'Upload Evidence'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Initiate Cross-State Assignment Modal */}
+      {createHandoffModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center space-x-2">
+                <Send className="w-4 h-4 text-indigo-600" />
+                <h4 className="font-bold text-slate-900 text-sm">
+                  Initiate Cross-State Task Assignment
+                </h4>
+              </div>
+              <button
+                onClick={() => setCreateHandoffModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateHandoff} className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Target State <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={targetStateInput}
+                    onChange={(e) => setTargetStateInput(e.target.value)}
+                    placeholder="e.g. Maharashtra"
+                    className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Target District <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={targetDistrictInput}
+                    onChange={(e) => setTargetDistrictInput(e.target.value)}
+                    placeholder="e.g. MUMBAI"
+                    className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Assignment Purpose <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={handoffPurposeInput}
+                  onChange={(e) => setHandoffPurposeInput(e.target.value)}
+                  className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-800 bg-white"
+                >
+                  <option value="PHYSICAL_SURVEILLANCE">Physical ATM Surveillance & Verification</option>
+                  <option value="ATM_INTERCEPTION">ATM Hotspot Interception & Stakeout</option>
+                  <option value="MULE_ARREST">Mule Account Holder Apprehension</option>
+                  <option value="EVIDENCE_COLLECTION">CCTV / Branch Seizure & Evidence Collection</option>
+                  <option value="BANK_BRANCH_VISIT">Bank Branch Inspection</option>
+                  <option value="LOCAL_INQUIRY">Local Field Inquiry</option>
+                  <option value="OTHER">Other Operational Task</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Shared Evidence Scope <span className="text-red-500">*</span>
+                </label>
+                <select
+                  value={handoffScopeInput}
+                  onChange={(e) => setHandoffScopeInput(e.target.value as any)}
+                  className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-800 bg-white"
+                >
+                  <option value="METADATA_ONLY">Metadata Only (Case overview & predicted hotspot)</option>
+                  <option value="SPECIFIC_EVIDENCE">Specific Attached Evidence Files</option>
+                  <option value="ALL_EVIDENCE">All Digital Evidence Files</option>
+                </select>
+              </div>
+
+              {handoffScopeInput === 'SPECIFIC_EVIDENCE' && evidenceList.length > 0 && (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Select Evidence Files to Share:
+                  </label>
+                  <div className="max-h-24 overflow-y-auto space-y-1 p-2 bg-slate-50 border border-slate-200 rounded">
+                    {evidenceList.map((ev) => (
+                      <label key={ev.id} className="flex items-center space-x-2 text-[11px] text-slate-700">
+                        <input
+                          type="checkbox"
+                          checked={selectedEvidenceIdsForHandoff.includes(ev.id)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedEvidenceIdsForHandoff([...selectedEvidenceIdsForHandoff, ev.id]);
+                            } else {
+                              setSelectedEvidenceIdsForHandoff(selectedEvidenceIdsForHandoff.filter((id) => id !== ev.id));
+                            }
+                          }}
+                        />
+                        <span>{ev.original_filename} (v{ev.version})</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {createHandoffError && (
+                <div className="p-2.5 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                  {createHandoffError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCreateHandoffModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={createHandoffLoading}
+                  icon={<Send className={`w-3.5 h-3.5 ${createHandoffLoading ? 'animate-spin' : ''}`} />}
+                >
+                  {createHandoffLoading ? 'Dispatching...' : 'Dispatch Assignment'}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm Handoff Action Modal */}
+      {handoffActionModalOpen && activeHandoffForAction && handoffActionType && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg border border-slate-200 shadow-xl max-w-md w-full p-5 space-y-4">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <h4 className="font-bold text-slate-900 text-sm capitalize">
+                {handoffActionType} Task Assignment #{activeHandoffForAction.id}
+              </h4>
+              <button
+                onClick={() => setHandoffActionModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 text-xs font-bold"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleExecuteHandoffAction} className="space-y-3.5 text-xs">
+              {(handoffActionType === 'reject' || handoffActionType === 'cancel') && (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    {handoffActionType === 'reject' ? 'Rejection Reason' : 'Cancellation Reason'} <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    required
+                    value={actionReasonOrNotes}
+                    onChange={(e) => setActionReasonOrNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Provide justification for auditing and chain of custody..."
+                    className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-800 resize-none"
+                  />
+                </div>
+              )}
+
+              {handoffActionType === 'complete' && (
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Field Outcome & Notes (Optional)
+                  </label>
+                  <textarea
+                    value={actionReasonOrNotes}
+                    onChange={(e) => setActionReasonOrNotes(e.target.value)}
+                    rows={3}
+                    placeholder="Record field outcome, suspects apprehended, seized assets, or branch verification notes..."
+                    className="w-full border border-slate-200 rounded px-2.5 py-1.5 text-xs text-slate-800 resize-none"
+                  />
+                </div>
+              )}
+
+              {(handoffActionType === 'accept' || handoffActionType === 'start') && (
+                <p className="text-xs text-slate-600">
+                  {handoffActionType === 'accept'
+                    ? `Confirm acceptance of Task #${activeHandoffForAction.id} from ${activeHandoffForAction.origin_organization_name || 'Origin LEA'}. Your organization will be granted scoped visibility.`
+                    : `Mark Task #${activeHandoffForAction.id} as IN_PROGRESS. Field operations are actively underway.`}
+                </p>
+              )}
+
+              {actionError && (
+                <div className="p-2.5 bg-red-50 border border-red-200 rounded text-red-700 text-xs">
+                  {actionError}
+                </div>
+              )}
+
+              <div className="flex items-center justify-end space-x-2 pt-2 border-t border-slate-100">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setHandoffActionModalOpen(false)}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={actionLoading}
+                >
+                  {actionLoading ? 'Processing...' : 'Confirm'}
+                </Button>
+              </div>
+            </form>
           </div>
         </div>
       )}

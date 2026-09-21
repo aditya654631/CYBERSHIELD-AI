@@ -155,6 +155,18 @@ const ClusterCenterController: React.FC<{
   return null;
 };
 
+const RegionCenterController: React.FC<{
+  regionCenter?: { lat: number; lon: number };
+}> = ({ regionCenter }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (regionCenter) {
+      map.setView([regionCenter.lat, regionCenter.lon], 11);
+    }
+  }, [regionCenter?.lat, regionCenter?.lon, map]);
+  return null;
+};
+
 export interface LeafletFallbackMapProps {
   hotspots?: HotspotCluster[];
   atms?: ATMLocationItem[];
@@ -170,6 +182,7 @@ export interface LeafletFallbackMapProps {
   focusTarget?: 'india' | 'complaint' | 'top1' | null;
   priorityHotspotIds?: number[];
   selectedClusterId?: number | null;
+  regionCenter?: { lat: number; lon: number };
 }
 
 export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
@@ -186,6 +199,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
   showComplaintOrigin = true,
   priorityHotspotIds,
   selectedClusterId,
+  regionCenter,
 }) => {
   const navigate = useNavigate();
 
@@ -227,6 +241,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
         {/* Dynamic Bounds Controller */}
         <MapBoundsController topLocations={topLocations} complaint={complaint} />
         <ClusterCenterController selectedClusterId={selectedClusterId} hotspots={hotspots} />
+        <RegionCenterController regionCenter={regionCenter} />
 
         {/* Complaint Origin Pin: Only rendered when legitimate coordinates exist */}
         {showComplaintOrigin && hasVictimCoords && (

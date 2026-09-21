@@ -179,6 +179,14 @@ class PredictionAuditClient:
             "schema_version": SCHEMA_VERSION
         }
 
+        if os.environ.get("ENVIRONMENT") == "test" and not os.environ.get("FORCE_FABRIC_GATEWAY"):
+            return {
+                "status": "PENDING",
+                "prediction_hash": pred_hash,
+                "error": "Fabric Gateway disabled in test environment",
+                "tx_id": None
+            }
+
         try:
             url = f"{self.base_url}/prediction-audit/anchor"
             resp = requests.post(url, json=payload, headers=self._get_headers(), timeout=self.timeout)

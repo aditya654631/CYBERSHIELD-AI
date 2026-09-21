@@ -30,8 +30,9 @@ from backend.app.config.settings import settings
 import backend.app.models.db as db_mod
 from backend.app.models.db import Base, get_db
 from backend.app.models import models
+import datetime
 from backend.app.main import app
-from backend.app.auth.security import get_password_hash
+from backend.app.auth.security import get_password_hash, create_access_token
 
 # Guardrail: Override database url for test session
 db_url = str(settings.DATABASE_URL).lower()
@@ -45,6 +46,14 @@ test_engine = create_engine(
     f"sqlite:///{_test_db_path}",
     connect_args={"check_same_thread": False}
 )
+
+from sqlalchemy import event
+@event.listens_for(test_engine, "connect")
+def set_sqlite_pragma(dbapi_connection, connection_record):
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
+
 TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 # Intercept engine and SessionLocal immediately so any test file importing them gets test_engine
@@ -74,6 +83,15 @@ def pytest_collection_modifyitems(config, items):
                 item.add_marker(skip_live)
 
 
+@pytest.fixture(autouse=True)
+def reset_rate_limiter_fixture():
+    """Reset rate limiter state before and after each test to prevent cross-test contamination."""
+    from backend.app.auth.rate_limiter import login_rate_limiter
+    login_rate_limiter.reset()
+    yield
+    login_rate_limiter.reset()
+
+
 @pytest.fixture(scope="session", autouse=True)
 def guardrail_and_isolate_test_db():
     """
@@ -83,6 +101,10 @@ def guardrail_and_isolate_test_db():
     # Seed baseline reference data (Organizations, Users, ATMLocations, LocationClusters)
     db = TestingSessionLocal()
     try:
+        # Seed Geography Regions & Catalogs first to satisfy foreign key constraints (Phase 12)
+        from backend.app.services.geography_catalog_service import ensure_default_regions_and_catalogs
+        ensure_default_regions_and_catalogs(db)
+
         # Organizations
         if not db.query(models.Organization).first():
             i4c_org = models.Organization(id=1, name="I4C National Command", org_type="I4C", state="Delhi", district="CENTRAL_NEW_DELHI")
@@ -90,7 +112,8 @@ def guardrail_and_isolate_test_db():
             indore_lea = models.Organization(id=3, name="Indore District Cyber Cell", org_type="LEA", state="Madhya Pradesh", district="Indore")
             sbi_bank = models.Organization(id=4, name="State Bank of India - Fraud Risk Management Unit", org_type="BANK", state="Maharashtra", district="Mumbai")
             mha_audit = models.Organization(id=5, name="Ministry of Home Affairs Oversight & Compliance", org_type="I4C", state="Delhi", district="CENTRAL_NEW_DELHI")
-            db.add_all([i4c_org, mp_state_lea, indore_lea, sbi_bank, mha_audit])
+            delhi_lea = models.Organization(id=6, name="Delhi Central Cyber Cell", org_type="LEA", state="Delhi", district="CENTRAL_NEW_DELHI")
+            db.add_all([i4c_org, mp_state_lea, indore_lea, sbi_bank, mha_audit, delhi_lea])
             db.flush()
 
         # Users
@@ -127,11 +150,11 @@ def guardrail_and_isolate_test_db():
                 ),
                 models.User(
                     id=7, email="officer@delhipolice.gov.in", hashed_password=get_password_hash("officer123"),
-                    full_name="ACP Vikramaditya Singh", role="DISTRICT_LEA", badge_number="DL-CY-9901", organization_id=org_1.id if org_1 else None, is_active=True
+                    full_name="ACP Vikramaditya Singh", role="DISTRICT_LEA", badge_number="DL-CY-9901", organization_id=6, is_active=True
                 ),
                 models.User(
                     id=8, email="inactive.officer@cybershield.gov.in", hashed_password=get_password_hash("Password@2026"),
-                    full_name="Suspended Officer", role="DISTRICT_LEA", badge_number="SUSP-01", organization_id=org_1.id if org_1 else None, is_active=False
+                    full_name="Suspended Officer", role="DISTRICT_LEA", badge_number="SUSP-01", organization_id=6, is_active=False
                 ),
             ]
             db.add_all(users)
@@ -158,6 +181,7 @@ def guardrail_and_isolate_test_db():
                 account_number="SBIN0001234567",
                 masked_account="SBIN••••4567",
                 bank_name="State Bank of India",
+                bank_organization_id=4,
                 ifsc="SBIN0001234",
                 holder_name="Mule Beneficiary",
                 account_type="SAVINGS",
@@ -175,87 +199,70 @@ def guardrail_and_isolate_test_db():
             db.add(complaint_account)
             db.flush()
 
-        # Baseline clusters and ATMs for test scenarios
-        if not db.query(models.LocationCluster).filter_by(id=1).first():
-            from database.seed.delhi_geography import DELHI_CLUSTERS_DATA
-            clusters = [
-                models.LocationCluster(
-                    id=i + 1,
-                    cluster_name=c["name"],
-                    city="Delhi",
-                    district=c["zone"],
-                    state="Delhi",
-                    center_lat=c["lat"],
-                    center_lon=c["lon"],
-                    radius_km=c["radius"],
-                    historical_fraud_count=c["fraud_count"] * 10,
-                    atm_count=4,
-                    risk_score=c["risk"]
-                )
-                for i, c in enumerate(DELHI_CLUSTERS_DATA)
-            ]
-            db.add_all(clusters)
+        # Seed complete synthetic operational database (idempotent)
+        from database.seed.seed_data import seed_database
+        seed_database(db)
+
+        # Seed canonical test complaints CMP-NEW-000002, CMP-NEW-000003, CMP-NEW-000004
+        if not db.query(models.Complaint).filter_by(complaint_number="CMP-NEW-000002").first():
+            sc_1261 = db.query(models.Complaint).filter_by(complaint_number="CMP-DL-1261").first()
+            c2 = models.Complaint(
+                complaint_number="CMP-NEW-000002",
+                fraud_type="UPI Fraud",
+                amount=50000.0,
+                victim_location="Connaught Place, Delhi",
+                state="Delhi",
+                district="Central Delhi",
+                payment_channel="UPI",
+                provenance_mode="LINKED_SYNTHETIC_SCENARIO",
+                description="[SCENARIO:CMP-DL-1261|STATUS:LINKED|SCORE:95.0|REASON:Tier 1: Same Zone, Fraud Type, Channel, Amount Band]\nLinked operational scenario test complaint",
+                case_status="REGISTERED",
+                reported_at=datetime.datetime.now(datetime.timezone.utc)
+            )
+            db.add(c2)
+            db.flush()
+            if sc_1261:
+                for ca in db.query(models.ComplaintAccount).filter_by(complaint_id=sc_1261.id).all():
+                    db.add(models.ComplaintAccount(complaint_id=c2.id, account_id=ca.account_id, association_type=ca.association_type))
+
+        if not db.query(models.Complaint).filter_by(complaint_number="CMP-NEW-000003").first():
+            sc_1095 = db.query(models.Complaint).filter_by(complaint_number="CMP-DL-1095").first()
+            c3 = models.Complaint(
+                complaint_number="CMP-NEW-000003",
+                fraud_type="UPI Fraud",
+                amount=75000.0,
+                victim_location="Karol Bagh, Delhi",
+                state="Delhi",
+                district="Central Delhi",
+                payment_channel="UPI",
+                provenance_mode="LINKED_SYNTHETIC_SCENARIO",
+                description="[SCENARIO:CMP-DL-1095|STATUS:LINKED|SCORE:95.0|REASON:Tier 1: Same Zone, Fraud Type, Channel, Amount Band]\nLinked operational scenario test complaint",
+                case_status="REGISTERED",
+                reported_at=datetime.datetime.now(datetime.timezone.utc)
+            )
+            db.add(c3)
+            db.flush()
+            if sc_1095:
+                for ca in db.query(models.ComplaintAccount).filter_by(complaint_id=sc_1095.id).all():
+                    db.add(models.ComplaintAccount(complaint_id=c3.id, account_id=ca.account_id, association_type=ca.association_type))
+
+        if not db.query(models.Complaint).filter_by(complaint_number="CMP-NEW-000004").first():
+            c4 = models.Complaint(
+                complaint_number="CMP-NEW-000004",
+                fraud_type="Investment Scam",
+                amount=125000.0,
+                victim_location="MP Nagar, Bhopal",
+                state="Madhya Pradesh",
+                district="Bhopal",
+                payment_channel="Net Banking",
+                provenance_mode="OUTSIDE_OPERATIONAL_SCOPE",
+                description="Outside pilot scope test complaint",
+                case_status="REGISTERED",
+                reported_at=datetime.datetime.now(datetime.timezone.utc)
+            )
+            db.add(c4)
             db.flush()
 
-        if not db.query(models.ATMLocation).filter_by(id=1).first():
-            atm_1 = models.ATMLocation(
-                id=1,
-                atm_code="ATM-DL-0001",
-                bank_name="SBI",
-                address="Inner Circle, Connaught Place",
-                city="Delhi",
-                district="Central Delhi",
-                state="Delhi",
-                latitude=28.6320,
-                longitude=77.2170,
-                cash_available=True,
-                risk_rating="HIGH",
-                cluster_id=1
-            )
-            atm_2 = models.ATMLocation(
-                id=2,
-                atm_code="ATM-DL-0002",
-                bank_name="HDFC",
-                address="Pusa Road, Karol Bagh",
-                city="Delhi",
-                district="Central Delhi",
-                state="Delhi",
-                latitude=28.6520,
-                longitude=77.1910,
-                cash_available=True,
-                risk_rating="HIGH",
-                cluster_id=2
-            )
-            atm_3 = models.ATMLocation(
-                id=3,
-                atm_code="ATM-DL-0003",
-                bank_name="ICICI",
-                address="Central Market, Lajpat Nagar",
-                city="Delhi",
-                district="South Delhi",
-                state="Delhi",
-                latitude=28.5680,
-                longitude=77.2435,
-                cash_available=True,
-                risk_rating="MEDIUM",
-                cluster_id=3
-            )
-            atm_4 = models.ATMLocation(
-                id=4,
-                atm_code="ATM-DL-0004",
-                bank_name="Axis",
-                address="Commercial Complex, Nehru Place",
-                city="Delhi",
-                district="South East Delhi",
-                state="Delhi",
-                latitude=28.5498,
-                longitude=77.2540,
-                cash_available=True,
-                risk_rating="HIGH",
-                cluster_id=4
-            )
-            db.add_all([atm_1, atm_2, atm_3, atm_4])
-            db.flush()
         db.commit()
     finally:
         db.close()
@@ -297,7 +304,29 @@ def db_session(guardrail_and_isolate_test_db):
 
 
 @pytest.fixture
+def db(db_session):
+    """Alias for db_session fixture."""
+    return db_session
+
+
+@pytest.fixture
 def client(guardrail_and_isolate_test_db):
-    """Provides a TestClient wired to the isolated database."""
+    """Provides an unauthenticated TestClient wired to the isolated database."""
     with TestClient(app) as c:
         yield c
+
+
+@pytest.fixture
+def auth_client(guardrail_and_isolate_test_db):
+    """Provides an authenticated TestClient with I4C_ADMIN privileges."""
+    with TestClient(app) as c:
+        token = create_access_token({"sub": "admin@cybershield.gov.in", "role": "I4C_ADMIN"})
+        c.headers.update({"Authorization": f"Bearer {token}"})
+        yield c
+
+
+@pytest.fixture
+def admin_headers(guardrail_and_isolate_test_db):
+    """Provides standard I4C_ADMIN bearer authorization headers."""
+    token = create_access_token({"sub": "admin@cybershield.gov.in", "role": "I4C_ADMIN"})
+    return {"Authorization": f"Bearer {token}"}

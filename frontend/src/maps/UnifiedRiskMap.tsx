@@ -21,6 +21,7 @@ export interface UnifiedRiskMapProps {
   showControls?: boolean;
   priorityHotspotIds?: number[];
   selectedClusterId?: number | null;
+  regionCenter?: { lat: number; lon: number };
 }
 
 const DELHI_CENTER = { lat: 28.6139, lng: 77.2090 };
@@ -36,6 +37,7 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
   showControls = true,
   priorityHotspotIds,
   selectedClusterId,
+  regionCenter,
 }) => {
   const navigate = useNavigate();
   const mapDivRef = useRef<HTMLDivElement>(null);
@@ -181,7 +183,15 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
     }
   }, [selectedClusterId, hotspots]);
 
-  // 4. Render Layers on Google Map (Top-3 Predictions, Operational Rings, Delhi ATMs, Complaint Origin)
+  // Center on regionCenter if provided
+  useEffect(() => {
+    if (regionCenter && googleMapRef.current) {
+      googleMapRef.current.panTo({ lat: regionCenter.lat, lng: regionCenter.lon });
+      googleMapRef.current.setZoom(11);
+    }
+  }, [regionCenter?.lat, regionCenter?.lon]);
+
+  // 4. Render Layers on Google Map (Top-3 Predictions, Operational Rings, ATMs, Complaint Origin)
   useEffect(() => {
     if (provider !== 'google' || googleLoadStatus !== 'ready' || !googleMapRef.current) return;
 
@@ -650,6 +660,8 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
           showAtms={layerAtms}
           showComplaintOrigin={layerOrigin}
           priorityHotspotIds={priorityHotspotIds}
+          selectedClusterId={selectedClusterId}
+          regionCenter={regionCenter}
         />
       </div>
     );

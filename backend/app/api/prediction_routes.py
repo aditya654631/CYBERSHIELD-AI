@@ -1,10 +1,15 @@
-from typing import Any, Optional
-from datetime import timedelta
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Any, Optional, List
+from datetime import timedelta, datetime
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from backend.app.models.db import get_db
 from backend.app.models.models import Complaint, Prediction, PredictionLocation, User
-from backend.app.schemas.schemas import PredictionResponse, ExplanationResponse
+from backend.app.schemas.schemas import (
+    PredictionResponse,
+    ExplanationResponse,
+    PredictionRunRequest,
+    PredictionVersionSummary,
+)
 from backend.app.auth.security import get_current_user
 from backend.app.auth.rbac import require_roles, verify_complaint_access, RoleEnum
 from backend.app.services.audit_service import log_audit
@@ -12,6 +17,54 @@ from backend.app.services.prediction_service import prediction_service
 from backend.app.services.prediction_contract import utc_iso, window_status
 
 router = APIRouter(prefix="/predictions", tags=["Predictive Intelligence"])
+
+
+def _build_time_prediction_field(
+    prediction: Any,
+    complaint: "Complaint",
+    pred_mode: str,
+    res_meta: dict,
+) -> dict:
+    """
+    Phase 11: Builds the time_prediction response field for a persisted Prediction ORM row,
+    propagating uncertainty provenance (window_basis, uncertainty_minutes) from
+    result_metadata.time_prediction so they survive the persistence round-trip.
+
+    Priority:
+      1. Structural fields (minutes, model_version, window_start/end) from ORM columns.
+      2. uncertainty_minutes and window_basis recovered from result_metadata.time_prediction
+         (written at inference time by build_time_prediction).
+    This function never mutates ORM objects or historical data.
+    """
+    ref_time = complaint.reported_at or complaint.incident_time or getattr(prediction, "created_at", None)
+    fallback_label = "Next 2\u20134 Hours" if pred_mode == "deterministic_demo" else "Next 2\u20134 Hours (operational estimate window)"
+
+    # Recover provenance fields from result_metadata.time_prediction (written at inference time)
+    meta_time = res_meta.get("time_prediction", {}) if isinstance(res_meta, dict) else {}
+    if not isinstance(meta_time, dict):
+        meta_time = {}
+
+    persisted_minutes = getattr(prediction, "predicted_minutes_to_cashout", None)
+    return {
+        "predicted_minutes_to_cashout": persisted_minutes,
+        "model_version": getattr(prediction, "time_model_version", None),
+        "prediction_reference_time": utc_iso(ref_time),
+        "reference_basis": meta_time.get("reference_basis", "complaint_reported_at"),
+        "predicted_cashout_at": (
+            utc_iso(ref_time + timedelta(minutes=float(persisted_minutes)))
+            if ref_time and persisted_minutes is not None
+            else None
+        ),
+        "window_start": utc_iso(getattr(prediction, "predicted_window_start", None)),
+        "window_end": utc_iso(getattr(prediction, "predicted_window_end", None)),
+        "window_status": window_status(
+            getattr(prediction, "predicted_window_start", None),
+            getattr(prediction, "predicted_window_end", None),
+        ),
+        "uncertainty_minutes": meta_time.get("uncertainty_minutes"),
+        "window_basis": meta_time.get("window_basis"),
+        "operational_window": getattr(prediction, "window_label", None) or fallback_label,
+    }
 
 
 def _derive_priority_level(intervention_priority: Optional[int], risk_level: Optional[str] = None) -> str:
@@ -95,6 +148,7 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
 
     interv_prio = getattr(prediction, "intervention_priority", 50)
     risk_level_val = getattr(prediction, "risk_level", None)
+    res_meta = getattr(prediction, "result_metadata", {}) or {}
 
     return {
         "prediction_id": getattr(prediction, "id", 0) if not isinstance(prediction, dict) else prediction.get("prediction_id", 0),
@@ -121,24 +175,14 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
         "model_version": getattr(prediction, "model_version", None) or "unavailable",
         "operational_scope": op_scope,
         "candidate_pool_size": pool_size,
-        "time_prediction": {
-            "predicted_minutes_to_cashout": getattr(prediction, "predicted_minutes_to_cashout", None),
-            "model_version": getattr(prediction, "time_model_version", None),
-            "prediction_reference_time": utc_iso(ref_time),
-            "reference_basis": "complaint_reported_at",
-            "predicted_cashout_at": (
-                utc_iso(ref_time + timedelta(minutes=float(getattr(prediction, "predicted_minutes_to_cashout", 0.0))))
-                if ref_time and getattr(prediction, "predicted_minutes_to_cashout", None) is not None
-                else None
-            ),
-            "window_start": utc_iso(getattr(prediction, "predicted_window_start", None)),
-            "window_end": utc_iso(getattr(prediction, "predicted_window_end", None)),
-            "window_status": window_status(
-                getattr(prediction, "predicted_window_start", None),
-                getattr(prediction, "predicted_window_end", None)
-            ),
-            "operational_window": getattr(prediction, "window_label", None) or ("Next 2–4 Hours" if pred_mode == "deterministic_demo" else "Next 2–4 Hours (operational estimate window)")
-        },
+        "version_number": getattr(prediction, "version_number", 1) if not isinstance(prediction, dict) else prediction.get("version_number", 1),
+        "parent_prediction_id": getattr(prediction, "parent_prediction_id", None) if not isinstance(prediction, dict) else prediction.get("parent_prediction_id"),
+        "analysis_as_of": getattr(prediction, "analysis_as_of", None) if not isinstance(prediction, dict) else prediction.get("analysis_as_of"),
+        "analysis_purpose": getattr(prediction, "analysis_purpose", "OPERATIONAL") if not isinstance(prediction, dict) else prediction.get("analysis_purpose", "OPERATIONAL"),
+        "input_fingerprint": getattr(prediction, "input_fingerprint", None) if not isinstance(prediction, dict) else prediction.get("input_fingerprint"),
+        "discrepancy_detected": res_meta.get("discrepancy_detected", False) if isinstance(res_meta, dict) else False,
+        # Phase 11: use helper to propagate window_basis and uncertainty_minutes from result_metadata
+        "time_prediction": _build_time_prediction_field(prediction, complaint, pred_mode, res_meta),
         "limitations": [
             "Operational scope is strictly calibrated for Delhi Pilot 60 clusters."
         ] if pred_mode == "trained_ml" else [
@@ -151,6 +195,8 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
 @router.post("/{complaint_id}", response_model=PredictionResponse)
 def run_prediction(
     complaint_id: str,
+    payload: Optional[PredictionRunRequest] = None,
+    analysis_as_of: Optional[datetime] = Query(None),
     db: Session = Depends(get_db),
     current_user: User = Depends(require_roles(
         RoleEnum.I4C_ADMIN, RoleEnum.STATE_LEA, RoleEnum.DISTRICT_LEA, RoleEnum.ANALYST
@@ -164,8 +210,19 @@ def run_prediction(
     if not complaint or not verify_complaint_access(complaint, current_user, db):
         raise HTTPException(status_code=404, detail="Complaint not found")
 
-    # Step 10: Dynamic inference + atomic persistence into Prediction and PredictionLocation
-    result = prediction_service.run_and_persist_prediction(db, complaint.id)
+    effective_cutoff = None
+    if payload and payload.analysis_as_of:
+        effective_cutoff = payload.analysis_as_of
+    elif analysis_as_of:
+        effective_cutoff = analysis_as_of
+
+    # Step 10: Dynamic inference + atomic persistence into Prediction and PredictionLocation.
+    # analysis_purpose is HISTORICAL_REPLAY when the user explicitly specified a cutoff,
+    # and OPERATIONAL when no cutoff was provided (live forward-looking analysis).
+    resolved_purpose = "HISTORICAL_REPLAY" if effective_cutoff is not None else "OPERATIONAL"
+    result = prediction_service.run_and_persist_prediction(
+        db, complaint.id, analysis_as_of=effective_cutoff, analysis_purpose=resolved_purpose
+    )
 
     # Log audit event: PREDICTION_RUN with authoritative user
     pred_id = result.get("prediction_id") or (result.id if hasattr(result, "id") else None)
@@ -176,7 +233,7 @@ def run_prediction(
         role=current_user.role,
         action="PREDICTION_RUN",
         case_number=complaint.complaint_number,
-        details=f"Predictive analysis executed for {complaint.complaint_number} (Prediction ID: #{pred_id}, Mode: {result.get('prediction_mode')}, Model: {result.get('model_version')}, Scope: {result.get('operational_scope')})"
+        details=f"Predictive analysis executed for {complaint.complaint_number} (Prediction ID: #{pred_id}, Mode: {result.get('prediction_mode')}, Model: {result.get('model_version')}, Scope: {result.get('operational_scope')}, Cutoff: {effective_cutoff})"
     )
 
     return _format_prediction_response(result, complaint)
@@ -189,7 +246,9 @@ def get_prediction(
     current_user: User = Depends(get_current_user)
 ):
     """
-    Strictly read-only endpoint: retrieves the latest persisted prediction for the complaint.
+    Strictly read-only endpoint: retrieves the operational prediction for the complaint.
+    Operational "latest" prioritizes the latest analysis cutoff (point in time),
+    ensuring a historical replay does not overwrite the live operational intelligence.
     Returns 404 if no prediction has been persisted yet or if complaint is out of jurisdiction.
     """
     if complaint_id.isdigit():
@@ -201,7 +260,10 @@ def get_prediction(
         raise HTTPException(status_code=404, detail="Complaint not found")
 
     from backend.app.services.prediction_persistence_service import prediction_persistence_service
-    latest_pred = prediction_persistence_service.get_latest_prediction(db, complaint.id)
+    latest_pred = prediction_persistence_service.get_latest_operational_prediction(db, complaint.id)
+    if not latest_pred:
+        latest_pred = prediction_persistence_service.get_latest_prediction(db, complaint.id)
+
     if not latest_pred:
         raise HTTPException(
             status_code=404,
@@ -209,6 +271,73 @@ def get_prediction(
         )
 
     return _format_prediction_response(latest_pred, complaint)
+
+
+@router.get("/{complaint_id}/versions", response_model=List[PredictionVersionSummary])
+def get_prediction_versions(
+    complaint_id: str,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieves chronological version history of predictive intelligence for a complaint.
+    Enables audit inspection across historical replays and incremental transfer updates.
+    """
+    if complaint_id.isdigit():
+        complaint = db.query(Complaint).filter(Complaint.id == int(complaint_id)).first()
+    else:
+        complaint = db.query(Complaint).filter(Complaint.complaint_number == complaint_id).first()
+
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
+        raise HTTPException(status_code=404, detail="Complaint not found")
+
+    from backend.app.services.prediction_persistence_service import prediction_persistence_service
+    versions = prediction_persistence_service.get_prediction_versions(db, complaint.id)
+    summaries = []
+    for pred in versions:
+        locs = sorted(pred.locations, key=lambda x: x.rank)
+        primary_name = locs[0].location_name if locs else None
+        res_meta = pred.result_metadata or {}
+        summaries.append(
+            PredictionVersionSummary(
+                prediction_id=pred.id,
+                complaint_id=pred.complaint_id,
+                version_number=pred.version_number or 1,
+                parent_prediction_id=pred.parent_prediction_id,
+                analysis_as_of=pred.analysis_as_of,
+                analysis_purpose=pred.analysis_purpose or ("HISTORICAL_REPLAY" if pred.analysis_as_of else "OPERATIONAL"),
+                created_at=pred.created_at,
+                primary_cluster_id=pred.primary_cluster_id,
+                primary_location_name=primary_name,
+                risk_score=pred.risk_score or 0.0,
+                risk_level=pred.risk_level or "MEDIUM",
+                operational_window=pred.window_label,
+                input_fingerprint=pred.input_fingerprint,
+                discrepancy_detected=res_meta.get("discrepancy_detected", False) if isinstance(res_meta, dict) else False,
+            )
+        )
+    return summaries
+
+
+@router.get("/version/{prediction_id}", response_model=PredictionResponse)
+def get_prediction_version(
+    prediction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieves a specific immutable historical prediction version by its ID.
+    Preserves audit access to historical replays without mutating the operational view.
+    """
+    prediction = db.query(Prediction).filter(Prediction.id == prediction_id).first()
+    if not prediction:
+        raise HTTPException(status_code=404, detail=f"Prediction #{prediction_id} not found.")
+
+    complaint = db.query(Complaint).filter(Complaint.id == prediction.complaint_id).first()
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
+        raise HTTPException(status_code=404, detail="Prediction not found.")
+
+    return _format_prediction_response(prediction, complaint)
 
 
 @router.get("/{prediction_id}/explanation", response_model=ExplanationResponse)

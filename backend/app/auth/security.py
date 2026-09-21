@@ -15,6 +15,24 @@ from backend.app.models.models import User
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
 
+def has_valid_role_organization_scope(user: User) -> bool:
+    """Validate trusted database role/organization pairing before authorization."""
+    org = getattr(user, "organization", None)
+    role = (getattr(user, "role", None) or "").upper()
+    if not org:
+        return False
+    org_type = (org.org_type or "").upper()
+    expected = {
+        "I4C_ADMIN": {"I4C"},
+        "STATE_LEA": {"LEA"},
+        "DISTRICT_LEA": {"LEA"},
+        "BANK_OFFICER": {"BANK"},
+        "ANALYST": {"I4C", "LEA"},
+        "AUDITOR": {"I4C", "LEA"},
+    }
+    return role in expected and org_type in expected[role]
+
+
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """
     Verifies a plain password against stored hash using constant-time comparison.
@@ -101,6 +119,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
+    if not has_valid_role_organization_scope(user):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="User role and organization scope are not configured for access",
+        )
+
     return user
 
 
@@ -127,5 +151,7 @@ def verify_ws_token(token: Optional[str], db: Session) -> User:
     user = db.query(User).filter(User.email == email).first()
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
+    if not has_valid_role_organization_scope(user):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User scope is not configured")
 
     return user

@@ -110,16 +110,16 @@ def seed_demo_case_cmp1042(db: Session) -> None:
     db.flush()
 
     atms = [
-        ATMLocation(atm_code="ATM-SBI-VN01", bank_name="State Bank of India", address="AB Road, Scheme 54, Vijay Nagar", city="Indore", district="Indore", latitude=22.7540, longitude=75.8942, cluster_id=clusters[0].id, risk_rating="CRITICAL"),
-        ATMLocation(atm_code="ATM-HDFC-VN02", bank_name="HDFC Bank", address="Near C21 Mall, Vijay Nagar", city="Indore", district="Indore", latitude=22.7521, longitude=75.8928, cluster_id=clusters[0].id, risk_rating="CRITICAL"),
-        ATMLocation(atm_code="ATM-PNB-VN03", bank_name="Punjab National Bank", address="Sayaji Circle, Vijay Nagar", city="Indore", district="Indore", latitude=22.7552, longitude=75.8955, cluster_id=clusters[0].id, risk_rating="CRITICAL"),
-        ATMLocation(atm_code="ATM-ICICI-VN04", bank_name="ICICI Bank", address="Bhamori, Vijay Nagar", city="Indore", district="Indore", latitude=22.7510, longitude=75.8910, cluster_id=clusters[0].id, risk_rating="HIGH"),
-        ATMLocation(atm_code="ATM-AXIS-PL01", bank_name="Axis Bank", address="Old Palasia Main Road", city="Indore", district="Indore", latitude=22.7235, longitude=75.8825, cluster_id=clusters[1].id, risk_rating="HIGH"),
-        ATMLocation(atm_code="ATM-BOB-PL02", bank_name="Bank of Baroda", address="Industry House, Palasia", city="Indore", district="Indore", latitude=22.7258, longitude=75.8850, cluster_id=clusters[1].id, risk_rating="MEDIUM"),
-        ATMLocation(atm_code="ATM-SBI-RA01", bank_name="State Bank of India", address="Rau Pithampur Road", city="Indore", district="Indore", latitude=22.6275, longitude=75.8070, cluster_id=clusters[2].id, risk_rating="MEDIUM"),
-        ATMLocation(atm_code="ATM-SBI-MP01", bank_name="State Bank of India", address="Zone I, MP Nagar", city="Bhopal", district="Bhopal", latitude=23.2340, longitude=77.4330, cluster_id=clusters[3].id, risk_rating="HIGH"),
-        ATMLocation(atm_code="ATM-HDFC-MP02", bank_name="HDFC Bank", address="Zone II, MP Nagar", city="Bhopal", district="Bhopal", latitude=23.2325, longitude=77.4360, cluster_id=clusters[3].id, risk_rating="HIGH"),
-        ATMLocation(atm_code="ATM-ICICI-UJ01", bank_name="ICICI Bank", address="Tower Chowk, Freeganj", city="Ujjain", district="Ujjain", latitude=23.1830, longitude=75.7905, cluster_id=clusters[5].id, risk_rating="HIGH")
+        ATMLocation(atm_code="ATM-SBI-VN01", bank_name="State Bank of India", address="AB Road, Scheme 54, Vijay Nagar", city="Indore", district="Indore", state="Madhya Pradesh", latitude=22.7540, longitude=75.8942, cluster_id=clusters[0].id, risk_rating="CRITICAL"),
+        ATMLocation(atm_code="ATM-HDFC-VN02", bank_name="HDFC Bank", address="Near C21 Mall, Vijay Nagar", city="Indore", district="Indore", state="Madhya Pradesh", latitude=22.7521, longitude=75.8928, cluster_id=clusters[0].id, risk_rating="CRITICAL"),
+        ATMLocation(atm_code="ATM-PNB-VN03", bank_name="Punjab National Bank", address="Sayaji Circle, Vijay Nagar", city="Indore", district="Indore", state="Madhya Pradesh", latitude=22.7552, longitude=75.8955, cluster_id=clusters[0].id, risk_rating="CRITICAL"),
+        ATMLocation(atm_code="ATM-ICICI-VN04", bank_name="ICICI Bank", address="Bhamori, Vijay Nagar", city="Indore", district="Indore", state="Madhya Pradesh", latitude=22.7510, longitude=75.8910, cluster_id=clusters[0].id, risk_rating="HIGH"),
+        ATMLocation(atm_code="ATM-AXIS-PL01", bank_name="Axis Bank", address="Old Palasia Main Road", city="Indore", district="Indore", state="Madhya Pradesh", latitude=22.7235, longitude=75.8825, cluster_id=clusters[1].id, risk_rating="HIGH"),
+        ATMLocation(atm_code="ATM-BOB-PL02", bank_name="Bank of Baroda", address="Industry House, Palasia", city="Indore", district="Indore", state="Madhya Pradesh", latitude=22.7258, longitude=75.8850, cluster_id=clusters[1].id, risk_rating="MEDIUM"),
+        ATMLocation(atm_code="ATM-SBI-RA01", bank_name="State Bank of India", address="Rau Pithampur Road", city="Indore", district="Indore", state="Madhya Pradesh", latitude=22.6275, longitude=75.8070, cluster_id=clusters[2].id, risk_rating="MEDIUM"),
+        ATMLocation(atm_code="ATM-SBI-MP01", bank_name="State Bank of India", address="Zone I, MP Nagar", city="Bhopal", district="Bhopal", state="Madhya Pradesh", latitude=23.2340, longitude=77.4330, cluster_id=clusters[3].id, risk_rating="HIGH"),
+        ATMLocation(atm_code="ATM-HDFC-MP02", bank_name="HDFC Bank", address="Zone II, MP Nagar", city="Bhopal", district="Bhopal", state="Madhya Pradesh", latitude=23.2325, longitude=77.4360, cluster_id=clusters[3].id, risk_rating="HIGH"),
+        ATMLocation(atm_code="ATM-ICICI-UJ01", bank_name="ICICI Bank", address="Tower Chowk, Freeganj", city="Ujjain", district="Ujjain", state="Madhya Pradesh", latitude=23.1830, longitude=75.7905, cluster_id=clusters[5].id, risk_rating="HIGH")
     ]
     db.add_all(atms)
     db.flush()
@@ -145,7 +145,11 @@ def seed_demo_case_cmp1042(db: Session) -> None:
     db.add(cmp1042)
     db.flush()
 
-    acc_victim = Account(account_number="309100029182", masked_account="ACC••••9012", bank_name="State Bank of India", branch="Bhopal Main Branch", ifsc="SBIN0001056", holder_name="Rajesh Sharma (Victim)", account_type="SAVINGS", risk_score=0.05, is_mule=False)
+    sbi_org = db.query(Organization).filter(
+        Organization.org_type == "BANK",
+        Organization.name == "State Bank of India - Fraud Risk Management Unit"
+    ).first()
+    acc_victim = Account(account_number="309100029182", masked_account="ACC••••9012", bank_name="State Bank of India", bank_organization_id=sbi_org.id if sbi_org else None, branch="Bhopal Main Branch", ifsc="SBIN0001056", holder_name="Rajesh Sharma (Victim)", account_type="SAVINGS", risk_score=0.05, is_mule=False)
     acc_a = Account(account_number="5010049283481", masked_account="ACC••••3481", bank_name="HDFC Bank", branch="Indore Layering Node", ifsc="HDFC0000241", holder_name="Alpha Tech Services (Intermediary)", account_type="CURRENT", risk_score=0.68, is_mule=True, flag_reason="Rapid fund dispersion within 4 minutes")
     acc_b = Account(account_number="0039019287104", masked_account="ACC••••7104", bank_name="ICICI Bank", branch="Indore Scheme 54", ifsc="ICIC0000039", holder_name="Sunil Mehra (Layer 2)", account_type="SAVINGS", risk_score=0.74, is_mule=True, flag_reason="Mule account linked to known ring")
     acc_c = Account(account_number="91801004925529", masked_account="ACC••••5529", bank_name="Axis Bank", branch="Indore South Tukoganj", ifsc="UTIB0000142", holder_name="Vikas Solanki (Layer 2)", account_type="SAVINGS", risk_score=0.79, is_mule=True, flag_reason="Multiple recent P2P UPI transfers")

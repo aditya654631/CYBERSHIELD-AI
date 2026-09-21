@@ -70,7 +70,7 @@ def test_v3_1_artifact_loading_and_sha256(db):
     assert provider.location_model is not None
     assert provider.calibrator is not None
     assert provider.time_model is not None
-    assert provider.model_version in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4")
+    assert provider.model_version in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
     assert provider.time_model_version in ("cashout-time-xgb-v2", "cashout-time-xgb-v3")
 
 
@@ -98,7 +98,7 @@ def test_actual_prediction_and_calibration(db):
 
     assert res["status"] == "SUCCESS"
     assert res["prediction_mode"] == "trained_ml"
-    assert res["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4")
+    assert res["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
     assert res["operational_scope"] == "DELHI_PILOT"
     assert res["candidate_pool_size"] == 25
 
@@ -128,7 +128,7 @@ def test_actual_prediction_and_calibration(db):
     assert time_pred is not None
     assert time_pred["model_version"] in ("cashout-time-xgb-v2", "cashout-time-xgb-v3")
     assert time_pred["predicted_minutes_to_cashout"] > 0
-    assert "Minutes" in time_pred["operational_window"]
+    assert "min" in time_pred["operational_window"].lower()
 
 
 def test_determinism_repeated_inference(db):

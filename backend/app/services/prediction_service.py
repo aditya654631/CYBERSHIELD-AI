@@ -396,9 +396,9 @@ class MLPredictionProvider:
             self.time_model is not None
         )
 
-    def predict(self, complaint: Complaint, db: Session) -> Dict[str, Any]:
+    def predict(self, complaint: Complaint, db: Session, analysis_as_of: Optional[datetime] = None) -> Dict[str, Any]:
         """
-        Executes real trained-ML inference for an eligible complaint.
+        Executes real trained-ML inference for an eligible complaint strictly as of analysis_as_of.
         Does NOT persist results to database.
         Does NOT query Withdrawal or future targets.
         """
@@ -417,32 +417,85 @@ class MLPredictionProvider:
                 "limitations": ["Model artifact verification failed or artifacts not loaded."]
             }
 
-        # 1. Scope Eligibility Gate: Delhi Pilot Operational Scope
+        # 1. Scope & Regional Model Support Eligibility Gate
+        from backend.app.services.geography_catalog_service import (
+            resolve_region_for_complaint, get_region_by_id
+        )
+        resolved_region_id, region_obj = resolve_region_for_complaint(
+            db,
+            state=complaint.state,
+            district=complaint.district,
+            lat=complaint.victim_lat,
+            lon=complaint.victim_lon,
+            explicit_region_id=getattr(complaint, "region_id", None)
+        )
+
         c_state = str(complaint.state or "").strip().lower()
         c_dist = str(complaint.district or "").strip().upper()
-        is_delhi_state = (c_state == "delhi")
+        is_delhi_state = (c_state in ("delhi", "new delhi", "nct of delhi") or resolved_region_id == "delhi")
         is_delhi_zone = (c_dist in DELHI_ZONE_CENTROIDS)
 
+        # Case A: Region is registered, but model support is NOT MODEL_SUPPORTED (e.g. VALIDATION_PENDING or UNSUPPORTED)
+        if region_obj and region_obj.id != "delhi":
+            model_status = region_obj.model_support_status
+            return {
+                "complaint_id": complaint.id,
+                "complaint_number": complaint.complaint_number,
+                "status": "MODEL_NOT_SUPPORTED_FOR_REGION",
+                "region_id": region_obj.id,
+                "region_name": region_obj.name,
+                "prediction_mode": "unsupported_region",
+                "model_support_status": model_status,
+                "model_version": None,
+                "operational_scope": f"REGION_{region_obj.id.upper()}_{model_status}",
+                "candidate_pool_size": 0,
+                "top_locations": [],
+                "time_prediction": None,
+                "message": (
+                    f"Complaint {complaint.complaint_number} is in region '{region_obj.name}' ({region_obj.id}) "
+                    f"where predictive model validation is {model_status}. Trained models are strictly calibrated for Delhi Pilot."
+                ),
+                "refusal_reason": (
+                    f"MODEL_NOT_SUPPORTED_FOR_REGION: Complaint {complaint.complaint_number} is in region '{region_obj.name}' ({region_obj.id}) "
+                    f"where predictive model validation is {model_status}. Trained models are strictly calibrated for Delhi Pilot."
+                ),
+                "explanation": {
+                    "summary": f"Region '{region_obj.name}' ({region_obj.id}) predictive model validation is {model_status}. Inferences disabled."
+                },
+                "limitations": [
+                    f"Geography catalog available for region '{region_obj.name}' ({region_obj.id}), but model validation is {model_status}.",
+                    "A Delhi-trained model cannot be used to predict in another geographic region without validated transfer evaluation.",
+                    "No fabricated or fallback predictions are returned for unvalidated regions."
+                ]
+            }
+
+        # Case B: Region is completely unregistered / outside operational scope
         if not (is_delhi_state or is_delhi_zone):
             return {
                 "complaint_id": complaint.id,
                 "complaint_number": complaint.complaint_number,
                 "status": "OUTSIDE_OPERATIONAL_SCOPE",
-                "prediction_mode": "unavailable",
+                "prediction_mode": "unsupported_region",
                 "model_version": self.model_version,
                 "operational_scope": self.operational_scope,
                 "candidate_pool_size": 0,
                 "top_locations": [],
                 "time_prediction": None,
                 "message": f"Complaint {complaint.complaint_number} is outside Delhi Pilot operational scope (state='{complaint.state}', district='{complaint.district}').",
+                "refusal_reason": f"OUTSIDE_OPERATIONAL_SCOPE: Complaint {complaint.complaint_number} is outside operational scope (state='{complaint.state}', district='{complaint.district}').",
+                "explanation": {
+                    "summary": f"Complaint {complaint.complaint_number} is outside operational scope."
+                },
                 "limitations": [
+                    "Location is not registered in the Geography Catalog.",
                     "Models are strictly calibrated for the Delhi Pilot 60-cluster jurisdiction.",
-                    "Non-Delhi complaints cannot receive valid inferences from the Delhi Pilot model."
+                    "Non-Delhi complaints cannot receive valid inferences from the Delhi Pilot model.",
+                    "No fallback or fabricated predictions are returned."
                 ]
             }
 
-        # 2. Transaction Context & Scenario Eligibility Gate
-        ctx = resolve_transaction_context(db, complaint)
+        # 2. Transaction Context & Scenario Eligibility Gate (point-in-time cutoff enforced)
+        ctx = resolve_transaction_context(db, complaint, analysis_as_of=analysis_as_of)
         transactions = ctx.get("transactions", [])
         ctx_type = ctx.get("context_type", "EMPTY")
 
@@ -451,9 +504,9 @@ class MLPredictionProvider:
             else "observed_transactions" if transactions else "complaint_only"
         )
 
-        # 3. Build Multi-Modal Feature Matrices through Step 8 Service
-        loc_res = build_location_features(db, complaint.id, top_k=self.candidate_pool_size, model_version="v3.1")
-        time_res = build_time_features(db, complaint.id)
+        # 3. Build Multi-Modal Feature Matrices through Step 8 Service with cutoff
+        loc_res = build_location_features(db, complaint.id, top_k=self.candidate_pool_size, model_version="v3.1", analysis_as_of=analysis_as_of)
+        time_res = build_time_features(db, complaint.id, analysis_as_of=analysis_as_of)
 
         if loc_res["status"] != "SUCCESS" or time_res["status"] != "SUCCESS":
             return {
@@ -741,6 +794,9 @@ class MLPredictionProvider:
             "prediction_mode": "trained_ml",
             "model_version": self.model_version,
             "operational_scope": self.operational_scope,
+            "region_id": getattr(complaint, "region_id", "delhi") or "delhi",
+            "region_name": "National Capital Territory of Delhi",
+            "model_support_status": "PROTOTYPE_OPERATIONAL",
             "candidate_pool_size": len(candidates),
             "primary_cluster_id": top_locations[0]["cluster_id"],
             "score_type": "synthetic_calibrated_candidate_score",
@@ -918,7 +974,7 @@ class PredictionService:
         self.ml_provider = MLPredictionProvider()
         self.demo_provider = DemoPredictionProvider()
 
-    def predict_complaint(self, db: Session, complaint_id: int) -> PredictionResultDict:
+    def predict_complaint(self, db: Session, complaint_id: int, analysis_as_of: Optional[datetime] = None) -> PredictionResultDict:
         """
         Runs runtime prediction without persisting to database (Step 9 read-only contract).
         """
@@ -932,10 +988,10 @@ class PredictionService:
             return PredictionResultDict(res)
 
         # Trained ML path
-        res = self.ml_provider.predict(complaint, db)
+        res = self.ml_provider.predict(complaint, db, analysis_as_of=analysis_as_of)
         return PredictionResultDict(res)
 
-    def run_prediction(self, db: Session, complaint_id: int) -> PredictionResultDict:
+    def run_prediction(self, db: Session, complaint_id: int, analysis_as_of: Optional[datetime] = None) -> PredictionResultDict:
         """
         Step 9 implementation: Executes dynamic inference without database mutation.
         (Persistence is deferred to Step 10).
@@ -950,7 +1006,7 @@ class PredictionService:
             return PredictionResultDict(res)
 
         try:
-            res = self.ml_provider.predict(complaint, db)
+            res = self.ml_provider.predict(complaint, db, analysis_as_of=analysis_as_of)
             return PredictionResultDict(res)
         except Exception as e:
             logger.exception("ML inference failed for complaint %s", complaint.complaint_number)
@@ -968,11 +1024,23 @@ class PredictionService:
                 "limitations": ["No substitute locations or demo scores were generated."],
             })
 
-    def run_and_persist_prediction(self, db: Session, complaint_id: int) -> PredictionResultDict:
+    def run_and_persist_prediction(
+        self,
+        db: Session,
+        complaint_id: int,
+        analysis_as_of: Optional[datetime] = None,
+        analysis_purpose: Optional[str] = None
+    ) -> PredictionResultDict:
         """
         Step 10 implementation: Executes dynamic inference and atomically persists
         successful predictions into Prediction and PredictionLocation tables.
         Preserves exact Step-9 inference outputs without re-ranking.
+
+        analysis_purpose controls the operational vs historical classification:
+          - 'OPERATIONAL': live analysis (including server-time-bounded live ingestion).
+          - 'HISTORICAL_REPLAY': explicit user-initiated point-in-time replay.
+          - None: inferred by persistence service (OPERATIONAL if analysis_as_of is None,
+                  HISTORICAL_REPLAY if analysis_as_of is set). Callers should prefer explicit.
         """
         from backend.app.services.prediction_persistence_service import prediction_persistence_service
 
@@ -980,20 +1048,28 @@ class PredictionService:
         if not complaint:
             raise ValueError("Complaint not found")
 
-        # 1. Execute runtime inference directly
-        res = self.predict_complaint(db, complaint.id)
+        # 1. Execute runtime inference directly with analysis_as_of cutoff
+        res = self.predict_complaint(db, complaint.id, analysis_as_of=analysis_as_of)
 
         # 2. Only persist when inference returns SUCCESS
         if res.get("status") == "SUCCESS":
-            persisted = prediction_persistence_service.persist_prediction(db, complaint, res)
+            # Propagate explicit analysis_purpose so persist_prediction does not
+            # infer it solely from analysis_as_of (which may be a system-set live cutoff).
+            if analysis_purpose is not None:
+                res["analysis_purpose"] = analysis_purpose
+            persisted = prediction_persistence_service.persist_prediction(db, complaint, res, analysis_as_of=analysis_as_of)
             if persisted:
                 res["prediction_id"] = persisted.id
+                res["version_number"] = persisted.version_number
+                res["parent_prediction_id"] = persisted.parent_prediction_id
+                res["analysis_as_of"] = persisted.analysis_as_of
                 res["created_at"] = persisted.created_at
                 res["when_window"] = persisted.window_label
                 if "time_prediction" in res and res["time_prediction"]:
                     res["time_prediction"]["operational_window"] = persisted.window_label
 
         return PredictionResultDict(res)
+
 
     def get_explanation(self, prediction: Any, complaint: Complaint) -> Dict[str, Any]:
         """

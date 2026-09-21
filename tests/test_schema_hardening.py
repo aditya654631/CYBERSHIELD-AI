@@ -69,8 +69,10 @@ def test_complaint_account_association_and_uniqueness():
     db = SessionLocal()
     try:
         cmp = db.query(Complaint).filter(Complaint.complaint_number == "CMP-1042").first()
-        acc = db.query(Account).first()
-        assert cmp is not None and acc is not None
+        assert cmp is not None
+        existing_acc_ids = {ca.account_id for ca in db.query(ComplaintAccount).filter(ComplaintAccount.complaint_id == cmp.id).all()}
+        acc = db.query(Account).filter(~Account.id.in_(existing_acc_ids)).first()
+        assert acc is not None
 
         # Link account to complaint
         assoc = ComplaintAccount(

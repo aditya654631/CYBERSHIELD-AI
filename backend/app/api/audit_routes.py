@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from backend.app.models.db import get_db
 from backend.app.models.models import AuditLog, User
 from backend.app.schemas.schemas import AuditLogResponse
-from backend.app.auth.rbac import require_roles, RoleEnum
+from backend.app.auth.rbac import require_roles, is_national_scope, RoleEnum
 
 router = APIRouter(prefix="/audit", tags=["System Audit & Compliance"])
 
@@ -22,6 +22,12 @@ def get_audit_logs(
     All other roles receive HTTP 403 Forbidden.
     """
     query = db.query(AuditLog)
+    if current_user.role == RoleEnum.AUDITOR and not is_national_scope(current_user):
+        if not current_user.organization_id:
+            return []
+        query = query.join(User, AuditLog.user_id == User.id).filter(
+            User.organization_id == current_user.organization_id
+        )
     if action and action != "ALL":
         query = query.filter(AuditLog.action == action)
     return query.order_by(AuditLog.created_at.desc()).limit(limit).all()

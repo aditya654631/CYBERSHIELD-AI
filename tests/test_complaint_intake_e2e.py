@@ -35,7 +35,7 @@ from backend.app.main import app
 from backend.app.models.db import SessionLocal
 from backend.app.models.models import (
     Complaint, Account, Transaction, ComplaintAccount,
-    Prediction, PredictionLocation, Withdrawal
+    Prediction, PredictionLocation, PredictionSnapshot, Withdrawal
 )
 from backend.app.services.transaction_context_service import resolve_transaction_context
 from backend.app.services.scenario_linking_service import link_complaint_to_scenario
@@ -57,6 +57,29 @@ def db():
         yield session
     finally:
         session.rollback()
+        session.close()
+
+
+@pytest.fixture(scope="module", autouse=True)
+def cleanup_intake_test_complaints():
+    session = SessionLocal()
+    initial_ids = {c.id for c in session.query(Complaint.id).all()}
+    session.close()
+    yield
+    session = SessionLocal()
+    try:
+        new_complaints = session.query(Complaint).filter(~Complaint.id.in_(initial_ids)).all()
+        for c in new_complaints:
+            pred_ids = [p.id for p in session.query(Prediction.id).filter(Prediction.complaint_id == c.id).all()]
+            if pred_ids:
+                session.query(PredictionLocation).filter(PredictionLocation.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
+                session.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
+                session.query(Prediction).filter(Prediction.id.in_(pred_ids)).delete(synchronize_session=False)
+            session.query(Transaction).filter(Transaction.complaint_id == c.id).delete(synchronize_session=False)
+            session.query(ComplaintAccount).filter(ComplaintAccount.complaint_id == c.id).delete(synchronize_session=False)
+            session.delete(c)
+        session.commit()
+    finally:
         session.close()
 
 

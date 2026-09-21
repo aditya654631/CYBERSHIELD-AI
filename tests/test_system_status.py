@@ -14,7 +14,7 @@ def test_system_status_requires_auth():
 
 def test_system_status_authenticated_returns_truthful_telemetry(db_session):
     # Setup test user
-    org = Organization(name="Test LEA HQ", org_type="LEA", state="Delhi", district="CENTRAL_NEW_DELHI")
+    org = Organization(name="Test I4C HQ", org_type="I4C", state="National", district="ALL")
     db_session.add(org)
     db_session.commit()
 

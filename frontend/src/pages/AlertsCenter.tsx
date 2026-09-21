@@ -12,10 +12,15 @@ import {
   Radio,
   Filter,
   RefreshCw,
-  Info
+  Info,
+  Archive,
+  AlertOctagon,
+  XCircle,
+  Activity,
+  Layers
 } from 'lucide-react';
 import { api } from '../services/api';
-import { AlertItem } from '../types';
+import { AlertItem, NotificationOutboxItem } from '../types';
 import { formatINR } from '../utils/formatters';
 import { useAuth } from '../store/authContext';
 
@@ -26,7 +31,11 @@ export const AlertsCenter: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [actioningId, setActioningId] = useState<number | null>(null);
+  const [selectedOutboxAlert, setSelectedOutboxAlert] = useState<AlertItem | null>(null);
+  const [outboxEvents, setOutboxEvents] = useState<NotificationOutboxItem[]>([]);
+  const [loadingOutbox, setLoadingOutbox] = useState(false);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSyncCursorRef = useRef<number>(0);
 
   const canAct = user && ['I4C_ADMIN', 'STATE_LEA', 'DISTRICT_LEA', 'BANK_OFFICER'].includes(user.role);
 
@@ -37,6 +46,10 @@ export const AlertsCenter: React.FC = () => {
         status: statusFilter !== 'ALL' ? statusFilter : undefined,
       });
       setAlerts(data);
+      if (data.length > 0) {
+        const maxId = Math.max(...data.map((a) => a.id));
+        lastSyncCursorRef.current = Math.max(lastSyncCursorRef.current, maxId);
+      }
     } catch (err) {
       console.error('Failed to load alerts', err);
     } finally {
@@ -44,10 +57,28 @@ export const AlertsCenter: React.FC = () => {
     }
   };
 
+  const handleSyncMissed = async () => {
+    try {
+      const res = await api.syncAlerts({ since_id: lastSyncCursorRef.current });
+      if (res && res.items && res.items.length > 0) {
+        setAlerts((prev) => {
+          const map = new Map(prev.map((a) => [a.id, a]));
+          for (const item of res.items) {
+            map.set(item.id, item);
+          }
+          return Array.from(map.values()).sort((a, b) => b.id - a.id);
+        });
+        lastSyncCursorRef.current = Math.max(lastSyncCursorRef.current, res.cursor);
+      }
+    } catch (err) {
+      console.error('Missed alert sync failed', err);
+    }
+  };
+
   useEffect(() => {
     fetchAlerts();
 
-    // Authenticated WebSocket connection
+    // Authenticated WebSocket connection with Missed-Alert Replay sync
     let socket: WebSocket | null = null;
     let isSubscribed = true;
     let reconnectDelay = 2000;
@@ -64,7 +95,9 @@ export const AlertsCenter: React.FC = () => {
         socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
-          reconnectDelay = 2000; // reset on success
+          reconnectDelay = 2000;
+          // Reconnect replay: fetch any missed alerts that occurred while offline
+          handleSyncMissed();
         };
 
         socket.onmessage = (evt) => {
@@ -77,7 +110,6 @@ export const AlertsCenter: React.FC = () => {
         };
 
         socket.onclose = (evt) => {
-          // If closed due to policy violation / unauthorized (1008), do not reconnect automatically
           if (evt.code === 1008) {
             console.warn('Alerts WebSocket authentication failed (1008). Stopped auto-reconnect.');
             return;
@@ -133,6 +165,19 @@ export const AlertsCenter: React.FC = () => {
     }
   };
 
+  const handleViewOutbox = async (alert: AlertItem) => {
+    setSelectedOutboxAlert(alert);
+    setLoadingOutbox(true);
+    try {
+      const events = await api.getAlertOutbox(alert.id);
+      setOutboxEvents(events);
+    } catch (err) {
+      console.error('Failed to load alert outbox events', err);
+    } finally {
+      setLoadingOutbox(false);
+    }
+  };
+
   return (
     <div className="space-y-6 pb-12">
       {/* Header */}
@@ -145,7 +190,7 @@ export const AlertsCenter: React.FC = () => {
             </h1>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Automated predictive alarms triggered for high-risk (&gt;=80%) cash-out extractions
+            Durable transactional alerts backed by reliable outbox delivery, bounded retry backoff, and prediction supersession
           </p>
         </div>
 
@@ -160,8 +205,11 @@ export const AlertsCenter: React.FC = () => {
             >
               <option value="ALL">All Alert States</option>
               <option value="NEW">NEW (Unacknowledged)</option>
+              <option value="DELIVERED">DELIVERED</option>
               <option value="ACKNOWLEDGED">ACKNOWLEDGED</option>
               <option value="ACTION_INITIATED">ACTION INITIATED</option>
+              <option value="SUPERSEDED">SUPERSEDED (Older Prediction)</option>
+              <option value="EXPIRED">EXPIRED (Past Window)</option>
             </select>
           </div>
 
@@ -181,142 +229,286 @@ export const AlertsCenter: React.FC = () => {
         <div>
           <span className="font-bold">Operational Integration Status: </span>
           <span>
-            Bank hold transmissions operate in <strong>SIMULATED PROTOTYPE</strong> mode. Action requests are tracked in the local audit lifecycle and will not freeze live accounts on external core banking networks.
+            Alert delivery and outgoing notifications commit atomically in the persistent database outbox. Bank hold transmissions operate in <strong>SIMULATED PROTOTYPE</strong> mode and will not freeze live external accounts.
           </span>
         </div>
       </div>
 
       {/* Alert Cards List */}
       <div className="space-y-3">
-        {alerts.map((alert) => {
-          const isCritical = alert.severity === 'CRITICAL';
-          const isHigh = alert.severity === 'HIGH';
-          const isNew = alert.status === 'NEW';
-          const isSimulatedAction = alert.status === 'ACTION_INITIATED';
+        {loading && alerts.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-500 bg-white rounded-lg border border-[#DCE5F0]">
+            Loading tactical alerts...
+          </div>
+        ) : alerts.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-500 bg-white rounded-lg border border-[#DCE5F0]">
+            No alerts found matching filter criteria.
+          </div>
+        ) : (
+          alerts.map((alert) => {
+            const isCritical = alert.severity === 'CRITICAL';
+            const isHigh = alert.severity === 'HIGH';
+            const isNew = alert.status === 'NEW';
+            const isSuperseded = alert.status === 'SUPERSEDED';
+            const isExpired = alert.status === 'EXPIRED';
+            const isSimulatedAction = alert.status === 'ACTION_INITIATED';
 
-          return (
-            <div
-              key={alert.id}
-              className={`p-4 sm:p-5 rounded-lg border bg-white shadow-xs transition-colors hover:border-slate-300 ${
-                isCritical
-                  ? 'border-l-4 border-l-red-600 border-r-[#DCE5F0] border-t-[#DCE5F0] border-b-[#DCE5F0]'
-                  : isHigh
-                  ? 'border-l-4 border-l-orange-500 border-r-[#DCE5F0] border-t-[#DCE5F0] border-b-[#DCE5F0]'
-                  : 'border-[#DCE5F0]'
-              }`}
-            >
-              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
-                <div className="space-y-2 min-w-0">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span
-                      className={`px-2.5 py-0.5 rounded text-xs font-semibold flex items-center space-x-1.5 ${
-                        isCritical
-                          ? 'bg-red-50 text-red-700 border border-red-200'
-                          : isHigh
-                          ? 'bg-orange-50 text-orange-700 border border-orange-200'
-                          : 'bg-amber-50 text-amber-700 border border-amber-200'
-                      }`}
-                    >
-                      <span className={`w-1.5 h-1.5 rounded-full ${isCritical ? 'bg-red-600' : isHigh ? 'bg-orange-600' : 'bg-amber-600'}`}></span>
-                      <span>{alert.severity}</span>
-                    </span>
-
-                    <span className="text-sm font-bold text-slate-900 break-words">{alert.title}</span>
-
-                    {alert.prediction_id && (
-                      <span className="text-[10px] px-2 py-0.5 rounded font-medium bg-blue-50 text-blue-700 border border-blue-200">
-                        PREDICTION #{alert.prediction_id}
+            return (
+              <div
+                key={alert.id}
+                className={`p-4 sm:p-5 rounded-lg border bg-white shadow-xs transition-colors hover:border-slate-300 ${
+                  isSuperseded || isExpired
+                    ? 'border-l-4 border-l-slate-400 opacity-80 border-r-[#DCE5F0] border-t-[#DCE5F0] border-b-[#DCE5F0]'
+                    : isCritical
+                    ? 'border-l-4 border-l-red-600 border-r-[#DCE5F0] border-t-[#DCE5F0] border-b-[#DCE5F0]'
+                    : isHigh
+                    ? 'border-l-4 border-l-orange-500 border-r-[#DCE5F0] border-t-[#DCE5F0] border-b-[#DCE5F0]'
+                    : 'border-[#DCE5F0]'
+                }`}
+              >
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                  <div className="space-y-2 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span
+                        className={`px-2.5 py-0.5 rounded text-xs font-semibold flex items-center space-x-1.5 ${
+                          isSuperseded || isExpired
+                            ? 'bg-slate-100 text-slate-700 border border-slate-300'
+                            : isCritical
+                            ? 'bg-red-50 text-red-700 border border-red-200'
+                            : isHigh
+                            ? 'bg-orange-50 text-orange-700 border border-orange-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            isSuperseded || isExpired
+                              ? 'bg-slate-500'
+                              : isCritical
+                              ? 'bg-red-600'
+                              : isHigh
+                              ? 'bg-orange-600'
+                              : 'bg-amber-600'
+                          }`}
+                        ></span>
+                        <span>{alert.severity}</span>
                       </span>
+
+                      <span className="text-sm font-bold text-slate-900 break-words">{alert.title}</span>
+
+                      {alert.prediction_id && (
+                        <span className="text-[10px] px-2 py-0.5 rounded font-medium bg-blue-50 text-blue-700 border border-blue-200">
+                          PREDICTION #{alert.prediction_id}
+                        </span>
+                      )}
+
+                      <span
+                        className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
+                          isSuperseded
+                            ? 'bg-slate-200 text-slate-800'
+                            : isExpired
+                            ? 'bg-amber-100 text-amber-800'
+                            : isNew
+                            ? 'bg-red-600 text-white'
+                            : alert.status === 'ACKNOWLEDGED'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : alert.status === 'DELIVERED'
+                            ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                        }`}
+                      >
+                        STATUS: {alert.status} {isSimulatedAction && '[SIMULATED]'}
+                      </span>
+
+                      {alert.delivery_status && (
+                        <span className="text-[10px] px-2 py-0.5 rounded font-medium bg-purple-50 text-purple-700 border border-purple-200">
+                          OUTBOX: {alert.delivery_status} (Attempts: {alert.attempt_count || 1})
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
+                      <div className="flex items-center space-x-1 text-blue-700 font-medium">
+                        <MapPin className="w-3.5 h-3.5 shrink-0" />
+                        <span className="truncate">{alert.location_name}</span>
+                      </div>
+                      <span>•</span>
+                      <div className="flex items-center space-x-1 text-slate-600">
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                        <span>Window: {alert.expected_window}</span>
+                      </div>
+                      <span>•</span>
+                      <div className="flex items-center space-x-1 text-emerald-700 font-semibold">
+                        <span>{formatINR(alert.amount_at_risk)}</span>
+                      </div>
+                      <span>•</span>
+                      <div className="text-slate-500">
+                        Operational Priority: <strong className={isCritical ? 'text-red-700' : isHigh ? 'text-orange-700' : 'text-amber-700'}>{alert.severity}</strong>
+                      </div>
+                    </div>
+
+                    {isSuperseded && alert.superseded_by_prediction_id && (
+                      <div className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded-md border border-slate-200 flex items-center space-x-2">
+                        <Archive className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                        <span>
+                          Superseded by newer Prediction #{alert.superseded_by_prediction_id} (History preserved).
+                        </span>
+                      </div>
                     )}
 
-                    <span
-                      className={`text-[10px] px-2 py-0.5 rounded font-semibold ${
-                        isNew
-                          ? 'bg-red-600 text-white'
-                          : alert.status === 'ACKNOWLEDGED'
-                          ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                          : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                      }`}
-                    >
-                      STATUS: {alert.status} {isSimulatedAction && '[SIMULATED]'}
-                    </span>
+                    {alert.last_error && (
+                      <div className="text-xs text-red-700 bg-red-50 p-2.5 rounded-md border border-red-200 flex items-start space-x-2">
+                        <XCircle className="w-3.5 h-3.5 text-red-600 shrink-0 mt-0.5" />
+                        <span>Delivery Error: {alert.last_error}</span>
+                      </div>
+                    )}
+
+                    {alert.action_notes && (
+                      <div className="text-xs text-slate-600 bg-[#F6F8FC] p-2.5 rounded-md border border-[#DCE5F0] break-words">
+                        Officer Action: {alert.action_notes}
+                        {alert.acknowledged_by && ` (${alert.acknowledged_by})`}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
-                    <div className="flex items-center space-x-1 text-blue-700 font-medium">
-                      <MapPin className="w-3.5 h-3.5 shrink-0" />
-                      <span className="truncate">{alert.location_name}</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center space-x-1 text-slate-600">
-                      <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                      <span>Window: {alert.expected_window}</span>
-                    </div>
-                    <span>•</span>
-                    <div className="flex items-center space-x-1 text-emerald-700 font-semibold">
-                      <span>{formatINR(alert.amount_at_risk)}</span>
-                    </div>
-                    <span>•</span>
-                    <div className="text-slate-500">
-                      Operational Priority: <strong className={isCritical ? 'text-red-700' : isHigh ? 'text-orange-700' : 'text-amber-700'}>{alert.severity}</strong>
-                    </div>
+                  {/* Tactical Actions */}
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 pt-2 lg:pt-0">
+                    <button
+                      onClick={() => handleViewOutbox(alert)}
+                      title="View durable outbox delivery audit trail"
+                      className="px-3 py-1.5 rounded-md bg-white hover:bg-slate-50 border border-[#DCE5F0] text-slate-700 text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs"
+                    >
+                      <Layers className="w-3.5 h-3.5 text-purple-600" />
+                      <span>OUTBOX AUDIT</span>
+                    </button>
+
+                    <button
+                      onClick={() => navigate(`/cases/${alert.complaint_number}`)}
+                      className="px-3 py-1.5 rounded-md bg-white hover:bg-blue-50 border border-[#DCE5F0] text-blue-700 text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>VIEW CASE</span>
+                    </button>
+
+                    <button
+                      onClick={() => navigate(`/risk-map`)}
+                      className="px-3 py-1.5 rounded-md bg-white hover:bg-blue-50 border border-[#DCE5F0] text-blue-700 text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs"
+                    >
+                      <MapPin className="w-3.5 h-3.5" />
+                      <span>RISK MAP</span>
+                    </button>
+
+                    {(alert.status === 'NEW' || alert.status === 'DELIVERED') && (
+                      <button
+                        onClick={() => handleAcknowledge(alert.id)}
+                        disabled={actioningId === alert.id || !canAct}
+                        title={!canAct ? 'Requires LEA or Bank Officer role' : undefined}
+                        className="px-3.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-50"
+                      >
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>ACKNOWLEDGE</span>
+                      </button>
+                    )}
+
+                    {!['ACTION_INITIATED', 'SUPERSEDED', 'EXPIRED'].includes(alert.status) && (
+                      <button
+                        onClick={() => handleEscalate(alert.id)}
+                        disabled={actioningId === alert.id || !canAct}
+                        title={!canAct ? 'Requires LEA or Bank Officer role' : 'Requests simulated hold in audit trail'}
+                        className="px-3.5 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-50"
+                      >
+                        <Send className="w-3.5 h-3.5" />
+                        <span>ESCALATE (SIMULATED HOLD)</span>
+                      </button>
+                    )}
                   </div>
-
-                  {alert.action_notes && (
-                    <div className="text-xs text-slate-600 bg-[#F6F8FC] p-2.5 rounded-md border border-[#DCE5F0] break-words">
-                      Officer Action: {alert.action_notes}
-                      {alert.acknowledged_by && ` (${alert.acknowledged_by})`}
-                    </div>
-                  )}
-                </div>
-
-                {/* Tactical Actions */}
-                <div className="flex flex-wrap items-center gap-2 sm:gap-2.5 shrink-0 pt-2 lg:pt-0">
-                  <button
-                    onClick={() => navigate(`/cases/${alert.complaint_number}`)}
-                    className="px-3 py-1.5 rounded-md bg-white hover:bg-blue-50 border border-[#DCE5F0] text-blue-700 text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs"
-                  >
-                    <Eye className="w-3.5 h-3.5" />
-                    <span>VIEW CASE</span>
-                  </button>
-
-                  <button
-                    onClick={() => navigate(`/risk-map`)}
-                    className="px-3 py-1.5 rounded-md bg-white hover:bg-blue-50 border border-[#DCE5F0] text-blue-700 text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs"
-                  >
-                    <MapPin className="w-3.5 h-3.5" />
-                    <span>RISK MAP</span>
-                  </button>
-
-                  {alert.status === 'NEW' && (
-                    <button
-                      onClick={() => handleAcknowledge(alert.id)}
-                      disabled={actioningId === alert.id || !canAct}
-                      title={!canAct ? 'Requires LEA or Bank Officer role' : undefined}
-                      className="px-3.5 py-1.5 rounded-md bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-50"
-                    >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>ACKNOWLEDGE</span>
-                    </button>
-                  )}
-
-                  {alert.status !== 'ACTION_INITIATED' && (
-                    <button
-                      onClick={() => handleEscalate(alert.id)}
-                      disabled={actioningId === alert.id || !canAct}
-                      title={!canAct ? 'Requires LEA or Bank Officer role' : 'Requests simulated hold in audit trail'}
-                      className="px-3.5 py-1.5 rounded-md bg-red-600 hover:bg-red-700 text-white text-xs font-medium flex items-center space-x-1.5 transition-colors shadow-xs disabled:opacity-50"
-                    >
-                      <Send className="w-3.5 h-3.5" />
-                      <span>ESCALATE (SIMULATED HOLD)</span>
-                    </button>
-                  )}
                 </div>
               </div>
-            </div>
-          );
-        })}
+            );
+          })
+        )}
       </div>
+
+      {/* Outbox Audit Trail Modal */}
+      {selectedOutboxAlert && (
+        <div className="fixed inset-0 z-50 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg border border-[#DCE5F0] shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
+            <div className="p-4 border-b border-[#DCE5F0] flex items-center justify-between">
+              <div>
+                <h2 className="text-sm font-bold text-[#173A63] flex items-center space-x-2">
+                  <Layers className="w-4 h-4 text-purple-600" />
+                  <span>Durable Outbox Delivery Audit Trail</span>
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Alert #{selectedOutboxAlert.id} ({selectedOutboxAlert.complaint_number}) — {selectedOutboxAlert.location_name}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedOutboxAlert(null)}
+                className="p-1 rounded-md text-slate-400 hover:text-slate-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-4 overflow-y-auto space-y-3 flex-1 text-xs">
+              {loadingOutbox ? (
+                <div className="p-6 text-center text-slate-500">Loading outbox events...</div>
+              ) : outboxEvents.length === 0 ? (
+                <div className="p-6 text-center text-slate-500">No outbox events recorded for this alert.</div>
+              ) : (
+                outboxEvents.map((ev) => (
+                  <div key={ev.id} className="p-3 bg-slate-50 rounded-md border border-[#DCE5F0] space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-800">{ev.event_type}</span>
+                      <span
+                        className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
+                          ev.status === 'DELIVERED'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : ev.status === 'PERMANENT_FAILURE'
+                            ? 'bg-red-50 text-red-700 border border-red-200'
+                            : ev.status === 'FAILED'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-blue-50 text-blue-700 border border-blue-200'
+                        }`}
+                      >
+                        {ev.status}
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600 text-[11px]">
+                      <div>Channel: <strong>{ev.channel}</strong></div>
+                      <div>Attempts: <strong>{ev.attempt_count} / {ev.max_attempts}</strong></div>
+                      <div>Prediction Version: <strong>v{ev.prediction_version || 1}</strong></div>
+                      <div>Idempotency Key: <code className="text-[10px] bg-white px-1 py-0.5 rounded border">{ev.idempotency_key}</code></div>
+                    </div>
+
+                    {ev.last_error && (
+                      <div className="p-2 bg-red-50 text-red-700 rounded text-[11px] border border-red-200">
+                        <strong>Last Error:</strong> {ev.last_error}
+                      </div>
+                    )}
+
+                    <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1">
+                      <span>Created: {new Date(ev.created_at).toLocaleString()}</span>
+                      {ev.delivered_at && <span>Delivered: {new Date(ev.delivered_at).toLocaleString()}</span>}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="p-3 border-t border-[#DCE5F0] bg-slate-50 flex justify-end">
+              <button
+                onClick={() => setSelectedOutboxAlert(null)}
+                className="px-4 py-1.5 bg-white border border-[#DCE5F0] rounded-md text-xs font-medium text-slate-700 hover:bg-slate-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -1,0 +1,671 @@
+# Antigravity implementation pack
+
+Paste ONE phase at a time. Prompts are implementation instructions, not claims that those features are already built. Each phase includes shared rules and a measurable gate.
+
+# Phase 00: Baseline protection and measured audit
+
+Dependencies: None.
+
+PS mapping: PS-01–25: evidence baseline.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Read the existing audit scripts and recorded results first. If the application revision has not changed, retain the 17 September measured run with its date; rerun only checks needed by changes or unresolved concerns. Capture Git HEAD/status, all user changes, model hashes and environment versions. Preserve a Git bundle, actual working files (including relevant untracked work), model artifacts and safe configuration backup. Secret backups stay under ignored private storage, never in reports.
+Use scripts/phase0_audit.py, phase0_case_probe.py and phase0_report.py for repeatable local evidence. Inspect them before running. Keep recorded command exit codes and logs. The original test suite had 321 pass / 74 fail / 1 skip; GIS alone 14 pass; 61 blockchain unit tests pass; frontend build and isolated fresh-case flow pass.
+Complete the remaining backup gate: inspect the configured DB type without exposing credentials. Current PostgreSQL data-only snapshot is not pg_dump. Obtain compatible native backup tools or an approved provider backup mechanism, then restore into a NEW isolated database and verify schema/migrations/counts. Never restore over the live source. If infrastructure access is unavailable, record this gate as pending while completing audit work.
+Classify all failures, inspect applicable API/UI paths and update every PS traceability row. No application fixes/retraining in this phase.
+
+## Acceptance gate
+
+Checkpoint restoration to a separate directory works; SQLite backups pass integrity checks; operational PostgreSQL has native backup + isolated restore evidence OR explicit pending status. Raw tests/build output and the complete failure list are retained. No claim of exhaustive defect discovery. Record browser QA separately from API/build evidence.
+
+
+---
+
+# Phase 01: Stabilize tests and truthful product claims
+
+Dependencies: 00.
+
+PS mapping: PS-03–07, PS-15; reliability foundation.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Inspect tests/conftest.py and all failing test modules listed in docs/phase0/TEST_FAILURES.csv. Classify each failure as obsolete expected contract, authentication fixture, missing seed, cross-test state or application defect; preserve a rationale per node ID. The 14-test GIS module passes alone but had five failures in the full suite: reproduce ordering interference and isolate committed DB state per test or per appropriate fixture. Reset dependency overrides, globals and mutable caches reliably. Build explicit factory fixtures; avoid hidden reliance on test order, arbitrary fixed IDs or operational sample cases.
+Replace hard-coded old model allowlists only after verifying the active artifact/schema manifest. Supply authenticated users for intended successful requests; keep independent 401/403 tests. Don't loosen production access. Reconcile IST human labels versus machine timestamp contracts.
+Audit README.md, ModelPerformance.tsx, prediction display utilities and model verification API. Distinguish ranking scores, prioritization, synthetic evaluation and real validation. Resolve combined_6000 versus actual sample counts from evaluation code/data; derive the denominator, don't edit it by guess. Explain different experimental datasets instead of merging their metrics. Keep bank simulation labels and low-fidelity disclosures.
+Do not silently replace the promoted model, widen operational scope or fix unrelated feature gaps.
+
+## Acceptance gate
+
+Affected tests pass independently and in the complete suite without order-dependent state. Every residual failure has a precise unresolved issue and reproduction, not a deleted test. Model artifact hashes unchanged. UI, README and evaluation metadata agree on provenance and denominators; no invented accuracy claims.
+
+
+---
+
+# Phase 02: Causal transaction updates and immutable prediction versions
+
+Dependencies: 01.
+
+PS mapping: PS-06, PS-08, PS-09.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Inspect transaction_context_service.py, ml_feature_service.py, prediction_service.py, prediction_persistence_service.py, prediction_contract.py, transaction_routes.py, prediction_routes.py, models.py and inference snapshots. Reproduce the saved stale-result bug before editing: same rank-1 with changed rank-2 score returns old ID/score.
+Design a minimal authenticated transaction-ingestion/update contract. Store event time and first received/known time, external source/reference, verification/provenance and dedup key. Define corrections as traceable revisions. Historical backfill must not imply data was known earlier than ingestion; legacy unknown timestamps need explicit provenance.
+Thread an explicit analysis_as_of through context/feature construction. Include only information available by that cutoff; future event-time rows must not leak in. Preserve the complaint-time mode for historical snapshots. Keep outcome/withdrawal labels out of prediction features.
+Define input identity from canonical eligible transaction revisions, complaint inputs, model/schema versions and analysis semantics. Same request identity is idempotent; changed evidence must have a traceable new analysis snapshot even if top-1 is unchanged. Remove broad same-top1 reuse. Enforce concurrent idempotency at database level. Do not let a changing wall-clock timestamp create unlimited duplicates for unchanged retries.
+Introduce new version links without rewriting old snapshots/audit anchors. Expose latest and history through compatible API/UI. New valid transfer triggers or queues recalculation; meaningful changed results update map and later alert orchestration. Refactor time-reference semantics explicitly when moving beyond complaint-time predictions; do not quietly re-anchor the old time model to now.
+
+## Acceptance gate
+
+Regression: same input gives same result ID; changed score/evidence with same top-1 is not dropped; post-report known transfer participates at a later cutoff; replay at earlier cutoff excludes it; duplicate ingest/concurrent retries do not double-count; future/late-arriving leakage tests pass; previous prediction/snapshot/hash remains unchanged. Tests cover authorized ingestion and invalid timestamps.
+
+
+---
+
+# Phase 03: Server-side authorization and scoped sensitive access
+
+Dependencies: 01,02.
+
+PS mapping: PS-15, PS-20, PS-21.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Build a route/action/role/object matrix from every FastAPI router, including list/detail/graph/prediction/explanation/audit/bank actions and WebSocket. Inspect auth/rbac.py, security.py, websocket/manager.py and API dependencies. Reuse centralized checks; identify bank and jurisdiction through trusted organization IDs rather than text matching where feasible.
+Define case owner, stakeholder visibility and least-privilege analyst/auditor policy without arbitrarily breaking existing approved access. Future handoff grants must be explicit and scoped, never broad state-wide disclosure by accident. Filter collection queries and verify direct object access, mutation permissions and WebSocket recipient access consistently.
+Review token/session expiration, inactive accounts, rate limits and sensitive logging. Preserve public health behaviour without exposing diagnostics/secrets. Document production session/key configuration rather than fabricating security certification.
+Add a minimal reusable authorization layer for future evidence downloads, reports, handoffs and bank callbacks. Do not treat a client-provided role or email as authority.
+
+## Acceptance gate
+
+Parameterized role/object tests include unauthenticated, expired/forged token, inactive user, cross-bank, cross-district/state, allowed national role and direct-ID access. Lists, GET details and websocket delivery agree on scope. Legitimate officers can complete existing workflows. No auth weakening to satisfy legacy tests.
+
+
+---
+
+# Phase 04: Complete GIS filters and coherent case drilldowns
+
+Dependencies: 02,03.
+
+PS mapping: PS-10–14.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Inspect gis_routes.py, schemas.py, RiskMap.tsx, CashOutRiskMap.tsx and api.ts. Add explicit start/end and crime-category parameters end-to-end, keeping district/risk filtering compatible. Use a documented predicted-window overlap filter by default; if complaint-time filtering is offered, expose a distinct time_basis so the user knows which clock is filtered.
+Validate ISO times, timezone conversion, reversed ranges and boundaries. Apply one consistent eligible, latest-version, unexpired-case and authorization predicate to map, case list, counts, amounts and drilldowns. Deduplicate complaints appearing in multiple candidate clusters. Crime type from case data, not historical label strings, should control active-case filtering.
+Preserve historical baseline layers distinctly when filters return no active cases. Historical risk is not an active threat. Handle loading/error/empty states, filter reset and URL state. Do not label synthetic ATM inventory as verified live infrastructure.
+
+## Acceptance gate
+
+Tests exercise independent and combined filters, interval overlap, boundary dates/IST rollover, no match, expiry, latest-version selection, dedup totals and cross-role scope. API schema, frontend types and UI compile. Browser QA confirms filter persistence, legends and matching map/list/counts; document if browser QA unavailable.
+
+
+---
+
+# Phase 05: Durable alerts, delivery attempts and acknowledgement
+
+Dependencies: 02,03,04.
+
+PS mapping: PS-08, PS-16, PS-19, PS-20.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Inspect alert_service.py, alert_routes.py, websocket/manager.py, AlertsCenter.tsx and migrations. Add a persistent transactional outbox or equivalent minimal queue using existing infrastructure. Commit alert and outbound event consistently; don't rely solely on an in-memory WebSocket connection list.
+Model recipient, channel, attempt, next retry, last error, delivery status, acknowledgement and escalation. Use bounded exponential backoff, worker leases/locking, idempotent processing and recovery after restart. Distinguish delivered from officer-acknowledged and resolved. Provide a worker command and explicit shutdown/recovery behaviour.
+Recipient routing must reuse object/bank/jurisdiction authorization from Phase 3. Events must carry the relevant prediction version; supersede or expire stale alerts with history retained. Reconnect fetches missed authorized alerts through a persisted cursor/query; exactly-once external delivery cannot be promised.
+Implement dashboard/API delivery first, with fake provider tests. SMS/email are optional channel adapters, not mandatory merely because the PS lists them. No real messages to people in development.
+
+## Acceptance gate
+
+Crash before/after dispatch, restart, disconnected recipient, duplicate queue processing, temporary/permanent provider error, expiry and acknowledgement tests pass. No lost durable event or unauthorized recipient. Operator can see queued/failed/delivered/acknowledged states; integration tests exercise actual worker processing, not just mocked enqueue calls.
+
+
+---
+
+# Phase 06: Evidence documentation and investigator report
+
+Dependencies: 02,03,05.
+
+PS mapping: PS-17, PS-18.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Inspect CaseIntelligence.tsx, models.py, audit_service.py, schemas and existing report capabilities. Add evidence metadata and storage abstraction: case, source, uploader, received time, original filename, generated storage key, MIME/size, hash, version and lifecycle. Never use client paths as storage paths or allow arbitrary remote fetches.
+Validate upload sizes/types, restrict serving as attachment, handle malicious/path-traversal filenames, incomplete uploads and unauthorized downloads. Record upload/access/replacement events. Preserve original versions; separate a correction from overwriting history. Support a deployment-appropriate malware scanning hook with honest pending/quarantine states, not a fake clean flag.
+Create a usable download/export report (HTML or existing supported format first; PDF is an implementation choice). Include case summary, available transaction sources, versioned predictions, geography/time semantics, limitations/fidelity, alerts/actions and evidence references. Escape user content and avoid disclosing fields outside the viewer's permissions. Hashing proves content consistency, not truth or automatic legal admissibility.
+
+## Acceptance gate
+
+Valid upload/download/report works; wrong-case access and traversal fail; unsupported/oversized uploads are rejected; altered stored content detected; replacement retains original version; report references the correct prediction and evidence. Inspect rendered report for readable layout and no exposed secrets.
+
+
+---
+
+# Phase 07: Controlled cross-state/cross-district handoff
+
+Dependencies: 03,05,06.
+
+PS mapping: PS-20–22.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Separate owning jurisdiction from predicted-action jurisdiction. Add explicit assignment/handoff records referencing case/prediction, origin organization, destination organization, purpose, minimum shared evidence, status, actors and timestamps. Resolve destination from trusted organization/geography records; clients cannot grant themselves access.
+Implement requested → accepted/rejected → in-progress → completed/cancelled with allowed transitions, acknowledgement deadlines and escalation through Phase 5. Grant scoped visibility to the destination only as policy permits; source ownership remains intact. Revoke obsolete grants without erasing audit history.
+Show actionable assignments in existing interfaces rather than creating a second unrelated portal. Preserve access rules for originating team, destination team, bank actors and national oversight. Use clearly labelled synthetic cross-state fixtures for workflow tests; this does not validate non-Delhi prediction quality.
+
+## Acceptance gate
+
+Delhi-origin synthetic case can route a scoped task to an authorized outside-state team; unrelated users cannot discover the case through lists/detail/report/socket. Duplicate/replayed transitions safe; recipient acceptance/action/completion audited; expired/cancelled grants behave consistently. Concurrent acceptance does not create duplicate assignments.
+
+
+---
+
+# Phase 08: Bank adapter and truthful external action lifecycle
+
+Dependencies: 03,05,07.
+
+PS mapping: PS-22, PS-23.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Inspect bank_action_service.py, bank_action_routes.py, models.py and AlertsCenter.tsx. Preserve current simulation disclosure. Define an adapter interface for request submission, status query and verified callbacks. Model partner bank, reference, exact action type/target, amount/currency if applicable, requester/reviewer, idempotency key and external acknowledgement evidence.
+Replace blanket mock multi-bank identity with actual scoped target relationships where supported by the case. Map only partner-supported operations; do not invent a universal ATM freeze endpoint. Enforce who can request, approve and confirm; a manually edited client status cannot claim an external hold.
+Keep SIMULATED, SANDBOX and LIVE environments distinct. Sign/authenticate callbacks according to the eventual partner contract; validate replay, timestamp, target and amounts. Redact logs and use configured secrets. Support failures, timeouts, duplicate/out-of-order callbacks, partial holds, rejection and release as applicable.
+Provide deterministic fake-bank integration tests. If no authorized bank/CFCFRMS contract exists, complete the adapter and sandbox simulation, then mark live acceptance pending. Never send real financial instructions from tests.
+
+## Acceptance gate
+
+Request sent != funds held. Confirmed hold requires verified partner evidence for the correct request, and amount is not assumed equal to complaint loss. Forged/replayed callbacks cannot transition status. Duplicate request creates no duplicate action. Real partner acknowledgement check stays pending until authorized sandbox access is available.
+
+
+---
+
+# Phase 09: Verified outcomes and operational measurements
+
+Dependencies: 02,05,06,08.
+
+PS mapping: PS-24, PS-25.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Add append-only/correctable outcome observations with source, verifier, time and linked case/prediction/action. Distinguish actual cash-out location/time, no observed cash-out, unknown outcome, confirmed funds held, released amount and actual recovery. Avoid adding held and recovered amounts as if independent savings.
+Design prediction evaluation linkage before reading outcomes: choose policy such as last eligible pre-event prediction, record lead time, and never cherry-pick the best historical prediction after seeing the answer. Multiple withdrawals and partial outcomes require explicit accounting; unknown cases are excluded with denominator displayed, not counted as success/failure.
+Build dashboard measures from these records: Top-k, distance error, prediction/alert lead time, acknowledgement and bank response latency, verified hold/recovery totals and false-alert workload where outcomes permit. Keep synthetic/demo cohorts separate. Label observational figures without implying causal money saved solely by the model.
+Restrict ingestion/correction permissions; audit edits. Ensure outcome labels cannot enter causal inference features for that earlier event.
+
+## Acceptance gate
+
+Synthetic fixtures cover multiple withdrawals, missing outcomes, corrections, late outcomes, partial hold/release/recovery and duplicate provider records. Denominators and amount accounting are exact. Future outcome information never leaks into saved earlier predictions. Dashboard distinguishes measured, unknown and synthetic results.
+
+
+---
+
+# Phase 10: Reproducible location-model evaluation and data readiness
+
+Dependencies: 01,02,09.
+
+PS mapping: PS-03–07, PS-25.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Inspect ml/training/train_v7_compat.py, ml/evaluation, candidate_generator.py, feature_pipeline.py and model_verification_service.py. Preserve production artifact hashes. Inventory dataset generator/version, actual rows and case counts, features, source provenance, target definitions and preprocessing. Reconcile the saved report denominator inconsistency programmatically.
+Build a repeatable evaluation entry point for the same candidate universe and comparable information budget: current model, historical-hotspot baseline, distance baseline and appropriate random/reference baseline. Evaluate candidate recall separately from ranking recall so missing-target candidates are not hidden. Report Top-1/3/5, distance error, cohort counts and uncertainty estimates; don't call candidate-pair calibration proof of per-case real-world probability.
+Use chronological and related-case/group separation appropriate to available data, ensuring derived historical features use only prior information. Keep train/tune/calibration/final test disjoint. For generated data, disclose generator-family dependence and test distribution changes rather than claiming a new random seed proves real-world generalization.
+Implement authorized real-data import validation with provenance and schema checks, but do not fabricate that data. Set model promotion gates before comparing candidates; store experiments separately and promote only on documented evidence. Real data unavailable => real validation pending, not failed honesty.
+
+## Acceptance gate
+
+Same configuration/seed yields reproducible counts/metrics; no case-group leakage; baselines use comparable candidates; denominators match input records; separate real/synthetic reports. Existing model stays authoritative unless predeclared promotion evidence is met. Runtime preprocessing/artifact/schema parity tested.
+
+
+---
+
+# Phase 11: Honest timing uncertainty and stable LIME explanation
+
+Dependencies: 02,10.
+
+PS mapping: Optional timing/LIME quality supporting PS-17, PS-25.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Timing: inspect prediction_contract.py, time feature pipeline, time model target, persistence/response schemas and PredictionTiming.tsx. Preserve target reference semantics (current target measured from complaint reporting) unless a newly evaluated model explicitly changes it. Investigate null uncertainty/window_basis fields observed in the API despite an operational interval. Preserve uncertainty provenance end-to-end.
+Evaluate errors on appropriate held-out observed withdrawals; missing outcomes are not zero-delay labels. If data supports intervals, separate calibration and test sets, report empirical coverage AND width by cohort and disclose distribution-shift limits. Otherwise keep heuristic operational windows visibly labelled; don't invent 90/95% coverage.
+LIME: inspect exact official ranking/calibration wrapper, feature ordering/schema, persisted inference snapshot, background provenance and correlated/derived feature constraints. Ensure the explanation describes the same selected candidate score without changing ranking. Evaluate realistic perturbations, neighbourhood and sample-size choices on a predefined case set; repeat seeds to measure sign/rank stability and fidelity.
+Current LOW_FIDELITY may reflect conservative worst-candidate/error logic even when mean R² is moderate. Inspect actual classifier and expose per-candidate diagnostics. Never lower thresholds solely to remove warnings. Keep explanations local/approximate and non-causal; alternate methods need their own validation.
+
+## Acceptance gate
+
+Historical time values/reference unchanged, current uncertainty/basis survives round-trip, interval coverage/width measured on untouched data OR heuristic label retained. Explanation uses correct immutable snapshot, ranking unchanged, cache invalidates on model/schema/snapshot changes; stability/fidelity report retained including bad cases. No guaranteed R² target invented.
+
+
+---
+
+# Phase 12: Configurable geography and second-region readiness
+
+Dependencies: 03,04,07,10.
+
+PS mapping: PS-07, PS-12, PS-21; national context.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Audit hard-coded Delhi assumptions across origin resolver, candidate generation, location-feature service, scope checks, seed data, GIS and frontend. Introduce explicit region identifiers and versioned geography catalogs with source/license, verification time, coordinates, cluster radius, organization mapping and supported-model version.
+Preserve Delhi behaviour via parity tests. Separate data availability from model support: adding ATM coordinates must not automatically mark a Delhi-trained model valid in another region. Unsupported/incomplete region gives a clear limitation; never silently route to Delhi.
+Implement a validated catalog import contract and region configuration. Reject bad coordinates, duplicate identities, invalid region mappings and undocumented data provenance. Add labelled synthetic region fixtures for functional tests, not fake verified ATM data.
+With authorized verified geography and outcome data, evaluate a second-region model/transfer approach using Phase 10 gates. Connect routing/map filters to region IDs. Without those inputs, deliver configuration/import/tests and explicitly leave second-region predictive validation pending.
+
+## Acceptance gate
+
+Delhi outputs remain within established parity tolerances; synthetic second-region selection/filter/routing works without cross-region leakage; unsupported region has no fabricated prediction; actual verified catalog import and regional quality metrics are separate pending/complete gates. National readiness never inferred from configuration alone.
+
+
+---
+
+# Phase 13: Integrated pilot readiness and final PS acceptance
+
+Dependencies: 00–12 local gates; external gates explicitly tracked.
+
+PS mapping: PS-01–25.
+
+You are implementing one bounded phase in the existing CyberShield AI repository:
+`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+
+Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
+
+The PS requires predictive withdrawal hotspots, patterns/geospatial modelling/real-time intelligence, GIS time/location/crime-category filtering, secure investigator alerts/reports/evidence, and notifications to police/banks/I4C via SMS/email/API OR dashboard. It also calls for coordination across jurisdictions and actionable financial intervention. LIME/blockchain/exact-ATM prediction are not mandatory PS technologies.
+
+Implementation rules:
+- Implement this phase end-to-end, not just a plan or scaffold. Use small additive changes with backwards compatibility where safe. Do not invent an external integration, training result, address, recovered amount or completed bank action.
+- Before any schema change, inspect the current Alembic head and add a uniquely named revision (do not assume an old revision number). Test fresh upgrade and upgrade from current schema against disposable databases. Never migrate/reseed/delete operational data during verification. Destructive operational work requires separate user direction and a verified restore path.
+- Test databases must be explicitly isolated before application imports. Do not weaken auth, remove meaningful tests, hide failures, lower fidelity thresholds or relabel synthetic data as real to obtain green output.
+- Existing signed audit hashes and historical prediction snapshots must retain their original meaning. New versions append; don't rewrite historical facts.
+- Keep UTC internally and explicit IST presentation; enforce current-user role and object access server-side. Do not trust role, owner, bank or jurisdiction supplied by the client. Never log credentials, tokens or full account data.
+- Run targeted regression tests appropriate to the change and a frontend build when frontend changes. Run the full suite at the phase gate; compare remaining failures with the recorded baseline rather than pretending it is already green. Do not install arbitrary upgrades or retrain production models incidentally.
+- If external access/data is absent, implement and test the local adapter/contract with a labelled fake, record the external acceptance checks as pending, and complete all independent work. No fake compliance or invented results.
+
+Testing command pattern (PowerShell; disposable DB only):
+```powershell
+$env:ENVIRONMENT = 'test'
+$env:DATABASE_URL = 'sqlite:///:memory:'
+$env:AUTO_SEED_DEMO_DATA = 'false'
+$env:FABRIC_GATEWAY_URL = 'http://127.0.0.1:1/api/v1'
+.\.venv\Scripts\python.exe -m pytest tests -q -ra
+```
+Use the frontend's existing `npm run build` from its directory. PostgreSQL-specific constraints/concurrency require an isolated PostgreSQL integration run as well; SQLite alone cannot prove them.
+
+Write a handoff to `docs/implementation/PHASE_XX_RESULT.md` using this phase's two-digit number. Include changed files, migrations, exact test commands/counts, before/after behaviour, PS IDs, evidence locations, pending external gates and rollback procedure. Do not proceed automatically into another phase. No Git push, PR publication, deployment or real SMS/bank messages are authorized by this prompt.
+
+## Implement this phase
+
+Review all phase handoffs and regenerate a source/evidence/acceptance matrix for every PS row. Run a fresh end-to-end test with late transfer, versioned prediction, filtered map, authorized alert/acknowledgement, scoped handoff, fake-bank confirmed response, evidence report and outcome record. Exercise failure/restart paths, not only the happy path.
+Run a production-like isolated PostgreSQL stack with migrations, backup/restore and worker recovery. Establish load targets from complaint bursts, transfers per case, repeated inference and users; 8,000/day alone is not a sufficient benchmark. Measure p50/p95/p99, errors, queue delay and resources under documented hardware/data/model settings; set acceptance budgets before the test.
+Perform browser workflow checks for each intended role. Keep live external provider tests separate and authorized. Review sensitive logs, deployment config, health/readiness and operational runbooks; no self-issued security certification.
+Prepare an authorized real-data shadow pilot: record predictions prospectively, compare simple baselines, track warning time/false-alert workload/verified financial outcomes and drift. Do not allow autonomous punitive action based solely on location risk.
+Produce a release checklist with working prototype, sandbox-verified, externally validated and pending items. Do not deploy or send real notifications/financial actions as part of this prompt.
+
+## Acceptance gate
+
+Every PS requirement has current evidence and an honest status. All release-blocking regressions resolved; no undisclosed failing suite. Recovery/load/browser results reproducible. External unknowns have concrete partner/data requirements. Pilot go/no-go is based on measured criteria, not a manufactured completion percentage.

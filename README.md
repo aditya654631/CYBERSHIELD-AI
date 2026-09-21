@@ -1,4 +1,4 @@
-# CyberShield AI | National Cybercrime Predictive Intelligence Platform
+# CyberShield AI | Delhi Pilot Cybercrime Predictive Intelligence Platform
 **Smart India Hackathon SIH26184**
 
 Predicting likely fraudulent cash-withdrawal locations and time windows from cybercrime complaint and transaction data using **Machine Learning + Graph Intelligence + Geospatial Intelligence + Temporal Intelligence**.
@@ -9,16 +9,20 @@ Predicting likely fraudulent cash-withdrawal locations and time windows from cyb
 
 | Dimension | Engine Output | Explanation / Value |
 | :--- | :--- | :--- |
-| **WHERE** | **Top-3 Ranked Delhi ATM Clusters** | High-risk ATM cluster predicted through geospatial & mule co-occurrence |
-| **WHEN** | **Next 2–4 Hours** | Bounded temporal window preventing cash extraction before dispersal |
-| **RISK** | **87% CRITICAL** | Hybrid fusion score (0.40 ML + 0.25 Graph + 0.20 Geo + 0.15 Temporal) |
-| **WHY** | **Mule History (+21%), Hotspot (+17%)** | Explainable AI factor contribution and decision support via LIME |
+| **WHERE** | **Top-ranked candidate clusters** | Versioned candidate ranking for the supported Delhi pilot geography |
+| **WHEN** | **Operational time window** | A complaint-report-relative estimate; its basis and uncertainty are shown with each prediction |
+| **RISK** | **Relative risk score** | A dynamic model/graph/geography/temporal signal, not a confirmed crime probability |
+| **WHY** | **Local LIME factors** | A local approximation of the selected candidate score; never causal proof of criminal activity |
+
+> The production model is supported only for the Delhi pilot catalog. Other registered
+> regions can be used for workflow testing but return `MODEL_NOT_SUPPORTED_FOR_REGION`
+> until independently qualified with authorized geography and outcome data.
 
 ---
 
-## 🐳 Docker Deployment (Recommended)
+## 🐳 Local Docker Sandbox
 
-Run the complete platform stack (PostgreSQL 16, FastAPI Backend, React Frontend Nginx) using Docker Compose:
+Run the local prototype stack (PostgreSQL 16, FastAPI Backend, React Frontend Nginx) using Docker Compose:
 
 ```bash
 # 1. Start core services in background
@@ -109,15 +113,17 @@ npm run build
 
 ---
 
-## 🔑 Demo Stakeholder Credentials
+## 🔑 Local Demo Credentials
 
-The system supports role-based access control (RBAC) and strict jurisdiction isolation:
+The seeded prototype has role-based access control and jurisdiction isolation. These are
+public demo credentials for a locally seeded database only; never reuse them in a shared
+or production deployment.
 
 | Stakeholder Role | Police / Bank Email | Password | Access Scope |
 | :--- | :--- | :--- | :--- |
 | **I4C_ADMIN** | `admin@cybershield.gov.in` | `CyberAdmin@2026` | National Command (All jurisdictions) |
-| **STATE_LEA** | `state.lea@delhi.police.gov.in` | `DelhiState@2026` | State Cyber Cell Headquarters (Delhi) |
-| **DISTRICT_LEA** | `central.delhi@delhi.police.gov.in` | `CentralDelhi@2026` | District Cyber Cell (Central New Delhi) |
+| **STATE_LEA** | `state.lea@mp.police.gov.in` | `StateLea@2026` | Madhya Pradesh State Cyber Police Headquarters |
+| **DISTRICT_LEA** | `district.lea@indore.police.gov.in` | `IndoreLea@2026` | Indore District Cyber Cell |
 | **BANK_OFFICER** | `officer@sbi.co.in` | `BankOfficer@2026` | Bank Hold Actions & Account Liens |
 | **ANALYST** | `analyst@cybershield.gov.in` | `Analyst@2026` | Analytics & Graph Investigation |
 | **AUDITOR** | `auditor@mha.gov.in` | `Auditor@2026` | Regulatory & Audit Log Review |
@@ -130,7 +136,7 @@ The system supports role-based access control (RBAC) and strict jurisdiction iso
 Complaint Intake
        │
        ▼
-Feature Extraction (V7-compat Schema: 39 Features)
+Feature Extraction (V7-compat Schema: 47 Features)
        │
        ▼
 Official Trained ML Engine (cashout-location-xgb-v7-compat + cashout-time-xgb-v3)
@@ -187,6 +193,6 @@ LIME provides a non-blocking, on-demand local surrogate explanation for official
 
 ### Operational Prototype Truthfulness:
 - **Dataset**: Controlled synthetic prototype data modeled after Delhi NCT cybercrime topology. No real NCRP production data or victim PII is used.
-- **Banking Actions**: Bank disbursement holds are modeled as local prototype actions (`is_simulated = True`). The system records full action lifecycles without falsely claiming external core-banking gateway settlement.
+- **Banking Actions**: Bank actions remain explicitly labelled `SIMULATED` or `SANDBOX` unless verified partner callback evidence supports a configured integration. The system does not claim external core-banking settlement.
 - **Consortium Network**: Simulated multi-bank/LEA consortium nodes (BankA, BankB, BankC, I4C, LEA). No live bank API keys or customer credentials.
 - **Explainability**: LIME is a local surrogate approximation, not causal proof of criminal intent.

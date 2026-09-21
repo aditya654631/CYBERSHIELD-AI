@@ -24,8 +24,19 @@ from sqlalchemy.orm import Session
 
 from backend.app.auth.security import create_access_token
 from backend.app.models.models import (
-    Complaint, Prediction, PredictionLocation, LocationCluster, User, Organization
+    Complaint, Prediction, PredictionLocation, PredictionSnapshot, LocationCluster, User, Organization, Alert, Transaction
 )
+
+
+def _clean_test_predictions(db_session: Session, pred_ids):
+    if not pred_ids:
+        return
+    db_session.query(Transaction).filter(Transaction.prediction_id.in_(pred_ids)).update({Transaction.prediction_id: None}, synchronize_session=False)
+    db_session.query(Alert).filter(Alert.prediction_id.in_(pred_ids)).update({Alert.prediction_id: None}, synchronize_session=False)
+    db_session.query(PredictionLocation).filter(PredictionLocation.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
+    db_session.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
+    db_session.query(Prediction).filter(Prediction.id.in_(pred_ids)).delete(synchronize_session=False)
+    db_session.commit()
 
 
 def _make_auth_header(email: str, role: str) -> dict:
@@ -39,6 +50,10 @@ def admin_headers():
     return _make_auth_header("admin@cybershield.gov.in", "I4C_ADMIN")
 
 
+def get_delhi_clusters(db_session: Session):
+    return db_session.query(LocationCluster).filter(LocationCluster.state == "Delhi").order_by(LocationCluster.id.asc()).all()
+
+
 # ==============================================================================
 # 1. Historical-only cluster with high baseline risk
 # ==============================================================================
@@ -48,21 +63,21 @@ def test_historical_only_cluster_with_high_baseline_risk(db_session: Session, cl
     Historical clusters with baseline risk >= 0.8 must NEVER be presented as
     active interception candidates when no eligible active case prediction exists.
     """
-    cluster = db_session.query(LocationCluster).filter(LocationCluster.id == 1).first()
+    cluster = get_delhi_clusters(db_session)[0]
     assert cluster is not None
     original_risk = float(cluster.risk_score)
     assert original_risk > 0.0
 
-    # Ensure no active predictions exist for cluster 1
-    db_session.query(PredictionLocation).filter(PredictionLocation.cluster_id == 1).delete()
+    # Ensure no active predictions exist for cluster
+    db_session.query(PredictionLocation).filter(PredictionLocation.cluster_id == cluster.id).delete()
     db_session.commit()
 
     resp = client.get("/api/v1/risk-map", headers=admin_headers)
     assert resp.status_code == 200
     data = resp.json()
 
-    # Find cluster 1 in the response
-    c1 = next((h for h in data["hotspots"] if h["id"] == 1), None)
+    # Find cluster in the response
+    c1 = next((h for h in data["hotspots"] if h["id"] == cluster.id), None)
     assert c1 is not None
 
     # Verify additive and decoupled semantics
@@ -78,8 +93,8 @@ def test_historical_only_cluster_with_high_baseline_risk(db_session: Session, cl
     assert c1["linked_complaint_numbers"] == []
 
     # Must appear in historical_hotspots, NOT in active_candidates
-    assert any(h["id"] == 1 for h in data.get("historical_hotspots", []))
-    assert not any(h["id"] == 1 for h in data.get("active_candidates", []))
+    assert any(h["id"] == cluster.id for h in data.get("historical_hotspots", []))
+    assert not any(h["id"] == cluster.id for h in data.get("active_candidates", []))
 
 
 # ==============================================================================
@@ -93,6 +108,14 @@ def test_cluster_with_one_eligible_active_prediction(db_session: Session, client
     """
     now = datetime.utcnow()
     ts = int(time.time())
+    target_cluster = get_delhi_clusters(db_session)[1]
+
+    # Ensure clean cluster for single eligible active prediction test
+    existing_plocs = db_session.query(PredictionLocation.prediction_id).filter(PredictionLocation.cluster_id == target_cluster.id).all()
+    existing_preds = db_session.query(Prediction.id).filter(Prediction.primary_cluster_id == target_cluster.id).all()
+    all_p_ids = set([p[0] for p in existing_preds] + [p[0] for p in existing_plocs])
+    if all_p_ids:
+        _clean_test_predictions(db_session, all_p_ids)
 
     comp = Complaint(
         complaint_number=f"CMP-P3-ELIGIBLE-{ts}",
@@ -116,7 +139,7 @@ def test_cluster_with_one_eligible_active_prediction(db_session: Session, client
         complaint_id=comp.id,
         predicted_window_start=now - timedelta(minutes=30),
         predicted_window_end=now + timedelta(hours=2),
-        primary_cluster_id=2,
+        primary_cluster_id=target_cluster.id,
         risk_score=0.91,
         risk_level="CRITICAL",
         created_at=now,
@@ -127,7 +150,7 @@ def test_cluster_with_one_eligible_active_prediction(db_session: Session, client
 
     ploc = PredictionLocation(
         prediction_id=pred.id,
-        cluster_id=2,
+        cluster_id=target_cluster.id,
         location_name="Rohini Sector 7 Cluster",
         rank=1,
         probability=0.185,
@@ -140,7 +163,7 @@ def test_cluster_with_one_eligible_active_prediction(db_session: Session, client
     assert resp.status_code == 200
     data = resp.json()
 
-    c2 = next((h for h in data["active_candidates"] if h["id"] == 2), None)
+    c2 = next((h for h in data["active_candidates"] if h["id"] == target_cluster.id), None)
     assert c2 is not None
     assert c2["is_active_candidate"] is True
     assert c2["candidate_score"] == 0.185
@@ -161,6 +184,14 @@ def test_closed_and_resolved_complaint_exclusion(db_session: Session, client, ad
     """
     now = datetime.utcnow()
     ts = int(time.time())
+    target_cluster = get_delhi_clusters(db_session)[2]
+
+    # Ensure clean cluster for closed case exclusion test
+    existing_plocs = db_session.query(PredictionLocation.prediction_id).filter(PredictionLocation.cluster_id == target_cluster.id).all()
+    existing_preds = db_session.query(Prediction.id).filter(Prediction.primary_cluster_id == target_cluster.id).all()
+    all_p_ids = set([p[0] for p in existing_preds] + [p[0] for p in existing_plocs])
+    if all_p_ids:
+        _clean_test_predictions(db_session, all_p_ids)
 
     comp_closed = Complaint(
         complaint_number=f"CMP-P3-CLOSED-{ts}",
@@ -184,7 +215,7 @@ def test_closed_and_resolved_complaint_exclusion(db_session: Session, client, ad
         complaint_id=comp_closed.id,
         predicted_window_start=now - timedelta(minutes=10),
         predicted_window_end=now + timedelta(hours=1),
-        primary_cluster_id=3,
+        primary_cluster_id=target_cluster.id,
         risk_score=0.88,
         risk_level="HIGH",
         created_at=now,
@@ -195,7 +226,7 @@ def test_closed_and_resolved_complaint_exclusion(db_session: Session, client, ad
 
     ploc = PredictionLocation(
         prediction_id=pred.id,
-        cluster_id=3,
+        cluster_id=target_cluster.id,
         location_name="Karol Bagh Cluster",
         rank=1,
         probability=0.15,
@@ -208,11 +239,11 @@ def test_closed_and_resolved_complaint_exclusion(db_session: Session, client, ad
     assert resp.status_code == 200
     data = resp.json()
 
-    # Cluster 3 should NOT be active due to closed case
+    # Target cluster should NOT be active due to closed case
     active_ids = [h["id"] for h in data.get("active_candidates", [])]
-    assert 3 not in active_ids
+    assert target_cluster.id not in active_ids
 
-    c3 = next((h for h in data["hotspots"] if h["id"] == 3), None)
+    c3 = next((h for h in data["hotspots"] if h["id"] == target_cluster.id), None)
     assert c3 is not None
     assert c3["is_active_candidate"] is False
     assert c3["active_cases"] == 0
@@ -372,12 +403,24 @@ def test_multiple_predictions_only_latest_row_evaluated(db_session: Session, cli
     db_session.commit()
     db_session.refresh(comp)
 
-    # Older prediction (created 2h ago): has unexpired future window in Cluster 6
+    delhi_clusters = get_delhi_clusters(db_session)
+    c_old_cluster = delhi_clusters[30]
+    c_new_cluster = delhi_clusters[31]
+
+    # Clean any pre-existing predictions for these test clusters
+    for c_id in (c_old_cluster.id, c_new_cluster.id):
+        plocs = db_session.query(PredictionLocation.prediction_id).filter(PredictionLocation.cluster_id == c_id).all()
+        preds = db_session.query(Prediction.id).filter(Prediction.primary_cluster_id == c_id).all()
+        all_p = set([p[0] for p in plocs] + [p[0] for p in preds])
+        if all_p:
+            _clean_test_predictions(db_session, all_p)
+
+    # Older prediction (created 2h ago): has unexpired future window in c_old_cluster
     pred_old = Prediction(
         complaint_id=comp.id,
         predicted_window_start=now - timedelta(hours=1),
         predicted_window_end=now + timedelta(hours=3),
-        primary_cluster_id=6,
+        primary_cluster_id=c_old_cluster.id,
         risk_score=0.88,
         risk_level="HIGH",
         created_at=now - timedelta(hours=2),
@@ -388,8 +431,8 @@ def test_multiple_predictions_only_latest_row_evaluated(db_session: Session, cli
 
     ploc_old = PredictionLocation(
         prediction_id=pred_old.id,
-        cluster_id=6,
-        location_name="Cluster 6",
+        cluster_id=c_old_cluster.id,
+        location_name=c_old_cluster.cluster_name,
         rank=1,
         probability=0.17,
         risk_level="HIGH",
@@ -397,12 +440,12 @@ def test_multiple_predictions_only_latest_row_evaluated(db_session: Session, cli
     db_session.add(ploc_old)
     db_session.commit()
 
-    # Newer prediction (created 10m ago): re-run produced an expired or different result in Cluster 7
+    # Newer prediction (created 10m ago): re-run produced an expired or different result in c_new_cluster
     pred_new = Prediction(
         complaint_id=comp.id,
         predicted_window_start=now - timedelta(hours=1),
         predicted_window_end=now - timedelta(minutes=5),  # expired!
-        primary_cluster_id=7,
+        primary_cluster_id=c_new_cluster.id,
         risk_score=0.75,
         risk_level="MEDIUM",
         created_at=now - timedelta(minutes=10),
@@ -413,8 +456,8 @@ def test_multiple_predictions_only_latest_row_evaluated(db_session: Session, cli
 
     ploc_new = PredictionLocation(
         prediction_id=pred_new.id,
-        cluster_id=7,
-        location_name="Cluster 7",
+        cluster_id=c_new_cluster.id,
+        location_name=c_new_cluster.cluster_name,
         rank=1,
         probability=0.08,
         risk_level="MEDIUM",
@@ -427,10 +470,10 @@ def test_multiple_predictions_only_latest_row_evaluated(db_session: Session, cli
     data = resp.json()
 
     active_ids = [h["id"] for h in data.get("active_candidates", [])]
-    # Cluster 6 must NOT be active (older prediction must not be revived)
-    assert 6 not in active_ids
-    # Cluster 7 must NOT be active (latest prediction is expired)
-    assert 7 not in active_ids
+    # c_old_cluster must NOT be active (older prediction must not be revived)
+    assert c_old_cluster.id not in active_ids
+    # c_new_cluster must NOT be active (latest prediction is expired)
+    assert c_new_cluster.id not in active_ids
 
 
 # ==============================================================================
@@ -444,6 +487,13 @@ def test_distinct_scores_for_primary_and_secondary_locations(db_session: Session
     """
     now = datetime.utcnow()
     ts = int(time.time())
+
+    # Ensure clean clusters 8 & 9 for distinct score test
+    existing_plocs = db_session.query(PredictionLocation.prediction_id).filter(PredictionLocation.cluster_id.in_([8, 9])).all()
+    existing_preds = db_session.query(Prediction.id).filter(Prediction.primary_cluster_id.in_([8, 9])).all()
+    all_p_ids = set([p[0] for p in existing_preds] + [p[0] for p in existing_plocs])
+    if all_p_ids:
+        _clean_test_predictions(db_session, all_p_ids)
 
     comp = Complaint(
         complaint_number=f"CMP-P3-DISTINCT-{ts}",
@@ -603,6 +653,13 @@ def test_duplicate_case_contribution_within_one_cluster(db_session: Session, cli
     """
     now = datetime.utcnow()
     ts = int(time.time())
+
+    # Clean any pre-existing predictions for Cluster 12
+    plocs = db_session.query(PredictionLocation.prediction_id).filter(PredictionLocation.cluster_id == 12).all()
+    preds = db_session.query(Prediction.id).filter(Prediction.primary_cluster_id == 12).all()
+    all_p = set([p[0] for p in plocs] + [p[0] for p in preds])
+    if all_p:
+        _clean_test_predictions(db_session, all_p)
 
     comp = Complaint(
         complaint_number=f"CMP-P3-SAME-CLUSTER-{ts}",

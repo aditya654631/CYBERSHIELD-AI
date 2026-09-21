@@ -15,7 +15,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from backend.app.models.db import get_db, check_database_connection, get_database_engine_type
 from backend.app.models.models import User
-from backend.app.auth.security import get_current_user
+from backend.app.auth.rbac import require_roles, RoleEnum
 from backend.app.config.settings import settings
 from backend.app.services.model_verification_service import model_verification_service
 from backend.app.services.prediction_service import prediction_service
@@ -27,7 +27,7 @@ router = APIRouter(prefix="/system", tags=["System Diagnostics"])
 @router.get("/status")
 def get_system_status(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles(RoleEnum.I4C_ADMIN, RoleEnum.ANALYST, RoleEnum.AUDITOR))
 ) -> Dict[str, Any]:
     """
     Returns authenticated operational status and verified system diagnostics.

@@ -35,29 +35,43 @@ class DashboardService:
     """
 
     @staticmethod
-    def get_latest_successful_predictions(db: Session) -> List[Prediction]:
+    def get_latest_successful_predictions(db: Session, complaint_ids: Optional[List[int]] = None) -> List[Prediction]:
         """
-        Deterministically retrieves the latest Prediction per complaint using
-        canonical ordering: Prediction.created_at DESC, Prediction.id DESC.
+        Deterministically retrieves the latest operational Prediction per complaint using
+        canonical ordering:
+          1. analysis_purpose == 'OPERATIONAL' first (explicit purpose, most reliable)
+          2. analysis_as_of IS NULL (backward-compat: old records without purpose but no cutoff)
+          3. version_number DESC, created_at DESC, id DESC
         Uses a SQL window function (ROW_NUMBER) to partition by complaint_id.
+        Historical replays (analysis_purpose == 'HISTORICAL_REPLAY') are never selected
+        as the "latest operational" even when their cutoff is close to now.
         """
         subq = (
             db.query(
                 Prediction.id.label("pred_id"),
                 func.row_number().over(
                     partition_by=Prediction.complaint_id,
-                    order_by=(Prediction.created_at.desc(), Prediction.id.desc())
+                    order_by=(
+                        # OPERATIONAL purpose ranks first (1 > 0 for DESC)
+                        (Prediction.analysis_purpose == "OPERATIONAL").desc(),
+                        # Backward-compat: NULL analysis_as_of (no purpose set, old records)
+                        Prediction.analysis_as_of.is_(None).desc(),
+                        Prediction.version_number.desc(),
+                        Prediction.created_at.desc(),
+                        Prediction.id.desc()
+                    )
                 ).label("rn")
             ).subquery()
         )
 
-        return (
+        query = (
             db.query(Prediction)
             .join(subq, Prediction.id == subq.c.pred_id)
             .filter(subq.c.rn == 1)
-            .order_by(Prediction.created_at.desc(), Prediction.id.desc())
-            .all()
         )
+        if complaint_ids is not None:
+            query = query.filter(Prediction.complaint_id.in_(complaint_ids or [-1]))
+        return query.order_by(Prediction.created_at.desc(), Prediction.id.desc()).all()
 
     def get_dashboard_summary(self, db: Session, user: Optional[Any] = None) -> Dict[str, Any]:
         """
@@ -66,10 +80,18 @@ class DashboardService:
         """
         # 1. Active Complaints: case_status != 'RESOLVED'
         active_statuses = ["ACTIVE", "UNDER_INVESTIGATION", "ALERTED"]
-        comp_query = db.query(Complaint).filter(Complaint.case_status.in_(active_statuses))
-        if user and getattr(user, "role", None) in ("STATE_LEA", "DISTRICT_LEA"):
+        visible_ids: Optional[List[int]] = None
+        if user:
             from backend.app.auth.rbac import filter_complaints_by_jurisdiction
-            comp_query = filter_complaints_by_jurisdiction(comp_query, user, db)
+            visible_ids = [
+                row[0] for row in filter_complaints_by_jurisdiction(
+                    db.query(Complaint.id), user, db
+                ).all()
+            ]
+        scoped_ids = visible_ids if visible_ids is not None else None
+        comp_query = db.query(Complaint).filter(Complaint.case_status.in_(active_statuses))
+        if scoped_ids is not None:
+            comp_query = comp_query.filter(Complaint.id.in_(scoped_ids or [-1]))
 
         active_complaints_count = comp_query.count()
 
@@ -78,7 +100,7 @@ class DashboardService:
         total_amount_at_risk = float(total_amount_at_risk_raw or 0.0)
 
         # 2. Latest Successful Predictions (one per complaint, created_at DESC, id DESC)
-        latest_predictions = self.get_latest_successful_predictions(db)
+        latest_predictions = self.get_latest_successful_predictions(db, scoped_ids)
         latest_pred_map: Dict[int, Prediction] = {p.complaint_id: p for p in latest_predictions}
 
         # High-risk predictions: risk_level in ('HIGH', 'CRITICAL')
@@ -106,16 +128,13 @@ class DashboardService:
 
         # 3. Alerts: Active vs Acknowledged
         # Distinct observed Alert statuses: 'ACKNOWLEDGED', 'NEW'
-        active_alerts_count = (
-            db.query(Alert)
-            .filter(Alert.status.in_(["NEW", "ACTION_INITIATED"]))
-            .count()
-        )
-        acknowledged_alerts_count = (
-            db.query(Alert)
-            .filter(Alert.status == "ACKNOWLEDGED")
-            .count()
-        )
+        alert_scope = [Alert.complaint_id.in_(scoped_ids or [-1])] if scoped_ids is not None else []
+        active_alerts_count = db.query(Alert).filter(
+            Alert.status.in_(["NEW", "ACTION_INITIATED"]), *alert_scope
+        ).count()
+        acknowledged_alerts_count = db.query(Alert).filter(
+            Alert.status == "ACKNOWLEDGED", *alert_scope
+        ).count()
 
         # 4. Average response time for acknowledged alerts
         ack_alerts = (
@@ -123,7 +142,8 @@ class DashboardService:
             .filter(
                 Alert.status == "ACKNOWLEDGED",
                 Alert.acknowledged_at.isnot(None),
-                Alert.created_at.isnot(None)
+                Alert.created_at.isnot(None),
+                *alert_scope,
             )
             .all()
         )
@@ -139,13 +159,14 @@ class DashboardService:
             response_time_label = "Not enough data"
 
         # 5. Fraud Type Distribution (from real database)
-        fraud_type_rows = (
-            db.query(
+        fraud_query = db.query(
                 Complaint.fraud_type,
                 func.count(Complaint.id).label("count"),
                 func.sum(Complaint.amount).label("amount")
             )
-            .group_by(Complaint.fraud_type)
+        if scoped_ids is not None:
+            fraud_query = fraud_query.filter(Complaint.id.in_(scoped_ids or [-1]))
+        fraud_type_rows = (fraud_query.group_by(Complaint.fraud_type)
             .order_by(func.count(Complaint.id).desc())
             .limit(6)
             .all()
@@ -163,9 +184,12 @@ class DashboardService:
 
         # 6. Cases Over Time (last 7 reporting dates with real data)
         day_col = func.date(Complaint.reported_at)
-        date_rows = (
-            db.query(day_col.label("day"), func.count(Complaint.id).label("cases"))
-            .filter(Complaint.reported_at.isnot(None))
+        date_query = db.query(day_col.label("day"), func.count(Complaint.id).label("cases")).filter(
+            Complaint.reported_at.isnot(None)
+        )
+        if scoped_ids is not None:
+            date_query = date_query.filter(Complaint.id.in_(scoped_ids or [-1]))
+        date_rows = (date_query
             .group_by(day_col)
             .order_by(day_col.desc())
             .limit(7)
@@ -182,13 +206,15 @@ class DashboardService:
         ]
 
         # 7. Regional Distribution (top districts by case volume)
-        dist_rows = (
-            db.query(
+        dist_query = db.query(
                 Complaint.district,
                 func.count(Complaint.id).label("cases"),
                 func.sum(Complaint.amount).label("amount")
             )
-            .filter(Complaint.district.isnot(None))
+        dist_query = dist_query.filter(Complaint.district.isnot(None))
+        if scoped_ids is not None:
+            dist_query = dist_query.filter(Complaint.id.in_(scoped_ids or [-1]))
+        dist_rows = (dist_query
             .group_by(Complaint.district)
             .order_by(func.count(Complaint.id).desc())
             .limit(6)
@@ -206,9 +232,12 @@ class DashboardService:
 
         # 7b. Hourly Distribution (from real incident/reported hours)
         hour_col = func.extract("hour", Complaint.reported_at)
-        hourly_rows = (
-            db.query(hour_col.label("hour"), func.count(Complaint.id).label("count"))
-            .filter(Complaint.reported_at.isnot(None))
+        hourly_query = db.query(hour_col.label("hour"), func.count(Complaint.id).label("count")).filter(
+            Complaint.reported_at.isnot(None)
+        )
+        if scoped_ids is not None:
+            hourly_query = hourly_query.filter(Complaint.id.in_(scoped_ids or [-1]))
+        hourly_rows = (hourly_query
             .group_by(hour_col)
             .order_by(hour_col.asc())
             .all()
@@ -225,9 +254,10 @@ class DashboardService:
         ]
 
         # 8. Recent Complaints (top 10 ordered by reported_at DESC, id DESC)
-        recent_comp_rows = (
-            db.query(Complaint)
-            .order_by(Complaint.reported_at.desc(), Complaint.id.desc())
+        recent_comp_query = db.query(Complaint)
+        if scoped_ids is not None:
+            recent_comp_query = recent_comp_query.filter(Complaint.id.in_(scoped_ids or [-1]))
+        recent_comp_rows = (recent_comp_query.order_by(Complaint.reported_at.desc(), Complaint.id.desc())
             .limit(10)
             .all()
         )
@@ -281,9 +311,10 @@ class DashboardService:
                 })
 
         # 9. Recent Predictions (top 10 ordered by created_at DESC, id DESC)
-        recent_pred_rows = (
-            db.query(Prediction)
-            .order_by(Prediction.created_at.desc(), Prediction.id.desc())
+        recent_pred_query = db.query(Prediction)
+        if scoped_ids is not None:
+            recent_pred_query = recent_pred_query.filter(Prediction.complaint_id.in_(scoped_ids or [-1]))
+        recent_pred_rows = (recent_pred_query.order_by(Prediction.created_at.desc(), Prediction.id.desc())
             .limit(10)
             .all()
         )
@@ -310,9 +341,10 @@ class DashboardService:
             })
 
         # 10. Recent Alerts (top 10 ordered by created_at DESC, id DESC)
-        recent_alert_rows = (
-            db.query(Alert)
-            .order_by(Alert.created_at.desc(), Alert.id.desc())
+        recent_alert_query = db.query(Alert)
+        if scoped_ids is not None:
+            recent_alert_query = recent_alert_query.filter(Alert.complaint_id.in_(scoped_ids or [-1]))
+        recent_alert_rows = (recent_alert_query.order_by(Alert.created_at.desc(), Alert.id.desc())
             .limit(10)
             .all()
         )

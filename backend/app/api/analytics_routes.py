@@ -32,21 +32,37 @@ def get_analytics_overview(
 
 
 @router.get("/fraud-types")
-def get_fraud_types(current_user: User = Depends(get_current_user)):
+def get_fraud_types(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from backend.app.services.dashboard_service import dashboard_service
+    rows = dashboard_service.get_dashboard_summary(db, user=current_user)["fraud_type_distribution"]
     return [
-        {"type": "Investment Scam", "cases": 184, "avg_amount": 77173, "risk_velocity": "Moderate (4-8h)"},
-        {"type": "UPI / QR Code Fraud", "cases": 142, "avg_amount": 43661, "risk_velocity": "Ultra Fast (<2h)"},
-        {"type": "Digital Arrest / Sextortion", "cases": 78, "avg_amount": 108974, "risk_velocity": "Fast (2-4h)"},
-        {"type": "Part-time Job Scam", "cases": 56, "avg_amount": 60714, "risk_velocity": "Moderate (4-6h)"},
-        {"type": "Loan App Extortion", "cases": 40, "avg_amount": 55000, "risk_velocity": "Slow (>8h)"}
+        {
+            "type": row["name"],
+            "cases": row["count"],
+            "amount": row["amount"],
+            "percentage": row["percentage"],
+            "data_basis": "authorized_persisted_cases",
+        }
+        for row in rows
     ]
 
 
 @router.get("/timeline")
-def get_timeline(current_user: User = Depends(get_current_user)):
+def get_timeline(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    from backend.app.services.dashboard_service import dashboard_service
+    rows = dashboard_service.get_dashboard_summary(db, user=current_user)["recent_complaints"]
     return [
-        {"timestamp": "20:15", "event": "CMP-1042: AI Prediction flagged Vijay Nagar ATM Cluster (87% Risk)"},
-        {"timestamp": "19:42", "event": "CMP-1042: Layer 2 fund split into Mule accounts ACC••••8129 and ACC••••6291"},
-        {"timestamp": "19:35", "event": "CMP-1042: Initial victim transfer ₹1,25,000 via UPI (SBI -> HDFC)"},
-        {"timestamp": "19:28", "event": "CMP-1042: Cybercrime complaint registered by victim Rajesh Sharma in Bhopal"}
+        {
+            "timestamp": row["reported_at"],
+            "event": f"{row['complaint_number']}: complaint status {row['case_status']}",
+            "complaint_number": row["complaint_number"],
+            "data_basis": "authorized_persisted_case",
+        }
+        for row in rows
     ]

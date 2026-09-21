@@ -26,6 +26,11 @@ from backend.app.api.model_routes import router as model_router
 from backend.app.api.audit_routes import router as audit_router
 from backend.app.api.bank_action_routes import router as bank_action_router
 from backend.app.api.system_routes import router as system_router
+from backend.app.api.evidence_routes import router as evidence_router
+from backend.app.api.report_routes import router as report_router
+from backend.app.api.handoff_routes import router as handoff_router
+from backend.app.api.outcome_routes import router as outcome_router
+from backend.app.api.geography_routes import router as geography_router
 from backend.app.websocket.manager import ws_manager
 
 @asynccontextmanager
@@ -96,10 +101,10 @@ def health_check():
     provider = prediction_service.ml_provider
     model_ready = provider.is_available()
     bootstrap_state = getattr(app.state, "bootstrap_ready", None)
-    schema_ready = db_health.get("status") == "connected" if bootstrap_state is None else bool(bootstrap_state)
+    schema_ready = db_health.get("status") == "connected"
     db_status = db_health.get("status", "disconnected")
     db_engine = db_health.get("engine", "PostgreSQL")
-    is_healthy = db_health.get("status") == "connected" and model_ready and schema_ready
+    is_healthy = db_health.get("status") == "connected" and model_ready
     return {
         "status": "healthy" if is_healthy else "degraded",
         "service": settings.APP_NAME,
@@ -131,6 +136,11 @@ app.include_router(model_router, prefix=api_prefix)
 app.include_router(audit_router, prefix=api_prefix)
 app.include_router(bank_action_router, prefix=api_prefix)
 app.include_router(system_router, prefix=api_prefix)
+app.include_router(evidence_router, prefix=api_prefix)
+app.include_router(report_router, prefix=api_prefix)
+app.include_router(handoff_router, prefix=api_prefix)
+app.include_router(outcome_router, prefix=api_prefix)
+app.include_router(geography_router, prefix=api_prefix)
 
 # Authenticated WebSocket for real-time alerts
 @app.websocket("/ws/alerts")

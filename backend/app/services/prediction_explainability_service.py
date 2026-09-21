@@ -593,6 +593,10 @@ class PredictionExplainabilityService:
         Explains an individual candidate location prediction using tabular LIME.
         Deterministic through local per-call RNG without mutating global np.random.
         """
+        if not self.is_initialized or self.explainer is None:
+            if not self._ensure_initialized():
+                raise RuntimeError(self._init_error or "Explainer initialization failed")
+
         mlp = prediction_service.ml_provider
         v7_model = mlp.location_model
         v7_calibrator = mlp.calibrator

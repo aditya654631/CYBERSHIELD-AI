@@ -4,6 +4,7 @@ Comprehensive validation of transaction context resolution, deduplication,
 chronological ordering, provenance, isolation, and zero target leakage.
 """
 
+from datetime import datetime, timedelta
 import pytest
 import ast
 import inspect
@@ -249,6 +250,7 @@ def test_cmp_dl_existing_complaint_returns_own_transactions(db):
 def test_direct_transaction_precedence_behavior(db):
     """19. Verifies direct transactions take absolute precedence over scenario links."""
     # Create temporary complaint with both direct transaction and scenario tag
+    now = datetime.utcnow()
     c = Complaint(
         complaint_number="CMP-TEST-DIRECT-PRECEDENCE",
         fraud_type="UPI fraud",
@@ -257,7 +259,8 @@ def test_direct_transaction_precedence_behavior(db):
         state="Delhi",
         district="CENTRAL_NEW_DELHI",
         payment_channel="UPI",
-        description="[SCENARIO:CMP-DL-1261|STATUS:LINKED|SCORE:90.0|REASON:Test]"
+        description="[SCENARIO:CMP-DL-1261|STATUS:LINKED|SCORE:90.0|REASON:Test]",
+        reported_at=now
     )
     db.add(c)
     db.flush()
@@ -272,7 +275,8 @@ def test_direct_transaction_precedence_behavior(db):
         receiver_account_id=receiver.id,
         amount=10000.0,
         payment_channel="UPI",
-        hop_number=1
+        hop_number=1,
+        timestamp=now - timedelta(minutes=10)
     )
     db.add(tx)
     db.flush()
@@ -366,7 +370,6 @@ def test_zero_target_leakage_in_transaction_resolution(db):
             ], f"Forbidden target attribute {node.attr} accessed!"
 
 
-@pytest.mark.live
 def test_step4_transaction_dataset_preserved(db):
     """27. Verifies Step-4 operational transaction dataset remains intact."""
     txn_dl_count = db.query(Transaction).filter(Transaction.transaction_ref.like("TXN-DL-%")).count()

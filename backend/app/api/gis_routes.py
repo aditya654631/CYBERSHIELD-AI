@@ -6,13 +6,42 @@ from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 from backend.app.models.db import get_db
 from backend.app.models.models import LocationCluster, ATMLocation, Complaint, Prediction, PredictionLocation, User
-from backend.app.schemas.schemas import HotspotCluster, ATMLocationItem, GISOverviewResponse
+from backend.app.schemas.schemas import HotspotCluster, ATMLocationItem, GISOverviewResponse, PredictionResponse
 from backend.app.auth.security import get_current_user
-from backend.app.auth.rbac import verify_complaint_access, filter_complaints_by_jurisdiction, RoleEnum
+from backend.app.auth.rbac import (
+    verify_complaint_access, filter_complaints_by_jurisdiction,
+    is_national_scope, RoleEnum,
+)
 
 router = APIRouter(tags=["GIS & Risk Map"])
 
 PRIORITY_ORDER = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+
+
+def _scope_cluster_query(query, db: Session, user: User):
+    """Apply the same trusted scope to GIS collection and direct cluster reads."""
+    if is_national_scope(user):
+        return query
+    if user.role in (RoleEnum.STATE_LEA, RoleEnum.DISTRICT_LEA, RoleEnum.ANALYST, RoleEnum.AUDITOR):
+        org = user.organization
+        if not org or not org.state:
+            return query.filter(LocationCluster.id == -1)
+        query = query.filter(func.lower(LocationCluster.state) == org.state.strip().lower())
+        if user.role == RoleEnum.DISTRICT_LEA or (
+            user.role in (RoleEnum.ANALYST, RoleEnum.AUDITOR)
+            and org.district and org.district.upper() not in ("ALL", "NATIONAL")
+        ):
+            query = query.filter(func.lower(LocationCluster.district) == (org.district or "").strip().lower())
+        return query
+    if user.role == RoleEnum.BANK_OFFICER:
+        visible_complaints = filter_complaints_by_jurisdiction(db.query(Complaint.id), user, db)
+        visible_clusters = (
+            db.query(PredictionLocation.cluster_id)
+            .join(Prediction, PredictionLocation.prediction_id == Prediction.id)
+            .filter(Prediction.complaint_id.in_(visible_complaints))
+        )
+        return query.filter(LocationCluster.id.in_(visible_clusters))
+    return query.filter(LocationCluster.id == -1)
 
 
 def format_window_ist(start_dt: Optional[datetime], end_dt: Optional[datetime]) -> str:
@@ -33,14 +62,64 @@ def format_window_ist(start_dt: Optional[datetime], end_dt: Optional[datetime]) 
     return f"{start_date}, {start_time} IST – {end_date}, {end_time} IST"
 
 
+def _parse_iso_timestamp(ts_str: Optional[str], param_name: str) -> Optional[datetime]:
+    """Parse ISO 8601 string and normalize to naive UTC datetime."""
+    if not ts_str or not ts_str.strip():
+        return None
+    val = ts_str.strip()
+    try:
+        if val.endswith("Z") or val.endswith("z"):
+            dt = datetime.fromisoformat(val[:-1] + "+00:00")
+        else:
+            dt = datetime.fromisoformat(val)
+        if dt.tzinfo is not None:
+            return dt.astimezone(timezone.utc).replace(tzinfo=None)
+        return dt
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid ISO datetime format for '{param_name}': '{ts_str}'. Expected valid ISO 8601 string."
+        )
+
+
+def _validate_time_filter(
+    start_time: Optional[str],
+    end_time: Optional[str],
+    time_basis: Optional[str]
+) -> tuple:
+    """Validate time basis and range bounds."""
+    basis = (time_basis or "predicted_window").strip().lower()
+    valid_bases = {"predicted_window", "complaint_time", "incident_time"}
+    if basis not in valid_bases:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid time_basis '{time_basis}'. Allowed options: 'predicted_window', 'complaint_time', 'incident_time'."
+        )
+
+    start_dt = _parse_iso_timestamp(start_time, "start_time")
+    end_dt = _parse_iso_timestamp(end_time, "end_time")
+
+    if start_dt and end_dt and start_dt > end_dt:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Reversed time range: start_time ({start_time}) cannot be after end_time ({end_time})."
+        )
+
+    return start_dt, end_dt, basis
+
+
 def _cluster_items(
     db: Session,
     clusters: List[LocationCluster],
     allowed_state: Optional[str] = None,
-    user: Optional[User] = None
+    user: Optional[User] = None,
+    start_dt: Optional[datetime] = None,
+    end_dt: Optional[datetime] = None,
+    time_basis: str = "predicted_window",
+    crime_category: Optional[str] = None,
 ) -> tuple:
     """
-    Catalog geography plus current persisted case evidence, with no dummy KPIs.
+    Catalog geography plus current persisted case evidence, with multi-dimensional filtering.
     Returns (items: List[dict], evidence: Dict[int, dict])
     where evidence maps cluster_id -> dict of complaint_id -> {'prediction': pred, 'complaint': comp, 'locations': [loc, ...]}.
     """
@@ -51,17 +130,26 @@ def _cluster_items(
         ATMLocation.cluster_id.in_(cluster_ids)
     ).group_by(ATMLocation.cluster_id).all())
 
-    # Deterministically identify the latest prediction per complaint
-    # using canonical ordering: created_at DESC, id DESC with row_number() = 1
+    # Deterministically identify the latest operational prediction per complaint.
+    # Primary key: analysis_purpose == 'OPERATIONAL' (explicit, persisted, never heuristic).
+    # Secondary key: analysis_as_of IS NULL for backward-compat with old records.
+    # Historical replays (analysis_purpose == 'HISTORICAL_REPLAY') never displace operational.
     latest_subq = (
         db.query(
             Prediction.id.label("pred_id"),
             func.row_number().over(
                 partition_by=Prediction.complaint_id,
-                order_by=(Prediction.created_at.desc(), Prediction.id.desc())
+                order_by=(
+                    (Prediction.analysis_purpose == "OPERATIONAL").desc(),
+                    Prediction.analysis_as_of.is_(None).desc(),
+                    Prediction.version_number.desc(),
+                    Prediction.created_at.desc(),
+                    Prediction.id.desc()
+                )
             ).label("rn")
         ).subquery()
     )
+
 
     now_utc = datetime.utcnow()
     comp_filter = [
@@ -70,8 +158,36 @@ def _cluster_items(
         Prediction.predicted_window_start.isnot(None),
         Prediction.predicted_window_end.isnot(None),
         Prediction.predicted_window_end > Prediction.predicted_window_start,
-        Prediction.predicted_window_end > now_utc,
     ]
+
+    # Crime Category / Fraud Type filter
+    if crime_category and crime_category.strip().upper() != "ALL":
+        comp_filter.append(func.lower(Complaint.fraud_type) == crime_category.strip().lower())
+
+    # Time filter based on time_basis
+    if time_basis == "predicted_window":
+        if start_dt:
+            comp_filter.append(Prediction.predicted_window_end >= start_dt)
+        if end_dt:
+            comp_filter.append(Prediction.predicted_window_start <= end_dt)
+        if not start_dt and not end_dt:
+            comp_filter.append(Prediction.predicted_window_end > now_utc)
+        elif not start_dt and end_dt and end_dt > now_utc:
+            comp_filter.append(Prediction.predicted_window_end > now_utc)
+    elif time_basis == "complaint_time":
+        if start_dt:
+            comp_filter.append(Complaint.reported_at >= start_dt)
+        if end_dt:
+            comp_filter.append(Complaint.reported_at <= end_dt)
+        if not start_dt and not end_dt:
+            comp_filter.append(Prediction.predicted_window_end > now_utc)
+    elif time_basis == "incident_time":
+        if start_dt:
+            comp_filter.append(Complaint.incident_time >= start_dt)
+        if end_dt:
+            comp_filter.append(Complaint.incident_time <= end_dt)
+        if not start_dt and not end_dt:
+            comp_filter.append(Prediction.predicted_window_end > now_utc)
 
     rows_query = db.query(PredictionLocation, Prediction, Complaint).join(
         Prediction, PredictionLocation.prediction_id == Prediction.id
@@ -201,6 +317,7 @@ def _cluster_items(
             "latest_window_end": latest_end_iso,
             "window_status": w_status,
             "linked_complaint_numbers": linked_numbers,
+            "region_id": getattr(cluster, "region_id", None) or "delhi",
         })
 
     # Sort active candidates first (by active_cases desc, priority desc, candidate_score desc),
@@ -221,36 +338,50 @@ def _cluster_items(
 
 @router.get("/risk-map", response_model=GISOverviewResponse)
 def get_risk_map_overview(
+    region_id: Optional[str] = None,
     district: Optional[str] = None,
     risk_level: Optional[str] = None,
+    crime_category: Optional[str] = None,
+    time_basis: Optional[str] = "predicted_window",
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    user_role = getattr(current_user, "role", None) if isinstance(current_user, User) else None
-    query_clusters = db.query(LocationCluster)
+    if not isinstance(current_user, User):
+        raise HTTPException(status_code=401, detail="Authentication required")
 
-    # Jurisdiction filter
-    target_state = "Delhi"
-    if user_role == RoleEnum.STATE_LEA:
-        target_state = current_user.organization.state if current_user.organization else "Delhi"
-        query_clusters = query_clusters.filter(func.lower(LocationCluster.state) == target_state.lower())
-    elif user_role == RoleEnum.DISTRICT_LEA:
-        target_state = current_user.organization.state if current_user.organization else "Delhi"
-        target_district = current_user.organization.district if current_user.organization else "Central"
-        query_clusters = query_clusters.filter(
-            func.lower(LocationCluster.state) == target_state.lower(),
-            func.lower(LocationCluster.district) == target_district.lower()
-        )
-    else:
-        if district and district != "ALL":
-            query_clusters = query_clusters.filter(LocationCluster.district.ilike(f"%{district}%"))
+    start_dt, end_dt, basis = _validate_time_filter(start_time, end_time, time_basis)
+
+    query_clusters = _scope_cluster_query(db.query(LocationCluster), db, current_user)
+    target_state = current_user.organization.state if current_user.organization and not is_national_scope(current_user) else "ALL"
+
+    # Multi-region filtering (preserves server-side jurisdiction boundaries)
+    if region_id and region_id != "ALL":
+        r_clean = region_id.strip().lower()
+        if r_clean == "delhi":
+            query_clusters = query_clusters.filter(
+                (LocationCluster.region_id == "delhi") |
+                (func.lower(LocationCluster.state) == "delhi")
+            )
         else:
-            query_clusters = query_clusters.filter(LocationCluster.state == "Delhi")
+            query_clusters = query_clusters.filter(LocationCluster.region_id == r_clean)
+
+    if district and district != "ALL":
+        query_clusters = query_clusters.filter(func.lower(LocationCluster.district) == district.strip().lower())
 
     clusters = query_clusters.order_by(LocationCluster.risk_score.desc()).all()
 
-    effective_user = current_user if isinstance(current_user, User) else None
-    hotspots, evidence = _cluster_items(db, clusters, allowed_state=target_state, user=effective_user)
+    hotspots, evidence = _cluster_items(
+        db,
+        clusters,
+        allowed_state=target_state,
+        user=current_user,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        time_basis=basis,
+        crime_category=crime_category,
+    )
     if risk_level and risk_level != "ALL":
         hotspots = [item for item in hotspots if item["risk_level"] == risk_level.upper() or item.get("operational_priority") == risk_level.upper()]
 
@@ -301,7 +432,17 @@ def get_risk_map_overview(
         "total_monitored_atms": len(atm_items),
         "primary_threat_epicenter": active_candidates[0]["cluster_name"] if active_candidates else "No active case prediction",
         "state": target_state,
+        "region_id": region_id or "ALL",
         "data_basis": f"{target_state} catalog; active interception candidates reflect latest unexpired predictions with global complaint deduplication.",
+        "filters_applied": {
+            "region_id": region_id or "ALL",
+            "district": district or "ALL",
+            "risk_level": risk_level or "ALL",
+            "crime_category": crime_category or "ALL",
+            "time_basis": basis,
+            "start_time": start_dt.isoformat() if start_dt else None,
+            "end_time": end_dt.isoformat() if end_dt else None,
+        }
     }
 
     return {
@@ -315,26 +456,47 @@ def get_risk_map_overview(
 
 @router.get("/clusters", response_model=List[HotspotCluster])
 def list_clusters(
+    region_id: Optional[str] = None,
+    district: Optional[str] = None,
+    risk_level: Optional[str] = None,
+    crime_category: Optional[str] = None,
+    time_basis: Optional[str] = "predicted_window",
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    query = db.query(LocationCluster)
-    target_state = "Delhi"
-    if current_user.role == RoleEnum.STATE_LEA:
-        target_state = current_user.organization.state if current_user.organization else "Delhi"
-        query = query.filter(func.lower(LocationCluster.state) == target_state.lower())
-    elif current_user.role == RoleEnum.DISTRICT_LEA:
-        target_state = current_user.organization.state if current_user.organization else "Delhi"
-        target_district = current_user.organization.district if current_user.organization else "Central"
-        query = query.filter(
-            func.lower(LocationCluster.state) == target_state.lower(),
-            func.lower(LocationCluster.district) == target_district.lower()
-        )
-    else:
-        query = query.filter(LocationCluster.state == "Delhi")
+    start_dt, end_dt, basis = _validate_time_filter(start_time, end_time, time_basis)
+
+    query = _scope_cluster_query(db.query(LocationCluster), db, current_user)
+    target_state = current_user.organization.state if current_user.organization and not is_national_scope(current_user) else "ALL"
+
+    if region_id and region_id != "ALL":
+        r_clean = region_id.strip().lower()
+        if r_clean == "delhi":
+            query = query.filter(
+                (LocationCluster.region_id == "delhi") |
+                (func.lower(LocationCluster.state) == "delhi")
+            )
+        else:
+            query = query.filter(LocationCluster.region_id == r_clean)
+
+    if district and district != "ALL":
+        query = query.filter(func.lower(LocationCluster.district) == district.strip().lower())
 
     clusters = query.order_by(LocationCluster.risk_score.desc()).all()
-    items, _ = _cluster_items(db, clusters, allowed_state=target_state, user=current_user)
+    items, _ = _cluster_items(
+        db,
+        clusters,
+        allowed_state=target_state,
+        user=current_user,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        time_basis=basis,
+        crime_category=crime_category,
+    )
+    if risk_level and risk_level != "ALL":
+        items = [item for item in items if item["risk_level"] == risk_level.upper() or item.get("operational_priority") == risk_level.upper()]
     return items
 
 
@@ -342,29 +504,40 @@ def list_clusters(
 def get_cluster(
     id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    crime_category: Optional[str] = None,
+    time_basis: Optional[str] = "predicted_window",
+    start_time: Optional[str] = None,
+    end_time: Optional[str] = None,
 ):
-    c = db.query(LocationCluster).filter(LocationCluster.id == id).first()
+    if not isinstance(current_user, User):
+        raise HTTPException(status_code=401, detail="Authentication required")
+
+    start_dt, end_dt, basis = _validate_time_filter(start_time, end_time, time_basis)
+
+    c = _scope_cluster_query(db.query(LocationCluster), db, current_user).filter(LocationCluster.id == id).first()
     if not c:
-        raise HTTPException(status_code=404, detail="Cluster not found")
+        raise HTTPException(status_code=404, detail=f"Cluster {id} not found or outside authorized officer jurisdiction.")
 
-    # Jurisdiction check
-    if current_user.role == RoleEnum.STATE_LEA:
-        state = current_user.organization.state if current_user.organization else "Delhi"
-        if (c.state or "").lower() != state.lower():
-            raise HTTPException(status_code=404, detail="Cluster not found")
-    elif current_user.role == RoleEnum.DISTRICT_LEA:
-        state = current_user.organization.state if current_user.organization else "Delhi"
-        district = current_user.organization.district if current_user.organization else "Central"
-        if (c.state or "").lower() != state.lower() or (c.district or "").lower() != district.lower():
-            raise HTTPException(status_code=404, detail="Cluster not found")
-
-    items, _ = _cluster_items(db, [c], allowed_state=c.state, user=current_user)
+    target_state = current_user.organization.state if current_user.organization and not is_national_scope(current_user) else "ALL"
+    items, _ = _cluster_items(
+        db,
+        [c],
+        allowed_state=target_state,
+        user=current_user,
+        start_dt=start_dt,
+        end_dt=end_dt,
+        time_basis=basis,
+        crime_category=crime_category,
+    )
+    if not items:
+        raise HTTPException(status_code=404, detail=f"Cluster {id} not found")
     return items[0]
 
 
-@router.get("/risk-map/prediction/{complaint_id}")
-def get_gis_prediction_overlay(
+@router.get("/risk-map/prediction/{complaint_id}", response_model=PredictionResponse)
+@router.get("/complaints/{complaint_id}/prediction-overlay", response_model=PredictionResponse)
+def get_complaint_prediction_overlay(
     complaint_id: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
@@ -385,7 +558,7 @@ def get_gis_prediction_overlay(
     from backend.app.services.prediction_persistence_service import prediction_persistence_service
     from backend.app.api.prediction_routes import _format_prediction_response
 
-    latest_pred = prediction_persistence_service.get_latest_prediction(db, complaint.id)
+    latest_pred = prediction_persistence_service.get_latest_operational_prediction(db, complaint.id)
     if not latest_pred:
         raise HTTPException(
             status_code=404,

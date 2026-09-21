@@ -404,7 +404,14 @@ export const TransactionNetwork: React.FC = () => {
               }
 
               // Normal Account / Entity Details
-              const safeName = formatSafeDisplayLabel(selectedNode.label, selectedNode.node_type, selectedNode.is_source);
+              const isMuleIndicator = Boolean(selectedNode.is_potential_mule_indicator || selectedNode.node_type === 'mule');
+              const safeName = formatSafeDisplayLabel(
+                selectedNode.label,
+                selectedNode.node_type,
+                selectedNode.is_source,
+                selectedNode.masked_id,
+                isMuleIndicator
+              );
               const rawRiskPercent = Math.round(selectedNode.risk_score * 100);
               const riskBand = selectedNode.risk_band ||
                 (selectedNode.risk_score >= 0.7 ? 'HIGH' : selectedNode.risk_score >= 0.3 ? 'MODERATE' : 'LOW');
@@ -412,7 +419,7 @@ export const TransactionNetwork: React.FC = () => {
               const isIntermediary = selectedNode.is_intermediary || selectedNode.node_type === 'intermediary';
               const accountRole = isVictim
                 ? 'Victim / Reporting Account'
-                : selectedNode.node_type === 'mule'
+                : isMuleIndicator
                 ? 'Potential Mule Indicator / Under Review'
                 : isIntermediary
                 ? 'Intermediary / Under Review'
@@ -600,12 +607,13 @@ export const TransactionNetwork: React.FC = () => {
                 {graphData.nodes.map((node) => {
                   const d = node.data;
                   const isSelected = selectedNode?.id === d.id;
+                  const isNodeMuleIndicator = Boolean(d.is_potential_mule_indicator || d.node_type === 'mule');
                   const roleLabel = d.is_source || d.node_type === 'victim'
                     ? 'Victim Source'
                     : d.node_type === 'atm'
                     ? 'ATM Cash-Out'
-                    : d.node_type === 'mule'
-                    ? 'Flagged Mule'
+                    : isNodeMuleIndicator
+                    ? 'Potential Mule Indicator / Under Review'
                     : d.is_intermediary || d.node_type === 'intermediary'
                     ? 'Intermediary'
                     : d.node_type === 'sink'
@@ -629,7 +637,7 @@ export const TransactionNetwork: React.FC = () => {
                               ? 'bg-blue-50 text-blue-700 border border-blue-200'
                               : roleLabel === 'ATM Cash-Out'
                               ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : roleLabel === 'Flagged Mule'
+                              : isNodeMuleIndicator
                               ? 'bg-red-50 text-red-700 border border-red-200'
                               : roleLabel === 'Intermediary'
                               ? 'bg-amber-50 text-amber-700 border border-amber-200'

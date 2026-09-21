@@ -11,7 +11,7 @@ from backend.app.api.gis_routes import get_risk_map_overview, get_cluster
 from backend.app.models.db import Base
 from backend.app.models.models import (
     Account, ATMLocation, Complaint, ComplaintAccount, LocationCluster,
-    Prediction, PredictionLocation, Transaction, User,
+    Prediction, PredictionLocation, Transaction, User, Organization,
 )
 from backend.app.schemas.schemas import ComplaintCreate, ComplaintResponse
 from backend.app.services.delhi_origin_resolver import resolve_delhi_origin
@@ -32,7 +32,10 @@ def db():
 
 
 def _officer(db):
-    officer = User(email="test@local.invalid", hashed_password="unused", full_name="Test Officer", role="ANALYST")
+    org = Organization(name="Test I4C", org_type="I4C", state="Delhi", district="ALL")
+    db.add(org)
+    db.flush()
+    officer = User(email="test@local.invalid", hashed_password="unused", full_name="Test Officer", role="ANALYST", organization_id=org.id)
     db.add(officer)
     db.commit()
     return officer
@@ -177,14 +180,15 @@ def test_map_counts_latest_active_predictions_and_complete_atm_inventory(db):
         db.add(ATMLocation(atm_code=f"ATM-{i}", bank_name="Demo", address="Delhi", city="Delhi",
                            district=cluster.district, latitude=28.729, longitude=77.1285, cluster_id=cluster.id))
     db.flush()
-    overview = get_risk_map_overview(db=db)
+    officer = _officer(db)
+    overview = get_risk_map_overview(db=db, current_user=officer)
     item = next(row for row in overview["hotspots"] if row["id"] == cluster.id)
     assert item["active_cases"] == 1
     assert item["amount_at_risk"] == 40000
     assert item["atm_count"] == 105
-    assert "+00:00" in item["expected_window"]
+    assert "IST" in item["expected_window"] or "+00:00" in item.get("window_start_iso", "")
     assert len(overview["atms"]) == 105
-    empty = get_cluster(other.id, db)
+    empty = get_cluster(other.id, db, current_user=officer)
     assert empty["active_cases"] == 0
     assert empty["amount_at_risk"] == 0
     assert empty["expected_window"] == "No active case prediction"

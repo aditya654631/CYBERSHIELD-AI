@@ -60,6 +60,7 @@ export interface Complaint {
   scenario_link_status?: string | null;
   linked_account_count?: number;
   available_transaction_count?: number;
+  region_id?: string | null;
 }
 
 export interface ComplaintCreate {
@@ -87,6 +88,7 @@ export interface ComplaintCreate {
   phone_or_merchant?: string;
   additional_refs?: string;
   demo_mode?: boolean;
+  region_id?: string;
 }
 
 export interface PredictionLocationItem {
@@ -156,7 +158,54 @@ export interface Prediction {
   dataset_type?: string;
   limitations?: string[];
   candidate_pool_size?: number;
+  version_number?: number;
+  parent_prediction_id?: number | null;
+  analysis_as_of?: string | null;
+  analysis_purpose?: 'OPERATIONAL' | 'HISTORICAL_REPLAY' | string;
+  input_fingerprint?: string | null;
+  discrepancy_detected?: boolean;
   created_at: string;
+}
+
+export interface PredictionVersionSummary {
+  prediction_id: number;
+  complaint_id: number;
+  version_number: number;
+  parent_prediction_id?: number | null;
+  analysis_as_of?: string | null;
+  analysis_purpose?: 'OPERATIONAL' | 'HISTORICAL_REPLAY' | string;
+  created_at: string;
+  primary_cluster_id?: number | null;
+  primary_location_name?: string | null;
+  risk_score: number;
+  risk_level: string;
+  operational_window?: string | null;
+  input_fingerprint?: string | null;
+  discrepancy_detected: boolean;
+}
+
+export interface Transaction {
+  id: number;
+  transaction_ref: string;
+  sender_account: string;
+  receiver_account: string;
+  sender_bank: string;
+  receiver_bank: string;
+  amount: number;
+  payment_channel: string;
+  timestamp: string;
+  hop_number: number;
+  status: string;
+  suspicious_flag: boolean;
+  context_type?: string;
+  source_scenario?: string | null;
+  received_at?: string | null;
+  source_system?: string;
+  dedup_key?: string | null;
+  analysis_status?: string;
+  prediction_id?: number | null;
+  is_reversal?: boolean;
+  correction_of_ref?: string | null;
 }
 
 export interface ExplanationFactor {
@@ -246,6 +295,7 @@ export interface CytoscapeNodeData {
   is_source?: boolean;
   is_sink?: boolean;
   is_intermediary?: boolean;
+  is_potential_mule_indicator?: boolean;
   risk_band?: string;
   display_label?: string;
   hop_level?: number;
@@ -316,6 +366,7 @@ export interface HotspotCluster {
   latest_window_end?: string | null;
   window_status?: string | null;
   linked_complaint_numbers?: string[];
+  region_id?: string | null;
 }
 
 export interface GISOverviewResponse {
@@ -333,9 +384,62 @@ export interface GISOverviewResponse {
     total_monitored_atms: number;
     primary_threat_epicenter: string;
     state: string;
+    region_id?: string | null;
     data_basis: string;
     [key: string]: any;
   };
+}
+
+export interface GISFilterParams {
+  region_id?: string;
+  district?: string;
+  risk_level?: string;
+  crime_category?: string;
+  time_basis?: 'predicted_window' | 'complaint_time' | 'incident_time' | string;
+  start_time?: string;
+  end_time?: string;
+}
+
+export interface RegionBounds {
+  min_lat: number;
+  max_lat: number;
+  min_lon: number;
+  max_lon: number;
+}
+
+export interface RegionItem {
+  id: string;
+  name: string;
+  state: string;
+  catalog_version: string;
+  source: string;
+  license: string;
+  verification_time?: string | null;
+  center: { lat: number; lon: number };
+  bounds: RegionBounds;
+  cluster_radius_km: number;
+  districts: string[];
+  total_clusters: number;
+  total_atms: number;
+  data_completeness_status: 'COMPLETE' | 'PARTIAL' | 'SYNTHETIC_STUB' | string;
+  model_support_status: 'MODEL_SUPPORTED' | 'VALIDATION_PENDING' | 'UNSUPPORTED' | string;
+  supported_model_version?: string | null;
+  is_synthetic: boolean;
+  is_active: boolean;
+}
+
+export interface GeographyCatalogItem {
+  id: number;
+  region_id: string;
+  catalog_version: string;
+  data_type: string;
+  record_count: number;
+  source: string;
+  license: string;
+  checksum?: string | null;
+  is_active: boolean;
+  notes?: string | null;
+  created_at: string;
 }
 
 export interface ATMLocationItem {
@@ -352,6 +456,40 @@ export interface ATMLocationItem {
   cluster_name?: string;
 }
 
+export interface NotificationOutboxItem {
+  id: number;
+  alert_id: number;
+  event_type: string;
+  prediction_id?: number;
+  prediction_version?: number;
+  channel: string;
+  recipient_role?: string;
+  recipient_organization_id?: number;
+  recipient_state?: string;
+  recipient_district?: string;
+  status: string;
+  attempt_count: number;
+  max_attempts: number;
+  next_retry_at?: string;
+  last_attempt_at?: string;
+  last_error?: string;
+  worker_id?: string;
+  delivered_at?: string;
+  acknowledged_at?: string;
+  acknowledged_by?: string;
+  idempotency_key: string;
+  created_at: string;
+  updated_at?: string;
+}
+
+export interface AlertSyncResponse {
+  items: AlertItem[];
+  outbox_events: NotificationOutboxItem[];
+  synced_at: string;
+  cursor: number;
+  has_more: boolean;
+}
+
 export interface AlertItem {
   id: number;
   complaint_id: number;
@@ -363,10 +501,17 @@ export interface AlertItem {
   risk_score: number;
   expected_window: string;
   amount_at_risk: number;
-  status: 'NEW' | 'ACKNOWLEDGED' | 'ACTION_INITIATED' | 'RESOLVED';
+  status: 'NEW' | 'DELIVERED' | 'ACKNOWLEDGED' | 'ACTION_INITIATED' | 'EXPIRED' | 'SUPERSEDED' | 'RESOLVED' | string;
   acknowledged_by?: string;
   acknowledged_at?: string;
   action_notes?: string;
+  superseded_by_prediction_id?: number;
+  superseded_at?: string;
+  expires_at?: string;
+  delivery_status?: string;
+  attempt_count?: number;
+  next_retry_at?: string;
+  last_error?: string;
   created_at: string;
 }
 
@@ -621,21 +766,38 @@ export interface BankActionItem {
   idempotency_key?: string | null;
   complaint_id: number;
   alert_id?: number | null;
+  account_id?: number | null;
   bank_name?: string | null;
+  bank_organization_id?: number | null;
+  target_account_number?: string | null;
+  target_ifsc?: string | null;
   action_type: string;
-  status: 'REQUESTED' | 'APPROVED' | 'SENT' | 'ACKNOWLEDGED' | 'COMPLETED' | 'FAILED' | 'CANCELLED' | string;
+  status: 'REQUESTED' | 'APPROVED' | 'SENT' | 'ACKNOWLEDGED' | 'PARTIAL_HOLD' | 'CONFIRMED_HOLD' | 'COMPLETED' | 'RELEASED' | 'REJECTED' | 'FAILED' | 'CANCELLED';
+  environment: 'SIMULATED' | 'SANDBOX' | 'LIVE';
   is_simulated: boolean;
   simulation_notes?: string | null;
+  requested_amount?: number | null;
+  held_amount?: number | null;
+  currency: string;
+  requested_by_user_id?: number | null;
+  reviewed_by_user_id?: number | null;
   actor_name?: string | null;
   actor_role?: string | null;
   action_notes?: string | null;
   provider_reference_id?: string | null;
   failure_reason?: string | null;
+  rejection_reason?: string | null;
+  release_reason?: string | null;
+  callback_evidence?: Record<string, any> | null;
+  status_history?: Array<Record<string, any>> | null;
   requested_at: string;
   approved_at?: string | null;
   sent_at?: string | null;
   acknowledged_at?: string | null;
+  held_at?: string | null;
   completed_at?: string | null;
+  released_at?: string | null;
+  cancelled_at?: string | null;
   created_at: string;
 }
 
@@ -682,4 +844,374 @@ export interface SystemStatus {
     state: string;
     district: string;
   };
+}
+
+export interface EvidenceFileItem {
+  id: number;
+  complaint_id: number;
+  source: string;
+  uploader_user_id?: number | null;
+  uploader_role: string;
+  uploader_org_id?: number | null;
+  original_filename: string;
+  storage_key: string;
+  mime_type: string;
+  size_bytes: number;
+  sha256_hash: string;
+  version: number;
+  status: 'ACTIVE' | 'SUPERSEDED' | 'ARCHIVED' | 'DELETED' | string;
+  malware_scan_status: 'PENDING_SCAN' | 'QUARANTINED' | 'FAILED_SCAN' | 'UNSCANNED' | 'CLEAN' | string;
+  malware_scan_details?: string | null;
+  description?: string | null;
+  superseded_by_evidence_id?: number | null;
+  superseded_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface EvidenceIntegrityResult {
+  evidence_id: number;
+  is_valid: boolean;
+  stored_hash?: string;
+  computed_hash?: string;
+  size_bytes?: number;
+  status?: string;
+  error?: string;
+  checked_at: string;
+}
+
+export interface InvestigatorReportData {
+  report_metadata: {
+    title: string;
+    generated_at: { utc: string; ist: string };
+    requested_by_officer: string;
+    requested_by_role: string;
+    requested_by_org: string;
+    requested_by_badge: string;
+    classification: string;
+  };
+  case_summary: {
+    id: number;
+    complaint_number: string;
+    fraud_type: string;
+    loss_amount: number;
+    case_status: string;
+    risk_level: string;
+    payment_channel: string;
+    state: string;
+    district: string;
+    locality: string;
+    reported_at: { utc: string; ist: string };
+    incident_time: { utc: string; ist: string };
+    victim_phone_masked: string;
+    provenance_mode: string;
+    description: string;
+  };
+  financial_intelligence: {
+    transaction_count: number;
+    total_observed_flow: number;
+    transactions: Array<{
+      id: number;
+      transaction_ref: string;
+      amount: number;
+      timestamp: { utc: string; ist: string };
+      sender_bank: string;
+      sender_account: string;
+      receiver_bank: string;
+      receiver_account: string;
+      receiver_holder: string;
+      status: string;
+    }>;
+  };
+  predictive_intelligence: {
+    total_prediction_runs: number;
+    current_prediction?: {
+      id: number;
+      version: number;
+      predicted_window_start: { utc: string; ist: string };
+      predicted_window_end: { utc: string; ist: string };
+      window_duration_label: string;
+      top_hotspots: Array<{
+        rank: number;
+        location_name: string;
+        district: string;
+        ml_score: number;
+        operational_priority: string;
+        evidence: string[];
+      }>;
+    };
+  };
+  operational_alerts: Array<{
+    id: number;
+    severity: string;
+    status: string;
+    location_name: string;
+    amount_at_risk: number;
+    acknowledged_by?: string | null;
+    created_at: { utc: string; ist: string };
+  }>;
+  bank_actions: Array<any>;
+  evidence_registry: EvidenceFileItem[];
+  legal_and_methodology_disclaimers: string[];
+}
+
+export interface CaseHandoffItem {
+  id: number;
+  complaint_id: number;
+  prediction_id?: number | null;
+  prediction_version?: number | null;
+  origin_organization_id: number;
+  origin_organization_name?: string | null;
+  destination_organization_id: number;
+  destination_organization_name?: string | null;
+  target_state: string;
+  target_district: string;
+  purpose: string;
+  evidence_scope: 'METADATA_ONLY' | 'SPECIFIC_EVIDENCE' | 'ALL_EVIDENCE';
+  shared_evidence_ids?: number[] | null;
+  status: 'REQUESTED' | 'ACCEPTED' | 'REJECTED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'EXPIRED';
+  initiator_user_id: number;
+  initiator_name?: string | null;
+  recipient_user_id?: number | null;
+  recipient_name?: string | null;
+  rejection_reason?: string | null;
+  cancellation_reason?: string | null;
+  completed_notes?: string | null;
+  acknowledgement_deadline: string;
+  accepted_at?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+}
+
+export interface CreateHandoffPayload {
+  target_state: string;
+  target_district: string;
+  destination_organization_id?: number;
+  purpose: string;
+  evidence_scope: 'METADATA_ONLY' | 'SPECIFIC_EVIDENCE' | 'ALL_EVIDENCE';
+  shared_evidence_ids?: number[];
+  prediction_id?: number;
+  prediction_version?: number;
+  acknowledgement_hours?: number;
+}
+
+export interface BankActionRecord {
+  id: number;
+  action_reference: string;
+  idempotency_key?: string | null;
+  complaint_id: number;
+  alert_id?: number | null;
+  account_id?: number | null;
+  bank_name?: string | null;
+  bank_organization_id?: number | null;
+  target_account_number?: string | null;
+  target_ifsc?: string | null;
+  action_type: string;
+  status: 'REQUESTED' | 'APPROVED' | 'SENT' | 'ACKNOWLEDGED' | 'PARTIAL_HOLD' | 'CONFIRMED_HOLD' | 'COMPLETED' | 'RELEASED' | 'REJECTED' | 'FAILED' | 'CANCELLED';
+  environment: 'SIMULATED' | 'SANDBOX' | 'LIVE';
+  is_simulated: boolean;
+  simulation_notes?: string | null;
+  requested_amount?: number | null;
+  held_amount?: number | null;
+  currency: string;
+  requested_by_user_id?: number | null;
+  reviewed_by_user_id?: number | null;
+  actor_name?: string | null;
+  actor_role?: string | null;
+  action_notes?: string | null;
+  provider_reference_id?: string | null;
+  failure_reason?: string | null;
+  rejection_reason?: string | null;
+  release_reason?: string | null;
+  callback_evidence?: Record<string, any> | null;
+  status_history?: Array<Record<string, any>> | null;
+  requested_at: string;
+  approved_at?: string | null;
+  sent_at?: string | null;
+  acknowledged_at?: string | null;
+  held_at?: string | null;
+  completed_at?: string | null;
+  released_at?: string | null;
+  cancelled_at?: string | null;
+  created_at: string;
+}
+
+export interface CreateBankActionPayload {
+  complaint_id: number;
+  alert_id?: number;
+  account_id?: number;
+  target_account_number?: string;
+  target_ifsc?: string;
+  bank_name?: string;
+  bank_organization_id?: number;
+  action_type?: string;
+  requested_amount?: number;
+  currency?: string;
+  environment?: 'SIMULATED' | 'SANDBOX' | 'LIVE';
+  action_notes?: string;
+  idempotency_key?: string;
+}
+
+export interface ReleaseBankActionPayload {
+  release_reason: string;
+  release_amount?: number;
+  notes?: string;
+}
+
+export interface SandboxSimulatePayload {
+  simulated_outcome: 'CONFIRMED_HOLD' | 'PARTIAL_HOLD' | 'REJECTED' | 'FAILED' | 'TIMEOUT';
+  held_amount?: number;
+  reason?: string;
+}
+
+// ─── Phase 09: Outcome Observations ──────────────────────────────────────────
+
+export type OutcomeType =
+  | 'CONFIRMED_CASHOUT'
+  | 'MULTIPLE_CASHOUT'
+  | 'NO_OBSERVED_CASHOUT'
+  | 'UNKNOWN'
+  | 'DATA_EXCLUDED';
+
+export type OutcomeSource =
+  | 'OFFICER_MANUAL'
+  | 'CFCFRMS_IMPORT'
+  | 'BANK_REPORT'
+  | 'COURT_RECORD'
+  | 'AUTOMATED_MONITORING';
+
+export type OutcomeVerificationStatus = 'VERIFIED' | 'UNVERIFIED' | 'PENDING_VERIFICATION';
+export type OutcomeRecordStatus = 'ACTIVE' | 'SUPERSEDED';
+
+export interface OutcomeObservation {
+  id: number;
+  complaint_id: number;
+  linked_prediction_id: number | null;
+  linked_prediction_version: number | null;
+  prediction_selection_policy: string;
+  linked_alert_id: number | null;
+  linked_bank_action_id: number | null;
+  outcome_type: OutcomeType;
+  observed_event_time: string | null;
+  actual_lat: number | null;
+  actual_lon: number | null;
+  actual_location_name: string | null;
+  actual_withdrawal_amount_inr: number | null;
+  cashout_events: Array<Record<string, unknown>> | null;
+  actual_atm_id: number | null;
+  actual_cluster_id: number | null;
+  verified_held_amount_inr: number | null;
+  verified_released_amount_inr: number | null;
+  actual_recovered_amount_inr: number | null;
+  recovery_verified_by: string | null;
+  recovery_verified_at: string | null;
+  prediction_rank_matched: number | null;
+  distance_error_km: number | null;
+  prediction_lead_time_minutes: number | null;
+  alert_lead_time_minutes: number | null;
+  alert_acknowledgement_latency_minutes: number | null;
+  bank_response_latency_minutes: number | null;
+  is_synthetic: boolean;
+  is_excluded: boolean;
+  exclusion_reason: string | null;
+  verification_status: OutcomeVerificationStatus;
+  source: OutcomeSource;
+  verifier_user_id: number | null;
+  verifier_name: string | null;
+  verifier_role: string | null;
+  ingested_by_user_id: number | null;
+  ingested_by_role: string;
+  received_at: string;
+  version: number;
+  corrects_outcome_id: number | null;
+  record_status: OutcomeRecordStatus;
+  correction_reason: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface OutcomeCreatePayload {
+  outcome_type: OutcomeType;
+  source: OutcomeSource;
+  observed_event_time?: string;
+  actual_lat?: number;
+  actual_lon?: number;
+  actual_location_name?: string;
+  actual_withdrawal_amount_inr?: number;
+  cashout_events?: Array<Record<string, unknown>>;
+  actual_atm_id?: number;
+  actual_cluster_id?: number;
+  linked_alert_id?: number;
+  linked_bank_action_id?: number;
+  verified_held_amount_inr?: number;
+  verified_released_amount_inr?: number;
+  actual_recovered_amount_inr?: number;
+  recovery_verified_by?: string;
+  recovery_verified_at?: string;
+  verifier_user_id?: number;
+  verification_status?: OutcomeVerificationStatus;
+  is_synthetic?: boolean;
+  is_excluded?: boolean;
+  exclusion_reason?: string;
+  notes?: string;
+}
+
+export interface OutcomeCorrectPayload {
+  correction_reason: string;
+  outcome_type?: OutcomeType;
+  source?: OutcomeSource;
+  observed_event_time?: string;
+  actual_lat?: number;
+  actual_lon?: number;
+  actual_location_name?: string;
+  actual_withdrawal_amount_inr?: number;
+  cashout_events?: Array<Record<string, unknown>>;
+  verified_held_amount_inr?: number;
+  verified_released_amount_inr?: number;
+  actual_recovered_amount_inr?: number;
+  recovery_verified_by?: string;
+  recovery_verified_at?: string;
+  verifier_user_id?: number;
+  verification_status?: OutcomeVerificationStatus;
+  is_excluded?: boolean;
+  exclusion_reason?: string;
+  notes?: string;
+}
+
+export interface OutcomeMetrics {
+  // Denominators — always visible
+  denominator_measured: number;
+  denominator_unknown: number;
+  denominator_excluded: number;
+  denominator_synthetic: number;
+  denominator_total_active: number;
+  denominator_cashout: number;
+
+  // Location accuracy
+  rank1_count: number;
+  topk_count: number;
+  rank1_accuracy_rate: number | null;
+  topk_accuracy_rate: number | null;
+  mean_distance_error_km: number | null;
+
+  // Timing
+  mean_prediction_lead_time_minutes: number | null;
+  mean_alert_lead_time_minutes: number | null;
+  mean_alert_acknowledgement_latency_minutes: number | null;
+  mean_bank_response_latency_minutes: number | null;
+
+  // Financial (separate; not summed)
+  total_verified_held_inr: number;
+  total_verified_released_inr: number;
+  total_actual_recovered_inr: number;
+  financial_note: string;
+
+  // Alert workload
+  false_alert_count: number;
+
+  // Policy
+  prediction_selection_policy: string;
+  policy_description: string;
 }

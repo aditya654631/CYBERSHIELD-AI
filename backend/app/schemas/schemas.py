@@ -77,6 +77,7 @@ class ComplaintCreate(BaseModel):
     reported_at: Optional[datetime] = None
     state: str = "Delhi"
     district: Optional[str] = None
+    region_id: Optional[str] = None
     locality: Optional[str] = None
     victim_location: Optional[str] = None
     victim_lat: Optional[float] = Field(default=None, ge=-90, le=90, allow_inf_nan=False)
@@ -130,6 +131,7 @@ class ComplaintResponse(BaseModel):
     locality: Optional[str] = None
     state: str
     district: str
+    region_id: Optional[str] = "delhi"
     payment_channel: str
     reported_at: datetime
     incident_time: datetime
@@ -195,11 +197,109 @@ class TransactionResponse(BaseModel):
     suspicious_flag: bool
     context_type: Optional[str] = "DIRECT"
     source_scenario: Optional[str] = None
+    received_at: Optional[datetime] = None
+    source_system: Optional[str] = "DIRECT_OFFICER_INPUT"
+    dedup_key: Optional[str] = None
+    analysis_status: Optional[str] = "COMPLETED"
+    prediction_id: Optional[int] = None
+    is_reversal: Optional[bool] = False
+    correction_of_ref: Optional[str] = None
+    created_by_user_id: Optional[int] = None
 
-    @field_validator("timestamp", mode="after")
+    @field_validator("timestamp", "received_at", mode="after")
     @classmethod
     def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
         return to_utc_datetime(v)
+
+    class Config:
+        from_attributes = True
+
+class TransactionIngestRequest(BaseModel):
+    transaction_ref: str = Field(..., min_length=3, max_length=100)
+    sender_account_number: str = Field(..., min_length=4, max_length=100)
+    receiver_account_number: str = Field(..., min_length=4, max_length=100)
+    amount: float = Field(..., gt=0)
+    payment_channel: str = Field(default="UPI")
+    timestamp: datetime = Field(...)
+    source_system: Optional[str] = Field(default="DIRECT_OFFICER_INPUT")
+    sender_bank: Optional[str] = None
+    receiver_bank: Optional[str] = None
+    hop_number: Optional[int] = 1
+    suspicious_flag: Optional[bool] = True
+    is_reversal: Optional[bool] = False
+    correction_of_ref: Optional[str] = None
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def parse_timestamp(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            v = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        if isinstance(v, datetime) and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
+
+class TransactionCorrectionRequest(BaseModel):
+    transaction_ref: str = Field(..., min_length=3, max_length=100)
+    correction_of_ref: str = Field(..., min_length=3, max_length=100)
+    is_reversal: bool = Field(default=False)
+    sender_account_number: Optional[str] = None
+    receiver_account_number: Optional[str] = None
+    amount: Optional[float] = Field(default=None, gt=0)
+    payment_channel: Optional[str] = Field(default="UPI")
+    timestamp: Optional[datetime] = None
+    source_system: Optional[str] = Field(default="DIRECT_OFFICER_INPUT")
+    sender_bank: Optional[str] = None
+    receiver_bank: Optional[str] = None
+    hop_number: Optional[int] = 1
+    suspicious_flag: Optional[bool] = True
+
+    @field_validator("timestamp", mode="before")
+    @classmethod
+    def parse_timestamp(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            v = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        if isinstance(v, datetime) and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
+
+class TransactionIngestResponse(BaseModel):
+    id: int
+    transaction_ref: str
+    amount: float
+    payment_channel: str
+    timestamp: datetime
+    received_at: Optional[datetime]
+    source_system: str
+    analysis_status: str  # "COMPLETED", "TRIGGERED", "FAILED_RETRY_REQUIRED"
+    prediction_id: Optional[int] = None
+    is_idempotent_replay: bool = False
+    message: str
+    is_reversal: Optional[bool] = False
+    correction_of_ref: Optional[str] = None
+    created_by_user_id: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+class PredictionVersionSummary(BaseModel):
+    prediction_id: int
+    complaint_id: int
+    version_number: int
+    parent_prediction_id: Optional[int]
+    analysis_as_of: Optional[datetime]
+    analysis_purpose: Optional[str] = "OPERATIONAL"
+    created_at: datetime
+    primary_cluster_id: Optional[int]
+    primary_location_name: Optional[str]
+    risk_score: float
+    risk_level: str
+    operational_window: Optional[str]
+    input_fingerprint: Optional[str]
+    discrepancy_detected: bool = False
 
     class Config:
         from_attributes = True
@@ -238,6 +338,7 @@ class CytoscapeNodeData(BaseModel):
     is_source: Optional[bool] = False
     is_sink: Optional[bool] = False
     is_intermediary: Optional[bool] = False
+    is_potential_mule_indicator: Optional[bool] = False
     pattern_flags: Optional[Dict[str, Any]] = None
 
     class Config:
@@ -319,6 +420,20 @@ class TimePredictionDetail(BaseModel):
     class Config:
         from_attributes = True
 
+class PredictionRunRequest(BaseModel):
+    analysis_as_of: Optional[datetime] = None
+
+    @field_validator("analysis_as_of", mode="before")
+    @classmethod
+    def parse_cutoff(cls, v):
+        if v is None:
+            return None
+        if isinstance(v, str):
+            v = datetime.fromisoformat(v.replace("Z", "+00:00"))
+        if isinstance(v, datetime) and v.tzinfo is not None:
+            return v.astimezone(timezone.utc).replace(tzinfo=None)
+        return v
+
 class PredictionResponse(BaseModel):
     prediction_id: Optional[int] = 0
     complaint_id: int
@@ -340,8 +455,11 @@ class PredictionResponse(BaseModel):
     temporal_score: Optional[float] = 0.0
     top_locations: List[PredictionLocationItem] = []
     prediction_mode: str = "trained_ml"
-    model_version: str = "cashout-location-xgb-v3.1"
+    model_version: Optional[str] = "cashout-location-xgb-v3.1"
     operational_scope: Optional[str] = "DELHI_PILOT"
+    region_id: Optional[str] = None
+    region_name: Optional[str] = None
+    model_support_status: Optional[str] = None
     candidate_pool_size: Optional[int] = 25
     primary_cluster_id: Optional[int] = None
     time_prediction: Optional[TimePredictionDetail] = None
@@ -352,14 +470,21 @@ class PredictionResponse(BaseModel):
     dataset_version: Optional[str] = None
     provenance: Optional[Dict[str, Any]] = None
     limitations: Optional[List[str]] = None
+    version_number: Optional[int] = 1
+    parent_prediction_id: Optional[int] = None
+    analysis_as_of: Optional[datetime] = None
+    analysis_purpose: Optional[str] = "OPERATIONAL"
+    input_fingerprint: Optional[str] = None
+    discrepancy_detected: Optional[bool] = False
+    message: Optional[str] = None
+    refusal_reason: Optional[str] = None
+    explanation: Optional[Dict[str, Any]] = None
     created_at: Optional[datetime] = None
 
-    @field_validator("created_at", mode="after")
+    @field_validator("created_at", "analysis_as_of", mode="after")
     @classmethod
     def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
         return to_utc_datetime(v)
-    message: Optional[str] = None
-    created_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True
@@ -599,6 +724,7 @@ class HotspotCluster(BaseModel):
     latest_window_end: Optional[str] = None
     window_status: Optional[str] = None
     linked_complaint_numbers: List[str] = Field(default_factory=list)
+    region_id: Optional[str] = "delhi"
 
 class ATMLocationItem(BaseModel):
     id: int
@@ -621,6 +747,40 @@ class GISOverviewResponse(BaseModel):
     historical_hotspots: List[HotspotCluster] = Field(default_factory=list)
 
 # Alert Schemas
+class NotificationOutboxItem(BaseModel):
+    id: int
+    alert_id: int
+    event_type: str
+    prediction_id: Optional[int] = None
+    prediction_version: Optional[int] = None
+    channel: str
+    recipient_role: Optional[str] = None
+    recipient_organization_id: Optional[int] = None
+    recipient_state: Optional[str] = None
+    recipient_district: Optional[str] = None
+    status: str
+    attempt_count: int
+    max_attempts: int
+    next_retry_at: Optional[datetime] = None
+    last_attempt_at: Optional[datetime] = None
+    last_error: Optional[str] = None
+    worker_id: Optional[str] = None
+    delivered_at: Optional[datetime] = None
+    acknowledged_at: Optional[datetime] = None
+    acknowledged_by: Optional[str] = None
+    idempotency_key: str
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @field_validator("next_retry_at", "last_attempt_at", "delivered_at", "acknowledged_at", "created_at", "updated_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+    class Config:
+        from_attributes = True
+
+
 class AlertResponse(BaseModel):
     id: int
     complaint_id: int
@@ -633,18 +793,34 @@ class AlertResponse(BaseModel):
     expected_window: str
     amount_at_risk: float
     status: str
-    acknowledged_by: Optional[str]
-    acknowledged_at: Optional[datetime]
-    action_notes: Optional[str]
+    acknowledged_by: Optional[str] = None
+    acknowledged_at: Optional[datetime] = None
+    action_notes: Optional[str] = None
+    superseded_by_prediction_id: Optional[int] = None
+    superseded_at: Optional[datetime] = None
+    expires_at: Optional[datetime] = None
+    delivery_status: Optional[str] = None
+    attempt_count: Optional[int] = 0
+    next_retry_at: Optional[datetime] = None
+    last_error: Optional[str] = None
     created_at: datetime
 
-    @field_validator("acknowledged_at", "created_at", mode="after")
+    @field_validator("acknowledged_at", "superseded_at", "expires_at", "next_retry_at", "created_at", mode="after")
     @classmethod
     def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
         return to_utc_datetime(v)
 
     class Config:
         from_attributes = True
+
+
+class AlertSyncResponse(BaseModel):
+    items: List[AlertResponse]
+    outbox_events: List[NotificationOutboxItem]
+    synced_at: datetime
+    cursor: int
+    has_more: bool
+
 
 class AlertActionRequest(BaseModel):
     notes: Optional[str] = "Officer action logged"
@@ -781,7 +957,7 @@ class AuditLogResponse(BaseModel):
     class Config:
         from_attributes = True
 
-# Bank Action Schemas
+# Bank Action Schemas (Phase 8)
 class BankActionResponse(BaseModel):
     id: int
     action_reference: str
@@ -790,23 +966,39 @@ class BankActionResponse(BaseModel):
     alert_id: Optional[int] = None
     account_id: Optional[int] = None
     bank_name: Optional[str] = None
+    bank_organization_id: Optional[int] = None
+    target_account_number: Optional[str] = None
+    target_ifsc: Optional[str] = None
     action_type: str
     status: str
-    is_simulated: bool
+    environment: str = "SIMULATED"
+    is_simulated: bool = True
     simulation_notes: Optional[str] = None
+    requested_amount: Optional[float] = None
+    held_amount: Optional[float] = 0.0
+    currency: str = "INR"
+    requested_by_user_id: Optional[int] = None
+    reviewed_by_user_id: Optional[int] = None
     actor_name: Optional[str] = None
     actor_role: Optional[str] = None
     action_notes: Optional[str] = None
     provider_reference_id: Optional[str] = None
     failure_reason: Optional[str] = None
+    rejection_reason: Optional[str] = None
+    release_reason: Optional[str] = None
+    callback_evidence: Optional[Dict[str, Any]] = None
+    status_history: Optional[List[Dict[str, Any]]] = None
     requested_at: datetime
     approved_at: Optional[datetime] = None
     sent_at: Optional[datetime] = None
     acknowledged_at: Optional[datetime] = None
+    held_at: Optional[datetime] = None
     completed_at: Optional[datetime] = None
+    released_at: Optional[datetime] = None
+    cancelled_at: Optional[datetime] = None
     created_at: datetime
 
-    @field_validator("requested_at", "approved_at", "sent_at", "acknowledged_at", "completed_at", "created_at", mode="after")
+    @field_validator("requested_at", "approved_at", "sent_at", "acknowledged_at", "held_at", "completed_at", "released_at", "cancelled_at", "created_at", mode="after")
     @classmethod
     def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
         return to_utc_datetime(v)
@@ -814,7 +1006,468 @@ class BankActionResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class BankActionCreateRequest(BaseModel):
+    complaint_id: int
+    alert_id: Optional[int] = None
+    account_id: Optional[int] = None
+    target_account_number: Optional[str] = None
+    target_ifsc: Optional[str] = None
+    bank_name: Optional[str] = None
+    bank_organization_id: Optional[int] = None
+    action_type: str = Field(default="ATM_DISBURSEMENT_HOLD")
+    requested_amount: Optional[float] = Field(default=None, gt=0)
+    currency: str = Field(default="INR")
+    environment: str = Field(default="SIMULATED")  # SIMULATED, SANDBOX, LIVE
+    action_notes: Optional[str] = None
+    idempotency_key: Optional[str] = None
+
+class BankActionReleaseRequest(BaseModel):
+    release_reason: str = Field(..., min_length=5, max_length=500)
+    release_amount: Optional[float] = Field(default=None, gt=0)
+    notes: Optional[str] = None
+
 class BankActionTransitionRequest(BaseModel):
     target_status: str
     notes: Optional[str] = None
     failure_reason: Optional[str] = None
+    rejection_reason: Optional[str] = None
+
+class BankPartnerCallbackPayload(BaseModel):
+    action_reference: str
+    provider_reference_id: Optional[str] = None
+    target_account_number: Optional[str] = None
+    status: str  # HELD, PARTIAL_HELD, REJECTED, FAILED, RELEASED
+    held_amount: float = Field(default=0.0, ge=0)
+    currency: str = Field(default="INR")
+    failure_reason: Optional[str] = None
+    release_reason: Optional[str] = None
+    notes: Optional[str] = None
+
+class SandboxSimulateRequest(BaseModel):
+    simulated_outcome: str = Field(default="CONFIRMED_HOLD")  # CONFIRMED_HOLD, PARTIAL_HOLD, REJECTED, FAILED, TIMEOUT
+    held_amount: Optional[float] = None
+    reason: Optional[str] = None
+
+
+# Evidence Schemas (Phase 6)
+class EvidenceFileResponse(BaseModel):
+    id: int
+    complaint_id: int
+    source: str
+    uploader_user_id: Optional[int] = None
+    uploader_role: str
+    uploader_org_id: Optional[int] = None
+    original_filename: str
+    storage_key: str
+    mime_type: str
+    size_bytes: int
+    sha256_hash: str
+    version: int
+    status: str
+    malware_scan_status: str
+    malware_scan_details: Optional[str] = None
+    description: Optional[str] = None
+    superseded_by_evidence_id: Optional[int] = None
+    superseded_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @field_validator("created_at", "updated_at", "superseded_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+    class Config:
+        from_attributes = True
+
+
+class EvidenceIntegrityResponse(BaseModel):
+    evidence_id: int
+    is_valid: bool
+    stored_hash: Optional[str] = None
+    computed_hash: Optional[str] = None
+    size_bytes: Optional[int] = None
+    status: Optional[str] = None
+    error: Optional[str] = None
+    checked_at: str
+
+
+class EvidenceScanUpdateRequest(BaseModel):
+    status: str
+    details: Optional[str] = None
+
+
+class InvestigatorReportDataResponse(BaseModel):
+    report_metadata: Dict[str, Any]
+    case_summary: Dict[str, Any]
+    financial_intelligence: Dict[str, Any]
+    predictive_intelligence: Dict[str, Any]
+    operational_alerts: List[Dict[str, Any]]
+    bank_actions: List[Dict[str, Any]]
+    evidence_registry: List[Dict[str, Any]]
+    legal_and_methodology_disclaimers: List[str]
+
+
+# Case Handoff Schemas (Phase 7)
+class CaseHandoffCreateRequest(BaseModel):
+    target_state: str
+    target_district: str
+    destination_organization_id: Optional[int] = None
+    purpose: str = "PHYSICAL_SURVEILLANCE"
+    evidence_scope: str = "METADATA_ONLY"
+    shared_evidence_ids: Optional[List[int]] = None
+    prediction_id: Optional[int] = None
+    prediction_version: Optional[int] = None
+    acknowledgement_hours: int = 24
+
+
+class CaseHandoffResponse(BaseModel):
+    id: int
+    complaint_id: int
+    prediction_id: Optional[int] = None
+    prediction_version: Optional[int] = None
+    origin_organization_id: int
+    origin_organization_name: Optional[str] = None
+    destination_organization_id: int
+    destination_organization_name: Optional[str] = None
+    target_state: str
+    target_district: str
+    purpose: str
+    evidence_scope: str
+    shared_evidence_ids: Optional[List[int]] = None
+    status: str
+    initiator_user_id: int
+    initiator_name: Optional[str] = None
+    recipient_user_id: Optional[int] = None
+    recipient_name: Optional[str] = None
+    rejection_reason: Optional[str] = None
+    cancellation_reason: Optional[str] = None
+    completed_notes: Optional[str] = None
+    acknowledgement_deadline: datetime
+    accepted_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @field_validator("created_at", "updated_at", "acknowledgement_deadline", "accepted_at", "completed_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+    class Config:
+        from_attributes = True
+
+
+class HandoffRejectRequest(BaseModel):
+    rejection_reason: str
+
+
+class HandoffCancelRequest(BaseModel):
+    cancellation_reason: str
+
+
+class HandoffCompleteRequest(BaseModel):
+    completed_notes: Optional[str] = None
+
+
+# ─── Phase 09: Outcome Observation Schemas ────────────────────────────────────
+
+class OutcomeCreateRequest(BaseModel):
+    """Create a new outcome observation. Prediction is linked server-side by policy."""
+    outcome_type: str  # CONFIRMED_CASHOUT | MULTIPLE_CASHOUT | NO_OBSERVED_CASHOUT | UNKNOWN | DATA_EXCLUDED
+    source: str        # OFFICER_MANUAL | CFCFRMS_IMPORT | BANK_REPORT | COURT_RECORD | AUTOMATED_MONITORING
+    observed_event_time: Optional[datetime] = None  # UTC; required for CONFIRMED/MULTIPLE_CASHOUT
+    actual_lat: Optional[float] = None
+    actual_lon: Optional[float] = None
+    actual_location_name: Optional[str] = None
+    actual_withdrawal_amount_inr: Optional[float] = Field(None, ge=0.0)
+    cashout_events: Optional[List[Dict[str, Any]]] = None  # for MULTIPLE_CASHOUT
+    actual_atm_id: Optional[int] = None
+    actual_cluster_id: Optional[int] = None
+    linked_alert_id: Optional[int] = None
+    linked_bank_action_id: Optional[int] = None
+    verified_held_amount_inr: Optional[float] = Field(None, ge=0.0)
+    verified_released_amount_inr: Optional[float] = Field(None, ge=0.0)
+    actual_recovered_amount_inr: Optional[float] = Field(None, ge=0.0)
+    recovery_verified_by: Optional[str] = None
+    recovery_verified_at: Optional[datetime] = None
+    verifier_user_id: Optional[int] = None
+    verification_status: str = "PENDING_VERIFICATION"
+    is_synthetic: bool = False
+    is_excluded: bool = False
+    exclusion_reason: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("observed_event_time", "recovery_verified_at", mode="before")
+    @classmethod
+    def validate_datetimes(cls, v: Any) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+
+class OutcomeCorrectRequest(BaseModel):
+    """Correct an existing ACTIVE outcome by superseding it and creating a new version."""
+    correction_reason: str = Field(..., min_length=5)
+    outcome_type: Optional[str] = None
+    source: Optional[str] = None
+    observed_event_time: Optional[datetime] = None
+    actual_lat: Optional[float] = None
+    actual_lon: Optional[float] = None
+    actual_location_name: Optional[str] = None
+    actual_withdrawal_amount_inr: Optional[float] = Field(None, ge=0.0)
+    cashout_events: Optional[List[Dict[str, Any]]] = None
+    actual_atm_id: Optional[int] = None
+    actual_cluster_id: Optional[int] = None
+    linked_alert_id: Optional[int] = None
+    linked_bank_action_id: Optional[int] = None
+    verified_held_amount_inr: Optional[float] = Field(None, ge=0.0)
+    verified_released_amount_inr: Optional[float] = Field(None, ge=0.0)
+    actual_recovered_amount_inr: Optional[float] = Field(None, ge=0.0)
+    recovery_verified_by: Optional[str] = None
+    recovery_verified_at: Optional[datetime] = None
+    verifier_user_id: Optional[int] = None
+    verification_status: Optional[str] = None
+    is_excluded: Optional[bool] = None
+    exclusion_reason: Optional[str] = None
+    notes: Optional[str] = None
+
+    @field_validator("observed_event_time", "recovery_verified_at", mode="before")
+    @classmethod
+    def validate_datetimes(cls, v: Any) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+
+class OutcomeResponse(BaseModel):
+    id: int
+    complaint_id: int
+    linked_prediction_id: Optional[int] = None
+    linked_prediction_version: Optional[int] = None
+    prediction_selection_policy: str
+    linked_alert_id: Optional[int] = None
+    linked_bank_action_id: Optional[int] = None
+    outcome_type: str
+    observed_event_time: Optional[datetime] = None
+    actual_lat: Optional[float] = None
+    actual_lon: Optional[float] = None
+    actual_location_name: Optional[str] = None
+    actual_withdrawal_amount_inr: Optional[float] = None
+    cashout_events: Optional[List[Dict[str, Any]]] = None
+    actual_atm_id: Optional[int] = None
+    actual_cluster_id: Optional[int] = None
+    verified_held_amount_inr: Optional[float] = None
+    verified_released_amount_inr: Optional[float] = None
+    actual_recovered_amount_inr: Optional[float] = None
+    recovery_verified_by: Optional[str] = None
+    recovery_verified_at: Optional[datetime] = None
+    prediction_rank_matched: Optional[int] = None
+    distance_error_km: Optional[float] = None
+    prediction_lead_time_minutes: Optional[float] = None
+    alert_lead_time_minutes: Optional[float] = None
+    alert_acknowledgement_latency_minutes: Optional[float] = None
+    bank_response_latency_minutes: Optional[float] = None
+    is_synthetic: bool
+    is_excluded: bool
+    exclusion_reason: Optional[str] = None
+    verification_status: str
+    source: str
+    verifier_user_id: Optional[int] = None
+    verifier_name: Optional[str] = None
+    verifier_role: Optional[str] = None
+    ingested_by_user_id: Optional[int] = None
+    ingested_by_role: str
+    received_at: datetime
+    version: int
+    corrects_outcome_id: Optional[int] = None
+    record_status: str
+    correction_reason: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @field_validator("observed_event_time", "recovery_verified_at", "received_at",
+                     "created_at", "updated_at", mode="after")
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+    class Config:
+        from_attributes = True
+
+
+class OutcomeMetricsResponse(BaseModel):
+    """Honest operational dashboard metrics with explicit denominators."""
+    # Denominators — always shown so unknown/excluded cohorts are visible
+    denominator_measured: int
+    denominator_unknown: int
+    denominator_excluded: int
+    denominator_synthetic: int
+    denominator_total_active: int
+    denominator_cashout: int
+
+    # Location accuracy (cashout outcomes only)
+    rank1_count: int
+    topk_count: int
+    rank1_accuracy_rate: Optional[float] = None   # NULL when denominator_cashout=0
+    topk_accuracy_rate: Optional[float] = None
+    mean_distance_error_km: Optional[float] = None
+
+    # Timing metrics
+    mean_prediction_lead_time_minutes: Optional[float] = None
+    mean_alert_lead_time_minutes: Optional[float] = None
+    mean_alert_acknowledgement_latency_minutes: Optional[float] = None
+    mean_bank_response_latency_minutes: Optional[float] = None
+
+    # Financial figures (reported separately)
+    total_verified_held_inr: float
+    total_verified_released_inr: float
+    total_actual_recovered_inr: float
+    financial_note: str
+
+    # Alert workload
+    false_alert_count: int
+
+    # Policy metadata
+    prediction_selection_policy: str
+    policy_description: str
+
+
+# ── PHASE 10: MODEL EVALUATION & DATA READINESS SCHEMAS ───────────────────────
+
+class RealDataImportMetadata(BaseModel):
+    source_system: str
+    batch_id: str
+    authorized_officer_id: Optional[int] = None
+    export_date: str
+    jurisdiction_state: Optional[str] = "Delhi"
+    pii_attestation: bool
+
+
+class RealDataImportValidationRequest(BaseModel):
+    metadata: RealDataImportMetadata
+    records: List[Dict[str, Any]]
+
+
+class RealDataImportValidationResponse(BaseModel):
+    validation_status: str
+    is_valid: bool
+    metadata_submitted: Dict[str, Any]
+    total_records_evaluated: int
+    valid_records_count: int
+    errors_count: int
+    warnings_count: int
+    errors: List[str]
+    warnings: List[str]
+    pii_compliance_status: str
+
+
+class RealDataValidationStatusResponse(BaseModel):
+    status: str
+    evaluation_readiness: str
+    message: str
+    external_acceptance_gates: List[Dict[str, Any]]
+    methodology_disclosures: Dict[str, Any]
+
+
+# ── PHASE 12: GEOGRAPHY CATALOG & MULTI-REGION SCHEMAS ───────────────────────
+
+class RegionCoordinates(BaseModel):
+    lat: float
+    lon: float
+
+class RegionBounds(BaseModel):
+    min_lat: float
+    max_lat: float
+    min_lon: float
+    max_lon: float
+
+class RegionSummaryItem(BaseModel):
+    id: str
+    name: str
+    state: str
+    catalog_version: str
+    source: str
+    license: str
+    verification_time: Optional[str] = None
+    center: RegionCoordinates
+    bounds: RegionBounds
+    cluster_radius_km: float
+    districts: List[str] = []
+    total_clusters: int = 0
+    total_atms: int = 0
+    data_completeness_status: str
+    model_support_status: str
+    supported_model_version: Optional[str] = None
+    is_synthetic: bool = False
+    is_active: bool = True
+
+    class Config:
+        from_attributes = True
+
+class RegionDetailResponse(BaseModel):
+    id: str
+    name: str
+    state: str
+    catalog_version: str
+    source: str
+    license: str
+    verification_time: Optional[str] = None
+    center: RegionCoordinates
+    bounds: RegionBounds
+    cluster_radius_km: float
+    districts: List[str] = []
+    total_clusters: int = 0
+    total_atms: int = 0
+    data_completeness_status: str
+    model_support_status: str
+    supported_model_version: Optional[str] = None
+    is_synthetic: bool = False
+    is_active: bool = True
+    region: Optional[RegionSummaryItem] = None
+    clusters_sample: List[Dict[str, Any]] = []
+    operational_limitations: List[str] = []
+
+    class Config:
+        from_attributes = True
+
+class GeographyCatalogResponseItem(BaseModel):
+    id: int
+    catalog_id: str
+    region_id: str
+    catalog_version: str
+    source: str
+    license: str
+    provenance_notes: Optional[str] = None
+    verification_time: Optional[str] = None
+    status: str
+    data_completeness_status: str
+    model_support_status: str
+    supported_model_version: Optional[str] = None
+    total_clusters: int = 0
+    total_atms: int = 0
+    cluster_radius_km: float = 2.5
+    imported_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class CatalogValidationRequest(BaseModel):
+    catalog: Dict[str, Any]
+
+class CatalogValidationResponse(BaseModel):
+    is_valid: bool
+    region_id: str
+    catalog_version: str
+    errors: List[str] = []
+    warnings: List[str] = []
+    summary: Dict[str, Any] = {}
+
+class CatalogImportRequest(BaseModel):
+    catalog: Dict[str, Any]
+
+class CatalogImportResponse(BaseModel):
+    status: str
+    message: str
+    catalog_id: str
+    region_id: str
+    total_clusters_imported: int
+    total_atms_imported: int
+    model_support_status: str

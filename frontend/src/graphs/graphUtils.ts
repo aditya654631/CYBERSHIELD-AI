@@ -11,7 +11,8 @@ export const formatSafeDisplayLabel = (
   rawLabel?: string | null,
   nodeType?: string,
   isSource?: boolean,
-  maskedId?: string | null
+  maskedId?: string | null,
+  isPotentialMuleIndicator?: boolean
 ): string => {
   let mainLabel = '';
 
@@ -19,6 +20,8 @@ export const formatSafeDisplayLabel = (
     mainLabel = rawLabel || 'Cash-Out Terminal';
   } else if (nodeType === 'cluster') {
     mainLabel = rawLabel ? `PREDICTED ZONE: ${rawLabel}` : 'PREDICTED CASH-OUT ZONE';
+  } else if (isPotentialMuleIndicator) {
+    mainLabel = 'Potential Mule Indicator / Under Review';
   } else if (!rawLabel || rawLabel.trim() === '') {
     if (isSource || nodeType === 'victim') {
       mainLabel = 'Victim Account';
@@ -41,9 +44,9 @@ export const formatSafeDisplayLabel = (
       lower === 'mule' ||
       lower === 'suspected mule'
     ) {
-      mainLabel = 'Beneficiary Account';
+      mainLabel = 'Potential Mule Indicator / Under Review';
     } else if (lower.includes('(terminal mule)')) {
-      mainLabel = trimmed.replace(/\(terminal mule\)/i, '(Beneficiary / Under Review)');
+      mainLabel = trimmed.replace(/\(terminal mule\)/i, '(Potential Mule Indicator / Under Review)');
     } else if (lower.includes('(known atm cashier)')) {
       mainLabel = trimmed.replace(/\(known atm cashier\)/i, '(Cashier / Under Review)');
     } else {

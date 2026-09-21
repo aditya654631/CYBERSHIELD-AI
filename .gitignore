@@ -54,3 +54,6 @@ blockchain/network/channel-artifacts/
 
 # Scratch & Temporary Testing Files
 scratch/
+tmp/
+reports/
+backend/storage/
