@@ -110,6 +110,8 @@ class ModelVerificationService:
                 all_passed = False
                 continue
 
+            actual_hash = _compute_file_sha256(file_path)
+
             # Cross-OS JSON line-ending tolerance (Windows CRLF vs Linux LF)
             if filename.endswith(".json") and expected_hash:
                 try:
@@ -119,9 +121,9 @@ class ModelVerificationService:
                     actual_lf_hash = hashlib.sha256(raw_bytes.replace(b"\r\n", b"\n")).hexdigest().lower()
                     hash_match = expected_hash.lower() in (actual_crlf_hash, actual_lf_hash)
                 except Exception:
-                    hash_match = (actual_hash.lower() == expected_hash.lower())
+                    hash_match = (actual_hash.lower() == expected_hash.lower()) if actual_hash else False
             else:
-                hash_match = (actual_hash.lower() == expected_hash.lower()) if expected_hash else True
+                hash_match = (actual_hash.lower() == expected_hash.lower()) if (expected_hash and actual_hash) else True
 
             if not hash_match:
                 all_passed = False
