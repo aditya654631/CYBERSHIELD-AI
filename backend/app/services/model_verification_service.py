@@ -117,8 +117,10 @@ class ModelVerificationService:
                 try:
                     with open(file_path, "rb") as jf:
                         raw_bytes = jf.read()
-                    actual_crlf_hash = hashlib.sha256(raw_bytes.replace(b"\r\n", b"\r\n")).hexdigest().lower()
-                    actual_lf_hash = hashlib.sha256(raw_bytes.replace(b"\r\n", b"\n")).hexdigest().lower()
+                    crlf_bytes = raw_bytes.replace(b"\r\n", b"\n").replace(b"\n", b"\r\n")
+                    lf_bytes = raw_bytes.replace(b"\r\n", b"\n")
+                    actual_crlf_hash = hashlib.sha256(crlf_bytes).hexdigest().lower()
+                    actual_lf_hash = hashlib.sha256(lf_bytes).hexdigest().lower()
                     hash_match = expected_hash.lower() in (actual_crlf_hash, actual_lf_hash)
                 except Exception:
                     hash_match = (actual_hash.lower() == expected_hash.lower()) if actual_hash else False
