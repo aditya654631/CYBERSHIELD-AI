@@ -8,6 +8,10 @@ import sys
 ROOT_DIR = os.path.dirname(os.path.abspath(__file__))
 BACKEND_DIR = os.path.join(ROOT_DIR, "backend")
 
+# Active production location model configuration (overridable by environment variable)
+if "ACTIVE_LOCATION_MODEL_VERSION" not in os.environ:
+    os.environ["ACTIVE_LOCATION_MODEL_VERSION"] = "v8_debiased"
+
 for p in [BACKEND_DIR, ROOT_DIR]:
     if p in sys.path:
         sys.path.remove(p)
