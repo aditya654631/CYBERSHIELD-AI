@@ -1,5 +1,6 @@
+from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from backend.app.models.db import get_db
 from backend.app.models.models import User
 from backend.app.schemas.schemas import LoginRequest, Token, UserResponse
@@ -18,7 +19,12 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
     # 1. Check rate limit
     login_rate_limiter.check_rate_limit(req, request.email)
 
-    user = db.query(User).filter(User.email == request.email).first()
+    user = (
+        db.query(User)
+        .options(joinedload(User.organization))
+        .filter(User.email == request.email)
+        .first()
+    )
     if not user or not verify_password(request.password, user.hashed_password):
         login_rate_limiter.record_failure(req, request.email)
         raise HTTPException(
@@ -71,6 +77,19 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
             "district": user.district
         }
     }
+
+
+import uuid
+
+@router.post("/ws/ticket")
+def generate_ws_ticket(current_user: User = Depends(get_current_user)):
+    """Generates a short-lived single-use ticket for authenticating WebSocket connections."""
+    jti = str(uuid.uuid4())
+    ticket = create_access_token(
+        data={"sub": current_user.email, "role": current_user.role, "scope": "ws_stream", "jti": jti},
+        expires_delta=timedelta(minutes=2)
+    )
+    return {"ticket": ticket, "expires_in": 120, "jti": jti}
 
 
 @router.get("/me", response_model=UserResponse)

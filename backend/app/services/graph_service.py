@@ -243,14 +243,16 @@ def build_complaint_graph(
 
     # 7. WITHDRAWAL ATTRIBUTION & CASH-OUT ENDPOINT RESOLUTION
     # A cash-out endpoint is attributed to the complaint trail ONLY if:
-    # 1. Account Scope: Account received funds in the case-scoped transaction graph.
-    # 2. Causality: Withdrawal occurred at or after the incoming transaction credit.
-    # 3. Temporal Window: Withdrawal occurred within 72 hours of receiving funds.
-    # 4. Proportionality: Cumulative withdrawals <= total received funds * 1.05.
-    # Unrelated historical withdrawals outside this window/scope are strictly excluded.
+    # 1. Explicit Case Link: w.complaint_id matches target_complaint_ids (when set).
+    # 2. Account Scope: Account received funds in the case-scoped transaction graph.
+    # 3. Causality: Withdrawal occurred at or after the incoming transaction credit.
+    # 4. Temporal Window: Withdrawal occurred within 72 hours of receiving funds.
+    # 5. Proportionality: Cumulative withdrawals <= total received funds * 1.05.
+    # 6. Geography: ATM belongs to the complaint region (Delhi for Delhi complaints).
+    # Unrelated historical withdrawals outside this window/scope/region are strictly excluded.
     non_source_acc_ids = [aid for aid in account_ids if str(aid) not in sources]
     attributed_withdrawals: List[Any] = []
-    # Phase 02: Only query/attribute withdrawals if include_outcomes=True (investigation UI overlay).
+    # Only query/attribute withdrawals if include_outcomes=True (investigation UI overlay).
     # When building graphs for ML feature extraction, include_outcomes=False prevents target/outcome leakage.
     if include_outcomes and non_source_acc_ids:
         wdl_query = db.query(WithdrawalModel).filter(
@@ -275,11 +277,22 @@ def build_complaint_graph(
             for w in candidate_wdls:
                 if w.account_id != aid:
                     continue
+                # If withdrawal is explicitly bound to a complaint, verify complaint match
+                if getattr(w, "complaint_id", None) is not None and w.complaint_id not in target_complaint_ids:
+                    continue
                 if w.timestamp < min_in_time or w.timestamp > max_window:
                     continue
                 w_amt = float(w.amount)
                 if cumulative_wd + w_amt > (amt_in * 1.05) and cumulative_wd > 0:
                     continue
+                
+                # Check ATM regional validity
+                if w.atm_id:
+                    atm = db.query(ATMLocation).filter(ATMLocation.id == w.atm_id).first()
+                    if atm and str(complaint.victim_state or "").lower() == "delhi":
+                        if str(atm.state or "").lower() != "delhi" and not str(atm.atm_code or "").startswith("ATM-DL-"):
+                            continue
+
                 cumulative_wd += w_amt
                 attributed_withdrawals.append(w)
 

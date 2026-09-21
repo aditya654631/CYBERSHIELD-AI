@@ -1,8 +1,18 @@
 import time
+import sys
+import os
+
+BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+if BASE_DIR not in sys.path:
+    sys.path.insert(0, BASE_DIR)
+
 from backend.app.models.db import SessionLocal
 from backend.app.models.models import (
     Complaint, Account, Transaction, ComplaintAccount, Withdrawal,
-    LocationCluster, ATMLocation, User, Organization
+    LocationCluster, ATMLocation, User, Organization,
+    Alert, Prediction, PredictionLocation, PredictionSnapshot,
+    BankAction, NotificationOutbox, EvidenceFile, CaseNote,
+    CaseHandoff, OutcomeObservation
 )
 from database.seed.synthetic_generator import DelhiSyntheticDataGenerator
 from database.seed.seed_config import (
@@ -127,14 +137,47 @@ def run():
     syn_comp_ids = [c.id for c in db.query(Complaint.id).filter(Complaint.complaint_number.like(f"{COMPLAINT_PREFIX}%")).all()]
 
     print(f"  Cleaning old synthetic rows ({len(syn_comp_ids)} complaints, {len(syn_acc_ids)} accounts)...")
-    if syn_acc_ids:
-        db.query(Withdrawal).filter(Withdrawal.account_id.in_(syn_acc_ids)).delete(synchronize_session=False)
     if syn_comp_ids:
+        # 1. Bank Actions
+        db.query(BankAction).filter(BankAction.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+
+        # 2. Alerts and Alert Outbox
+        alert_ids = [a.id for a in db.query(Alert.id).filter(Alert.complaint_id.in_(syn_comp_ids)).all()]
+        if alert_ids:
+            db.query(NotificationOutbox).filter(NotificationOutbox.alert_id.in_(alert_ids)).delete(synchronize_session=False)
+            db.query(Alert).filter(Alert.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+
+        # 3. Case Handoffs, Evidence Files, Case Notes, Outcome Observations
+        db.query(CaseHandoff).filter(CaseHandoff.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+        db.query(EvidenceFile).filter(EvidenceFile.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+        db.query(CaseNote).filter(CaseNote.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+        db.query(OutcomeObservation).filter(OutcomeObservation.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+
+        # 4. Predictions, Prediction Locations, Prediction Snapshots
+        pred_ids = [p.id for p in db.query(Prediction.id).filter(Prediction.complaint_id.in_(syn_comp_ids)).all()]
+        if pred_ids:
+            db.query(PredictionLocation).filter(PredictionLocation.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
+            db.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
+            db.query(Prediction).filter(Prediction.complaint_id.in_(syn_comp_ids)).update({"parent_prediction_id": None}, synchronize_session=False)
+            db.query(Prediction).filter(Prediction.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+
+        # 5. Transactions, Complaint Accounts, Withdrawals
         db.query(Transaction).filter(Transaction.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
         db.query(ComplaintAccount).filter(ComplaintAccount.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+        db.query(Withdrawal).filter(Withdrawal.complaint_id.in_(syn_comp_ids)).delete(synchronize_session=False)
+
+        # 6. Complaints
         db.query(Complaint).filter(Complaint.id.in_(syn_comp_ids)).delete(synchronize_session=False)
+
     if syn_acc_ids:
+        # Delete any remaining transactions/withdrawals/accounts on synthetic accounts
+        db.query(Transaction).filter(
+            (Transaction.sender_account_id.in_(syn_acc_ids)) | (Transaction.receiver_account_id.in_(syn_acc_ids))
+        ).delete(synchronize_session=False)
+        db.query(Withdrawal).filter(Withdrawal.account_id.in_(syn_acc_ids)).delete(synchronize_session=False)
+        db.query(ComplaintAccount).filter(ComplaintAccount.account_id.in_(syn_acc_ids)).delete(synchronize_session=False)
         db.query(Account).filter(Account.id.in_(syn_acc_ids)).delete(synchronize_session=False)
+            
     db.flush()
 
     # Batch insert Accounts
@@ -201,8 +244,11 @@ def run():
     for w in ds["withdrawals"]:
         atm_id = atm_map.get(w["atm_code"])
         a_id = acc_map.get(w["account_number"])
+        c_id = comp_map.get(w.get("complaint_number"))
         if atm_id and a_id:
             w_objs.append(Withdrawal(
+                withdrawal_ref=w.get("withdrawal_ref"),
+                complaint_id=c_id,
                 atm_id=atm_id,
                 account_id=a_id,
                 amount=w["amount"],
@@ -237,7 +283,7 @@ def run():
 
     print(f"  Users: {post_users} (Expected: {pre_users}) -> {'MATCH' if post_users == pre_users else 'MISMATCH'}")
     print(f"  Orgs: {post_orgs} (Expected: {pre_orgs}) -> {'MATCH' if post_orgs == pre_orgs else 'MISMATCH'}")
-    print(f"  CMP-1042: {post_cmp1042} (Expected: 1) -> {'PRESERVED' if post_cmp1042 == 1 else 'FAIL'}")
+    print(f"  CMP-1042: {post_cmp1042} (Expected: 0) -> {'PURGED' if post_cmp1042 == 0 else 'WARNING_PRESENT'}")
     print(f"  Prototype Complaints: {post_other_comp} (Expected: {pre_other_comp}) -> {'MATCH' if post_other_comp == pre_other_comp else 'MISMATCH'}")
     print(f"  Prototype Accounts: {post_other_acc} (Expected: {pre_other_acc}) -> {'MATCH' if post_other_acc == pre_other_acc else 'MISMATCH'}")
     print(f"  Prototype Transactions: {post_other_tx} (Expected: {pre_other_txns}) -> {'MATCH' if post_other_tx == pre_other_txns else 'MISMATCH'}")

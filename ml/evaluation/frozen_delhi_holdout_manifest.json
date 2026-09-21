@@ -1,0 +1,11 @@
+{
+  "manifest_name": "frozen_delhi_holdout_evaluation_manifest.json",
+  "dataset_sha256": "636ddcf96516bda238f65f02edc0c06d16343716449a092bf2f7970733593c71",
+  "seed": 54321,
+  "complaints_count": 300,
+  "withdrawals_count": 212,
+  "transactions_count": 4718,
+  "accounts_count": 6000,
+  "candidate_clusters_count": 60,
+  "created_at": "2026-09-22T03:15:00Z"
+}

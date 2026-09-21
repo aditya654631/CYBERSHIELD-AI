@@ -1,0 +1,138 @@
+{
+  "model_version": "cashout-location-xgb-v8-debiased",
+  "time_model_version": "cashout-time-xgb-v3",
+  "training_timestamp": "2026-09-21T21:32:28.897086+00:00",
+  "algorithm": "pairwise_xgb_ranker_debiased_v2_hardneg_gridsearch",
+  "feature_count": 49,
+  "winning_config": {
+    "name": "E",
+    "n_estimators": 500,
+    "max_depth": 5,
+    "learning_rate": 0.04,
+    "reg_lambda": 4.0,
+    "reg_alpha": 1.0,
+    "gamma": 0.3,
+    "colsample_bytree": 0.8,
+    "subsample": 0.75,
+    "min_child_weight": 1,
+    "eval_metric": "ndcg@3",
+    "seed": 42
+  },
+  "grid_search_results": [
+    {
+      "name": "A",
+      "r1": 7.117181883537024,
+      "r3": 21.279654924514738,
+      "r5": 34.57943925233645,
+      "mrr": 0.20578901327501878,
+      "median_err": 7.554604571472302,
+      "mean_err": 9.14437922770759,
+      "ece": 0.00019098914375900584,
+      "brier": 0.016081126406788826
+    },
+    {
+      "name": "B",
+      "r1": 7.907979870596693,
+      "r3": 23.364485981308412,
+      "r5": 35.729690869877786,
+      "mrr": 0.21390052089727185,
+      "median_err": 7.491995833497708,
+      "mean_err": 8.973051788744858,
+      "ece": 0.00010606950336856272,
+      "brier": 0.016062015667557716
+    },
+    {
+      "name": "C",
+      "r1": 7.476635514018691,
+      "r3": 23.005032350826742,
+      "r5": 35.80158159597412,
+      "mrr": 0.2124454242701694,
+      "median_err": 7.532780805909275,
+      "mean_err": 9.04657542888324,
+      "ece": 0.00024599796127578876,
+      "brier": 0.016071198508143425
+    },
+    {
+      "name": "D",
+      "r1": 7.620416966211359,
+      "r3": 22.93314162473041,
+      "r5": 35.082674335010786,
+      "mrr": 0.21160557273413033,
+      "median_err": 7.624289897086238,
+      "mean_err": 9.078727736948624,
+      "ece": 0.0001816690455976633,
+      "brier": 0.0160702895373106
+    },
+    {
+      "name": "E",
+      "r1": 7.620416966211359,
+      "r3": 23.79583033788641,
+      "r5": 34.86700215672178,
+      "mrr": 0.21405540719102678,
+      "median_err": 7.100758793975957,
+      "mean_err": 8.977978867048007,
+      "ece": 8.886774848783214e-05,
+      "brier": 0.016067948192358017
+    },
+    {
+      "name": "F",
+      "r1": 6.9015097052480225,
+      "r3": 22.070452911574407,
+      "r5": 35.298346513299784,
+      "mrr": 0.20519380768937234,
+      "median_err": 7.641586159097626,
+      "mean_err": 9.227875072398282,
+      "ece": 0.00016530400890613382,
+      "brier": 0.016078177839517593
+    }
+  ],
+  "hard_negative_training": true,
+  "calibration_method": "platt_logistic",
+  "validation_metrics": {
+    "r1": 7.62,
+    "r3": 23.8,
+    "r5": 34.87,
+    "mrr": 0.2141,
+    "median_error_km": 7.1,
+    "mean_error_km": 8.98,
+    "ece": 0.0001,
+    "brier_score": 0.0161
+  },
+  "dataset_summary": {
+    "training_seeds": [
+      10421,
+      26184,
+      34190,
+      42100,
+      58921
+    ],
+    "total_queries": 6952,
+    "train_queries": 5561,
+    "val_queries": 1391,
+    "total_rows": 417120
+  },
+  "artifacts": {
+    "ranker": {
+      "file": "location_ranker_v8_debiased.joblib",
+      "sha256": "69f300b4b208f2c3a606f54d84f992b665f30602de0ebe8f77f6561d625bfd71"
+    },
+    "calibrator": {
+      "file": "location_calibrator_v8_debiased.joblib",
+      "sha256": "e2ec24047c42b98a4aefd8c0951f125adf2947a5c1c198136dde9c77c4cb8dd1"
+    },
+    "feature_schema": {
+      "file": "feature_schema_v8_debiased.json",
+      "sha256": "68c9643cea2c3f2480ca085e5da37299568cf72fef98e3f2c7f39b840c514b4b"
+    },
+    "lime_background": {
+      "file": "v8_lime_background.npy",
+      "sha256": "dab72448527c140d969e650048d0dc3c3515dbeb034effece3fdd2ca5d047f14"
+    }
+  },
+  "promotion_status": {
+    "challenger_trained": true,
+    "promoted_to_production": false,
+    "qualification_gate_passed": false
+  },
+  "synthetic_disclosure": "Trained on causal money-network synthetic Delhi cybercrime corpus. Free of victim-origin ranking shortcuts."
+}

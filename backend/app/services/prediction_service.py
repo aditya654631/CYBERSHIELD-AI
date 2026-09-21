@@ -32,12 +32,16 @@ from ml.features.feature_pipeline import (
     feature_pipeline,
     DELHI_ZONE_CENTROIDS,
     FEATURE_COLUMNS_LOCATION_V3_1,
+    FEATURE_COLUMNS_LOCATION_V8_DEBIASED,
     FEATURE_COLUMNS_TIME
 )
 from backend.app.services.delhi_origin_resolver import resolve_delhi_origin
 from backend.app.services.prediction_contract import as_utc, build_time_prediction
 
 logger = logging.getLogger("cybershield.prediction_service")
+
+# Configurable Active Model Version (Challenger architecture)
+ACTIVE_LOCATION_MODEL_VERSION = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v7_compat")
 
 def resolve_artifacts_dir() -> str:
     """
@@ -80,12 +84,18 @@ ARTIFACTS_DIR = resolve_artifacts_dir()
 
 # Step 8C & Step 16 Verified Hashes for Integrity Gate
 EXPECTED_HASHES = {
-    # Promoted Qualified Model: Location V7-compat
+    # Active / Promoted Model: Location V8 Debiased (Causal money network, 49 features, 60 Delhi clusters)
+    "location_ranker_v8_debiased.joblib": "69f300b4b208f2c3a606f54d84f992b665f30602de0ebe8f77f6561d625bfd71",
+    "location_calibrator_v8_debiased.joblib": "e2ec24047c42b98a4aefd8c0951f125adf2947a5c1c198136dde9c77c4cb8dd1",
+    "feature_schema_v8_debiased.json": "68c9643cea2c3f2480ca085e5da37299568cf72fef98e3f2c7f39b840c514b4b",
+    "model_metadata_v8_debiased.json": "cf5b76ac27686dd4ccae238cc7a7b6af1c583af8cbcce2bbb369fe2293362050",
+    "v8_lime_background.npy": "dab72448527c140d969e650048d0dc3c3515dbeb034effece3fdd2ca5d047f14",
+    # Promoted Qualified Rollback Model: Location V7-compat
     "location_ranker_v7_compat.joblib": "89057bce1000cb82e10f29077b9e168bc0cbd254e979106998e1d623e072c2a6",
     "location_calibrator_v7_compat.joblib": "1c14d5aba1b0556a47519ea435804a86b34173c76743a77bcf52cea43d3a2c6d",
     "feature_schema_v7_compat.json": "fc303d7e8b995e1a9903706d4a7da21431c8424e27edf30b4757f900f7642444",
     "model_metadata_v7_compat.json": "d402ab6c397327fbce5916621e1da51766ee87b7a5449fa152c0e969b10c59f4",
-    # Active Production Models / Base Dependency: Location V4 & Time V3
+    # Base Dependency / Fallback Reference: Location V4 & Time V3
     "location_ranker_v4.joblib": "9ed5792ced4f8a6e79dc91e587e3c130d2fbadb5af6a73640397dc506dd9cdc9",
     "location_calibrator_v4.joblib": "65ceb736838d14cb865111aac6eddfad3838704ddf2fffc63a6b2bdd998a3664",
     "time_regressor_v3.joblib": "41183f4579df70372102e98999967a5e63a9a2dad80f63668b45a5a66a2ed5e1",
@@ -262,12 +272,12 @@ class MLPredictionProvider:
         self.location_hash = None
         self.calibrator_hash = None
 
-        self.model_version = "cashout-location-xgb-v4"
+        self.model_version = None
         self.time_model_version = "cashout-time-xgb-v3"
         self.dataset_version = "delhi_synthetic_v2"
         self.operational_scope = "DELHI_PILOT"
-        self.candidate_pool_size = 25
-        self.location_feature_version = "v3.1"
+        self.candidate_pool_size = 0
+        self.location_feature_version = None
 
         self._load_models()
 
@@ -319,74 +329,169 @@ class MLPredictionProvider:
             logger.error(self.load_error)
             return
 
-        # 2. Check for V7-compat candidate
-        loc_v7_filename = "location_ranker_v7_compat.joblib"
-        cal_v7_filename = "location_calibrator_v7_compat.joblib"
-        schema_v7_filename = "feature_schema_v7_compat.json"
-        meta_v7_filename = "model_metadata_v7_compat.json"
+        # 2. Check active version configuration strictly
+        active_version = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v7_compat")
 
-        loc_v7_path = os.path.join(self.artifacts_dir, loc_v7_filename)
-        cal_v7_path = os.path.join(self.artifacts_dir, cal_v7_filename)
-        schema_v7_path = os.path.join(self.artifacts_dir, schema_v7_filename)
-        meta_v7_path = os.path.join(self.artifacts_dir, meta_v7_filename)
+        if active_version == "v8_debiased":
+            loc_v8_filename = "location_ranker_v8_debiased.joblib"
+            cal_v8_filename = "location_calibrator_v8_debiased.joblib"
+            schema_v8_filename = "feature_schema_v8_debiased.json"
+            meta_v8_filename = "model_metadata_v8_debiased.json"
 
-        v7_available = os.path.exists(loc_v7_path) and os.path.exists(cal_v7_path)
+            loc_v8_path = os.path.join(self.artifacts_dir, loc_v8_filename)
+            cal_v8_path = os.path.join(self.artifacts_dir, cal_v8_filename)
+            schema_v8_path = os.path.join(self.artifacts_dir, schema_v8_filename)
+            meta_v8_path = os.path.join(self.artifacts_dir, meta_v8_filename)
 
-        if v7_available:
+            if not (os.path.exists(loc_v8_path) and os.path.exists(cal_v8_path) and os.path.exists(schema_v8_path)):
+                self.load_error = "V8-debiased configured as active model, but V8 artifacts not found on disk."
+                self.is_loaded = False
+                self.model_version = "MODEL_UNAVAILABLE"
+                self.location_model = None
+                self.calibrator = None
+                logger.error(self.load_error)
+                return
+
+            v8_loc_hash = compute_file_sha256(loc_v8_path)
+            v8_cal_hash = compute_file_sha256(cal_v8_path)
+            v8_schema_hash = compute_file_sha256(schema_v8_path)
+
+            if (v8_loc_hash != EXPECTED_HASHES.get(loc_v8_filename) or
+                v8_cal_hash != EXPECTED_HASHES.get(cal_v8_filename) or
+                v8_schema_hash != EXPECTED_HASHES.get(schema_v8_filename)):
+                self.load_error = f"V8-debiased artifact verification failed (loc={v8_loc_hash}, cal={v8_cal_hash}, schema={v8_schema_hash})"
+                self.is_loaded = False
+                self.model_version = "MODEL_UNAVAILABLE"
+                self.location_model = None
+                self.calibrator = None
+                logger.error(self.load_error)
+                return
+
+            try:
+                self.location_model = joblib.load(loc_v8_path)
+                self.calibrator = joblib.load(cal_v8_path)
+                with open(schema_v8_path, "r") as f:
+                    self.feature_schema = json.load(f)
+                if os.path.exists(meta_v8_path):
+                    with open(meta_v8_path, "r") as f:
+                        self.metadata = json.load(f)
+
+                if len(self.feature_schema.get("location_features", [])) != len(FEATURE_COLUMNS_LOCATION_V8_DEBIASED):
+                    raise ValueError(f"V8-debiased feature schema count mismatch (found {len(self.feature_schema.get('location_features', []))}, expected {len(FEATURE_COLUMNS_LOCATION_V8_DEBIASED)})")
+
+                self.model_version = "cashout-location-xgb-v8-debiased"
+                self.time_model_version = "cashout-time-xgb-v3"
+                self.location_feature_version = "v8_debiased"
+                self.candidate_pool_size = 60
+                self.location_hash = v8_loc_hash
+                self.calibrator_hash = v8_cal_hash
+                self.is_loaded = True
+                logger.info("Successfully loaded and verified cashout-location-xgb-v8-debiased (49 features, 60 Delhi clusters)")
+                return
+            except Exception as e:
+                self.load_error = f"V8-debiased load failed: {e}"
+                self.is_loaded = False
+                self.location_model = None
+                self.calibrator = None
+                logger.error(self.load_error)
+                return
+
+        elif active_version == "v7_compat":
+            loc_v7_filename = "location_ranker_v7_compat.joblib"
+            cal_v7_filename = "location_calibrator_v7_compat.joblib"
+            schema_v7_filename = "feature_schema_v7_compat.json"
+            meta_v7_filename = "model_metadata_v7_compat.json"
+
+            loc_v7_path = os.path.join(self.artifacts_dir, loc_v7_filename)
+            cal_v7_path = os.path.join(self.artifacts_dir, cal_v7_filename)
+            schema_v7_path = os.path.join(self.artifacts_dir, schema_v7_filename)
+            meta_v7_path = os.path.join(self.artifacts_dir, meta_v7_filename)
+
+            if not (os.path.exists(loc_v7_path) and os.path.exists(cal_v7_path) and os.path.exists(schema_v7_path)):
+                self.load_error = "V7-compat configured as active model, but V7 artifacts not found on disk."
+                self.is_loaded = False
+                self.location_model = None
+                self.calibrator = None
+                logger.error(self.load_error)
+                return
+
             v7_loc_hash = compute_file_sha256(loc_v7_path)
             v7_cal_hash = compute_file_sha256(cal_v7_path)
             v7_schema_hash = compute_file_sha256(schema_v7_path)
-            v7_meta_hash = compute_file_sha256(meta_v7_path)
 
-            if (v7_loc_hash == EXPECTED_HASHES.get(loc_v7_filename) and
-                v7_cal_hash == EXPECTED_HASHES.get(cal_v7_filename)):
-                try:
-                    self.location_model = joblib.load(loc_v7_path)
-                    self.calibrator = joblib.load(cal_v7_path)
-                    with open(schema_v7_path, "r") as f:
-                        self.feature_schema = json.load(f)
+            if (v7_loc_hash != EXPECTED_HASHES.get(loc_v7_filename) or
+                v7_cal_hash != EXPECTED_HASHES.get(cal_v7_filename) or
+                v7_schema_hash != EXPECTED_HASHES.get(schema_v7_filename)):
+                self.load_error = f"V7-compat artifact verification failed (loc={v7_loc_hash}, cal={v7_cal_hash}, schema={v7_schema_hash})"
+                self.is_loaded = False
+                self.location_model = None
+                self.calibrator = None
+                logger.error(self.load_error)
+                return
+
+            try:
+                self.location_model = joblib.load(loc_v7_path)
+                self.calibrator = joblib.load(cal_v7_path)
+                with open(schema_v7_path, "r") as f:
+                    self.feature_schema = json.load(f)
+                if os.path.exists(meta_v7_path):
                     with open(meta_v7_path, "r") as f:
                         self.metadata = json.load(f)
 
-                    if self.feature_schema.get("location_features") != FEATURE_COLUMNS_LOCATION_V7_COMPAT:
-                        raise ValueError("V7-compat feature schema does not match expected 47 features")
+                if self.feature_schema.get("location_features") != FEATURE_COLUMNS_LOCATION_V7_COMPAT:
+                    raise ValueError("V7-compat feature schema does not match expected 47 features")
 
-                    self.model_version = "cashout-location-xgb-v7-compat"
-                    self.time_model_version = "cashout-time-xgb-v3"
-                    self.location_feature_version = "v7_compat"
-                    self.location_hash = v7_loc_hash
-                    self.calibrator_hash = v7_cal_hash
-                    self.is_loaded = True
-                    logger.info("Successfully loaded and verified cashout-location-xgb-v7-compat (with V4 base dependency)")
-                    return
-                except Exception as e:
-                    logger.warning(f"V7-compat load failed, falling back to V4: {e}")
-            else:
-                logger.warning(f"V7-compat hash mismatch, falling back to V4: loc={v7_loc_hash}, cal={v7_cal_hash}")
+                self.model_version = "cashout-location-xgb-v7-compat"
+                self.time_model_version = "cashout-time-xgb-v3"
+                self.location_feature_version = "v7_compat"
+                self.candidate_pool_size = 25
+                self.location_hash = v7_loc_hash
+                self.calibrator_hash = v7_cal_hash
+                self.is_loaded = True
+                logger.info("Successfully loaded and verified cashout-location-xgb-v7-compat (with V4 base dependency)")
+                return
+            except Exception as e:
+                self.load_error = f"V7-compat load failed: {e}"
+                self.is_loaded = False
+                self.location_model = None
+                self.calibrator = None
+                logger.error(self.load_error)
+                return
 
-        # 3. Fallback to V4
-        schema_v4_path = os.path.join(self.artifacts_dir, "feature_schema_v4.json")
-        meta_v4_path = os.path.join(self.artifacts_dir, "model_metadata_v4.json")
-        try:
-            self.location_model = self.v4_model
-            self.calibrator = self.v4_calibrator
-            self.location_hash = self.v4_location_hash
-            self.calibrator_hash = self.v4_calibrator_hash
-            self.model_version = "cashout-location-xgb-v4"
-            self.time_model_version = "cashout-time-xgb-v3"
-            self.location_feature_version = "v3.1"
-            with open(schema_v4_path, "r") as f:
-                self.feature_schema = json.load(f)
-            with open(meta_v4_path, "r") as f:
-                self.metadata = json.load(f)
-            self.is_loaded = True
-            logger.info("Operating safely on cashout-location-xgb-v4 baseline")
-        except Exception as e:
-            self.load_error = f"Failed to initialize V4 baseline: {e}"
+        # 4. Fallback only if explicitly configured for v4
+        elif active_version == "v4":
+            schema_v4_path = os.path.join(self.artifacts_dir, "feature_schema_v4.json")
+            meta_v4_path = os.path.join(self.artifacts_dir, "model_metadata_v4.json")
+            try:
+                self.location_model = self.v4_model
+                self.calibrator = self.v4_calibrator
+                self.location_hash = self.v4_location_hash
+                self.calibrator_hash = self.v4_calibrator_hash
+                self.model_version = "cashout-location-xgb-v4"
+                self.time_model_version = "cashout-time-xgb-v3"
+                self.location_feature_version = "v3.1"
+                self.candidate_pool_size = 25
+                with open(schema_v4_path, "r") as f:
+                    self.feature_schema = json.load(f)
+                with open(meta_v4_path, "r") as f:
+                    self.metadata = json.load(f)
+                self.is_loaded = True
+                logger.info("Operating safely on cashout-location-xgb-v4 baseline")
+                return
+            except Exception as e:
+                self.load_error = f"Failed to initialize V4 baseline: {e}"
+                self.is_loaded = False
+                self.location_model = None
+                self.calibrator = None
+                logger.error(self.load_error)
+                return
+        else:
+            self.load_error = f"Unknown ACTIVE_LOCATION_MODEL_VERSION configuration: {active_version}"
+            self.is_loaded = False
+            self.location_model = None
+            self.calibrator = None
             logger.error(self.load_error)
-        except Exception as e:
-            self.load_error = f"Failed to load model artifacts: {str(e)}"
-            logger.error(self.load_error)
+            return
 
     def is_available(self) -> bool:
         return (
@@ -505,7 +610,13 @@ class MLPredictionProvider:
         )
 
         # 3. Build Multi-Modal Feature Matrices through Step 8 Service with cutoff
-        loc_res = build_location_features(db, complaint.id, top_k=self.candidate_pool_size, model_version="v3.1", analysis_as_of=analysis_as_of)
+        loc_res = build_location_features(
+            db,
+            complaint.id,
+            top_k=self.candidate_pool_size,
+            model_version=self.location_feature_version,
+            analysis_as_of=analysis_as_of
+        )
         time_res = build_time_features(db, complaint.id, analysis_as_of=analysis_as_of)
 
         if loc_res["status"] != "SUCCESS" or time_res["status"] != "SUCCESS":
@@ -523,13 +634,16 @@ class MLPredictionProvider:
                 "limitations": ["Candidate feature extraction could not be completed."]
             }
 
-        X_loc = loc_res["candidate_rows"]   # Shape: (25, 43)
-        candidates = loc_res["candidates"]  # 25 candidate dicts
-        X_time = time_res["values"]         # Shape: (20,)
+        X_loc = loc_res["candidate_rows"]
+        candidates = loc_res["candidates"]
+        X_time = time_res["values"]
 
         # 4. Actual Model Inference
-        # Location model inference (V7-compat stacked or V4 direct)
-        if self.model_version == "cashout-location-xgb-v7-compat":
+        # Location model inference (V8-debiased, V7-compat stacked, or V4 direct)
+        if self.model_version == "cashout-location-xgb-v8-debiased":
+            raw_scores = self.location_model.predict(X_loc)
+            cal_probs = self.calibrator.predict_proba(raw_scores.reshape(-1, 1))[:, 1]
+        elif self.model_version == "cashout-location-xgb-v7-compat":
             # 1. Base V4 inference
             v4_raw = self.v4_model.predict_proba(X_loc)[:, 1]
             v4_scores = self.v4_calibrator.predict_proba(v4_raw.reshape(-1, 1))[:, 1]
@@ -730,12 +844,15 @@ class MLPredictionProvider:
             limitations.append("Linked transaction movements are synthetic scenario data, not observed movements for this complaint.")
 
         # Phase 5: Faithful, immutable inference snapshot captured at prediction time
-        feature_names = list(
-            FEATURE_COLUMNS_LOCATION_V7_COMPAT
-            if "v7-compat" in self.model_version
-            else FEATURE_COLUMNS_LOCATION_V3_1
-        )
-        active_matrix = X_loc_compat if "v7-compat" in self.model_version else X_loc
+        if "v8-debiased" in self.model_version:
+            feature_names = list(FEATURE_COLUMNS_LOCATION_V8_DEBIASED)
+            active_matrix = X_loc
+        elif "v7-compat" in self.model_version:
+            feature_names = list(FEATURE_COLUMNS_LOCATION_V7_COMPAT)
+            active_matrix = X_loc_compat
+        else:
+            feature_names = list(FEATURE_COLUMNS_LOCATION_V3_1)
+            active_matrix = X_loc
         schema_file = f"feature_schema_{self.location_feature_version}.json"
         schema_hash = EXPECTED_HASHES.get(schema_file)
 
@@ -745,7 +862,10 @@ class MLPredictionProvider:
 
         for c_idx, c_obj in enumerate(candidates):
             cid_str = str(c_obj["id"])
-            candidate_features_dict[cid_str] = [float(val) for val in active_matrix[c_idx]]
+            candidate_features_dict[cid_str] = [
+                float(val) if (val is not None and not np.isnan(val) and not np.isinf(val)) else 0.0
+                for val in active_matrix[c_idx]
+            ]
             official_scores_dict[cid_str] = float(round(cal_probs[c_idx], 4))
             r_pos = ranked_indices.index(c_idx) + 1 if c_idx in ranked_indices else None
             candidate_metadata_list.append({
@@ -833,7 +953,7 @@ class MLPredictionProvider:
                 "transaction_context_type": loc_res["provenance"].get("context_type"),
                 "graph_nodes": loc_res["provenance"].get("graph_node_count"),
                 "graph_edges": loc_res["provenance"].get("graph_edge_count"),
-                "features_used": 47 if "v7-compat" in self.model_version else 43,
+                "features_used": 49 if "v8-debiased" in self.model_version else (47 if "v7-compat" in self.model_version else 43),
                 "time_features_used": 20,
                 "transaction_count": len(transactions),
                 "source_scenario": ctx.get("source_scenario"),
@@ -973,6 +1093,10 @@ class PredictionService:
     def __init__(self):
         self.ml_provider = MLPredictionProvider()
         self.demo_provider = DemoPredictionProvider()
+
+    def reload_models(self):
+        """Re-initializes the ML prediction provider reflecting current environment configuration."""
+        self.ml_provider = MLPredictionProvider()
 
     def predict_complaint(self, db: Session, complaint_id: int, analysis_as_of: Optional[datetime] = None) -> PredictionResultDict:
         """

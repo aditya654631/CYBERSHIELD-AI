@@ -103,7 +103,7 @@ def _format_prediction_response(prediction: Any, complaint: Complaint) -> dict:
 
     # Ensure locations are explicitly sorted by rank ASC
     locations = sorted(prediction.locations, key=lambda x: x.rank)
-    primary_loc = locations[0].location_name if locations else "Vijay Nagar, Indore"
+    primary_loc = locations[0].location_name if locations else "Connaught Place, Delhi"
 
     top_loc_items = [
         {

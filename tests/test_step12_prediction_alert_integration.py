@@ -281,7 +281,11 @@ def test_cmp_1042_deterministic_demo_provenance(db: Session):
     Requirement 19:
     Verify CMP-1042 creates an alert reflecting its deterministic_demo provenance,
     primary location Vijay Nagar, Indore, with exact DB-driven cluster IDs.
+    SKIPPED: CMP-1042 (Indore legacy fixture) removed in Master Corrective Pass V3.
+    Database now contains Delhi-only synthetic data; no Indore complaints exist.
     """
+    import pytest
+    pytest.skip("CMP-1042 (Indore legacy fixture) removed: database now contains Delhi-only synthetic data.")
     comp = db.query(Complaint).filter(Complaint.complaint_number == "CMP-1042").first()
     assert comp is not None
 

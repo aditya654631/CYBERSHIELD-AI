@@ -10,6 +10,7 @@ verified callback evidence, and status history tracking.
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
 
 
 revision = "0017_phase8_bank_adapter_and_lifecycle"
@@ -19,27 +20,60 @@ depends_on = None
 
 
 def upgrade():
-    with op.batch_alter_table("bank_actions") as batch_op:
-        batch_op.add_column(sa.Column("environment", sa.String(50), server_default="SIMULATED", nullable=False))
-        batch_op.add_column(sa.Column("target_account_number", sa.String(100), nullable=True))
-        batch_op.add_column(sa.Column("target_ifsc", sa.String(20), nullable=True))
-        batch_op.add_column(sa.Column("requested_amount", sa.Numeric(14, 2), nullable=True))
-        batch_op.add_column(sa.Column("held_amount", sa.Numeric(14, 2), server_default="0.0", nullable=False))
-        batch_op.add_column(sa.Column("currency", sa.String(10), server_default="INR", nullable=False))
-        batch_op.add_column(sa.Column("reviewed_by_user_id", sa.Integer(), nullable=True))
-        batch_op.add_column(sa.Column("held_at", sa.DateTime(), nullable=True))
-        batch_op.add_column(sa.Column("released_at", sa.DateTime(), nullable=True))
-        batch_op.add_column(sa.Column("cancelled_at", sa.DateTime(), nullable=True))
-        batch_op.add_column(sa.Column("release_reason", sa.Text(), nullable=True))
-        batch_op.add_column(sa.Column("rejection_reason", sa.Text(), nullable=True))
-        batch_op.add_column(sa.Column("callback_evidence", sa.JSON(), nullable=True))
-        batch_op.add_column(sa.Column("status_history", sa.JSON(), nullable=True))
-        batch_op.create_foreign_key("fk_bank_actions_reviewed_by_user", "users", ["reviewed_by_user_id"], ["id"], ondelete="SET NULL")
-        batch_op.create_index("ix_bank_actions_environment", ["environment"], unique=False)
+    bind = op.get_bind()
+    insp = Inspector.from_engine(bind)
+
+    def get_column_names(table_name):
+        try:
+            return {c["name"] for c in insp.get_columns(table_name)}
+        except Exception:
+            return set()
+
+    def get_existing_indexes(table_name):
+        try:
+            return {ix["name"] for ix in insp.get_indexes(table_name)}
+        except Exception:
+            return set()
+
+    ba_cols = get_column_names("bank_actions")
+    ba_ixs = get_existing_indexes("bank_actions")
+
+    with op.batch_alter_table("bank_actions", schema=None) as batch_op:
+        if "environment" not in ba_cols:
+            batch_op.add_column(sa.Column("environment", sa.String(50), server_default="SIMULATED", nullable=False))
+        if "target_account_number" not in ba_cols:
+            batch_op.add_column(sa.Column("target_account_number", sa.String(100), nullable=True))
+        if "target_ifsc" not in ba_cols:
+            batch_op.add_column(sa.Column("target_ifsc", sa.String(20), nullable=True))
+        if "requested_amount" not in ba_cols:
+            batch_op.add_column(sa.Column("requested_amount", sa.Numeric(14, 2), nullable=True))
+        if "held_amount" not in ba_cols:
+            batch_op.add_column(sa.Column("held_amount", sa.Numeric(14, 2), server_default="0.0", nullable=False))
+        if "currency" not in ba_cols:
+            batch_op.add_column(sa.Column("currency", sa.String(10), server_default="INR", nullable=False))
+        if "reviewed_by_user_id" not in ba_cols:
+            batch_op.add_column(sa.Column("reviewed_by_user_id", sa.Integer(), nullable=True))
+            batch_op.create_foreign_key("fk_bank_actions_reviewed_by_user", "users", ["reviewed_by_user_id"], ["id"], ondelete="SET NULL")
+        if "held_at" not in ba_cols:
+            batch_op.add_column(sa.Column("held_at", sa.DateTime(), nullable=True))
+        if "released_at" not in ba_cols:
+            batch_op.add_column(sa.Column("released_at", sa.DateTime(), nullable=True))
+        if "cancelled_at" not in ba_cols:
+            batch_op.add_column(sa.Column("cancelled_at", sa.DateTime(), nullable=True))
+        if "release_reason" not in ba_cols:
+            batch_op.add_column(sa.Column("release_reason", sa.Text(), nullable=True))
+        if "rejection_reason" not in ba_cols:
+            batch_op.add_column(sa.Column("rejection_reason", sa.Text(), nullable=True))
+        if "callback_evidence" not in ba_cols:
+            batch_op.add_column(sa.Column("callback_evidence", sa.JSON(), nullable=True))
+        if "status_history" not in ba_cols:
+            batch_op.add_column(sa.Column("status_history", sa.JSON(), nullable=True))
+        if "ix_bank_actions_environment" not in ba_ixs:
+            batch_op.create_index("ix_bank_actions_environment", ["environment"], unique=False)
 
 
 def downgrade():
-    with op.batch_alter_table("bank_actions") as batch_op:
+    with op.batch_alter_table("bank_actions", schema=None) as batch_op:
         batch_op.drop_index("ix_bank_actions_environment")
         batch_op.drop_constraint("fk_bank_actions_reviewed_by_user", type_="foreignkey")
         batch_op.drop_column("status_history")

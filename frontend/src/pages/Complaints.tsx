@@ -62,25 +62,25 @@ export const Complaints: React.FC = () => {
   const [locationCatalog, setLocationCatalog] = useState<HotspotCluster[]>([]);
 
   // Modal Form Inputs: Section A - Complaint Details
-  const [newVictimName, setNewVictimName] = useState('Aman Sharma');
+  const [newVictimName, setNewVictimName] = useState('');
   const [newFraudType, setNewFraudType] = useState('Investment Scam');
-  const [newAmount, setNewAmount] = useState('85000');
+  const [newAmount, setNewAmount] = useState('');
   const [newIncidentTime, setNewIncidentTime] = useState(() => toLocalDateTimeInput(new Date(Date.now() - 3600000 * 2)));
   const [newReportedAt, setNewReportedAt] = useState(() => toLocalDateTimeInput());
-  const [newDescription, setNewDescription] = useState('Victim deceived into transferring funds through fraudulent investment platform.');
+  const [newDescription, setNewDescription] = useState('');
 
   // Section B - Location
   const [newDistrict, setNewDistrict] = useState('South West Delhi');
-  const [newLocality, setNewLocality] = useState('Dwarka');
+  const [newLocality, setNewLocality] = useState('');
   const [newVictimLat, setNewVictimLat] = useState('');
   const [newVictimLon, setNewVictimLon] = useState('');
 
   // Section C - Transaction Details
   const [newChannel, setNewChannel] = useState('UPI');
-  const [newVictimBank, setNewVictimBank] = useState('State Bank of India');
-  const [newBeneficiaryBank, setNewBeneficiaryBank] = useState('HDFC Bank');
-  const [newBeneficiaryId, setNewBeneficiaryId] = useState('mule.recipient@okhdfcbank');
-  const [newTransactionRef, setNewTransactionRef] = useState(() => `UTR-DL-${Date.now().toString().slice(-6)}`);
+  const [newVictimBank, setNewVictimBank] = useState('');
+  const [newBeneficiaryBank, setNewBeneficiaryBank] = useState('');
+  const [newBeneficiaryId, setNewBeneficiaryId] = useState('');
+  const [newTransactionRef, setNewTransactionRef] = useState('');
   const [newTransactionTime, setNewTransactionTime] = useState(() => toLocalDateTimeInput(new Date(Date.now() - 3600000 * 2)));
   const [newIfsc, setNewIfsc] = useState('');
   const [newBeneficiaryAccount, setNewBeneficiaryAccount] = useState('');
@@ -551,7 +551,7 @@ export const Complaints: React.FC = () => {
                 <th className="py-3 px-3.5 whitespace-nowrap">Alert</th>
                 <th className="py-3 px-3.5 whitespace-nowrap">Case Status</th>
                 <th className="py-3 px-3.5 whitespace-nowrap">Reported</th>
-                <th className="py-3 px-3.5 text-right whitespace-nowrap">Action</th>
+                <th className="py-3 px-3.5 text-right whitespace-nowrap sticky right-0 bg-slate-50 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] z-10">Action</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 text-slate-800">
@@ -724,7 +724,9 @@ export const Complaints: React.FC = () => {
                       </td>
 
                       {/* ACTION */}
-                      <td className="py-3 px-3.5 text-right whitespace-nowrap">
+                      <td className={`py-3 px-3.5 text-right whitespace-nowrap sticky right-0 z-10 shadow-[-4px_0_6px_-2px_rgba(0,0,0,0.06)] ${
+                        isHighlighted ? 'bg-blue-50' : 'bg-white group-hover:bg-slate-50'
+                      }`}>
                         <div className="flex items-center justify-end space-x-1.5">
                           <button
                             onClick={() => navigate(`/cases/${c.complaint_number}`)}

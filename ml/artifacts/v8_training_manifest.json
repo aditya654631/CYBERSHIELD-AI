@@ -1,0 +1,24 @@
+{
+  "manifest_version": "2.0.0",
+  "model_id": "cashout-location-xgb-v8-debiased",
+  "build_date": "2026-09-21T21:32:28.899246+00:00",
+  "feature_count": 49,
+  "cluster_universe_size": 60,
+  "hashes": {
+    "location_ranker_v8_debiased.joblib": "69f300b4b208f2c3a606f54d84f992b665f30602de0ebe8f77f6561d625bfd71",
+    "location_calibrator_v8_debiased.joblib": "e2ec24047c42b98a4aefd8c0951f125adf2947a5c1c198136dde9c77c4cb8dd1",
+    "feature_schema_v8_debiased.json": "68c9643cea2c3f2480ca085e5da37299568cf72fef98e3f2c7f39b840c514b4b",
+    "v8_lime_background.npy": "dab72448527c140d969e650048d0dc3c3515dbeb034effece3fdd2ca5d047f14"
+  },
+  "metrics": {
+    "r1": 7.62,
+    "r3": 23.8,
+    "r5": 34.87,
+    "mrr": 0.2141,
+    "median_error_km": 7.1,
+    "mean_error_km": 8.98,
+    "ece": 0.0001,
+    "brier_score": 0.0161
+  },
+  "qualification_status": "PENDING_EVALUATION"
+}

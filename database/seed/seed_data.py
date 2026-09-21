@@ -377,8 +377,11 @@ def seed_delhi_operational_dataset(db: Session, clusters: List[LocationCluster],
     for w in dataset["withdrawals"]:
         a_id = atm_map.get(w["atm_code"])
         acc_id = acc_map.get(w["account_number"])
+        c_id = comp_map.get(w.get("complaint_number"))
         if a_id and acc_id and (a_id, acc_id, w["timestamp"]) not in existing_withdrawals:
             w_objs.append(Withdrawal(
+                withdrawal_ref=w.get("withdrawal_ref"),
+                complaint_id=c_id,
                 atm_id=a_id,
                 account_id=acc_id,
                 amount=w["amount"],
@@ -395,18 +398,16 @@ def seed_delhi_operational_dataset(db: Session, clusters: List[LocationCluster],
 
 def seed_database(db: Session) -> None:
     """
-    Main seed orchestrator.
-    Idempotently executes all 4 seeding phases:
+    Main seed orchestrator for Delhi NCT operational pilot.
+    Idempotently executes core seeding phases:
     1. Authentication and Organizations
-    2. CMP-1042 Prototype Demo Case
-    3. Delhi Geography (60 clusters, 240 ATMs)
-    4. Delhi Operational Dataset (3,000 complaints, 6,000 accounts, ~50,000 transactions, ~2,100 withdrawals)
+    2. Delhi Geography (60 clusters, 240 ATMs)
+    3. Delhi Operational Dataset (3,000 complaints, 6,000 accounts, ~50,000 transactions, ~2,100 withdrawals)
     """
     t_start = time.time()
     print("[Seed] CyberShield AI idempotent database seeding starting...")
 
     seed_auth_and_organizations(db)
-    seed_demo_case_cmp1042(db)
     clusters, atms = seed_delhi_geography(db)
     seed_delhi_operational_dataset(db, clusters, atms)
 

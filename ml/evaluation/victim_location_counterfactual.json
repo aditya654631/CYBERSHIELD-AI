@@ -1,0 +1,169 @@
+{
+  "test_name": "Counterfactual Victim-Origin Invariance Test",
+  "description": "Evaluates prediction stability when victim location changes but money network evidence is fixed in East Delhi.",
+  "passed": true,
+  "terminal_mule_zone": "EAST",
+  "scenarios_evaluated": [
+    {
+      "scenario": "Dwarka (South West)",
+      "victim_origin": "SOUTH_WEST_DWARKA",
+      "terminal_mule_zone": "EAST",
+      "top1_predicted_cluster": "Mayur Vihar Phase 1, Delhi",
+      "top1_predicted_zone": "EAST",
+      "top1_probability": 0.1018,
+      "top3_candidates": [
+        {
+          "rank": 1,
+          "cluster_id": 59,
+          "name": "Mayur Vihar Phase 1, Delhi",
+          "zone": "EAST",
+          "probability": 0.1018
+        },
+        {
+          "rank": 2,
+          "cluster_id": 57,
+          "name": "Laxmi Nagar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0994
+        },
+        {
+          "rank": 3,
+          "cluster_id": 58,
+          "name": "Preet Vihar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0984
+        }
+      ]
+    },
+    {
+      "scenario": "Rohini (North West)",
+      "victim_origin": "NORTH_WEST",
+      "terminal_mule_zone": "EAST",
+      "top1_predicted_cluster": "Mayur Vihar Phase 1, Delhi",
+      "top1_predicted_zone": "EAST",
+      "top1_probability": 0.1018,
+      "top3_candidates": [
+        {
+          "rank": 1,
+          "cluster_id": 59,
+          "name": "Mayur Vihar Phase 1, Delhi",
+          "zone": "EAST",
+          "probability": 0.1018
+        },
+        {
+          "rank": 2,
+          "cluster_id": 57,
+          "name": "Laxmi Nagar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0994
+        },
+        {
+          "rank": 3,
+          "cluster_id": 58,
+          "name": "Preet Vihar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0984
+        }
+      ]
+    },
+    {
+      "scenario": "Saket (South)",
+      "victim_origin": "SOUTH",
+      "terminal_mule_zone": "EAST",
+      "top1_predicted_cluster": "Mayur Vihar Phase 1, Delhi",
+      "top1_predicted_zone": "EAST",
+      "top1_probability": 0.1018,
+      "top3_candidates": [
+        {
+          "rank": 1,
+          "cluster_id": 59,
+          "name": "Mayur Vihar Phase 1, Delhi",
+          "zone": "EAST",
+          "probability": 0.1018
+        },
+        {
+          "rank": 2,
+          "cluster_id": 57,
+          "name": "Laxmi Nagar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0994
+        },
+        {
+          "rank": 3,
+          "cluster_id": 58,
+          "name": "Preet Vihar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0984
+        }
+      ]
+    },
+    {
+      "scenario": "Connaught Place (Central)",
+      "victim_origin": "CENTRAL_NEW_DELHI",
+      "terminal_mule_zone": "EAST",
+      "top1_predicted_cluster": "Mayur Vihar Phase 1, Delhi",
+      "top1_predicted_zone": "EAST",
+      "top1_probability": 0.1018,
+      "top3_candidates": [
+        {
+          "rank": 1,
+          "cluster_id": 59,
+          "name": "Mayur Vihar Phase 1, Delhi",
+          "zone": "EAST",
+          "probability": 0.1018
+        },
+        {
+          "rank": 2,
+          "cluster_id": 57,
+          "name": "Laxmi Nagar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0994
+        },
+        {
+          "rank": 3,
+          "cluster_id": 58,
+          "name": "Preet Vihar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0984
+        }
+      ]
+    },
+    {
+      "scenario": "Preet Vihar (East)",
+      "victim_origin": "EAST",
+      "terminal_mule_zone": "EAST",
+      "top1_predicted_cluster": "Mayur Vihar Phase 1, Delhi",
+      "top1_predicted_zone": "EAST",
+      "top1_probability": 0.1018,
+      "top3_candidates": [
+        {
+          "rank": 1,
+          "cluster_id": 59,
+          "name": "Mayur Vihar Phase 1, Delhi",
+          "zone": "EAST",
+          "probability": 0.1018
+        },
+        {
+          "rank": 2,
+          "cluster_id": 57,
+          "name": "Laxmi Nagar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0994
+        },
+        {
+          "rank": 3,
+          "cluster_id": 58,
+          "name": "Preet Vihar, Delhi",
+          "zone": "EAST",
+          "probability": 0.0984
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "all_top1_in_terminal_zone": true,
+    "unique_top1_predictions_count": 1,
+    "top1_cluster_name": "Mayur Vihar Phase 1, Delhi",
+    "invariance_status": "PASS (Invariance Confirmed)"
+  }
+}

@@ -152,16 +152,16 @@ export const RiskMap: React.FC = () => {
     return () => window.removeEventListener('resize', updateHeight);
   }, []);
 
-  // Layer Toggles
+  // Layer Toggles (In Case Focus mode, all Delhi-wide context defaults to OFF)
   const [showPredictionZones, setShowPredictionZones] = useState<boolean>(true);
-  const [showHotspots, setShowHotspots] = useState<boolean>(true);
+  const [showHotspots, setShowHotspots] = useState<boolean>(!initialCaseParam);
   const [showAtms, setShowAtms] = useState<boolean>(false);
 
   // 1. Initial Load: Fetch Complaints List from Real API
   useEffect(() => {
     const loadComplaints = async () => {
       try {
-        const comps = await api.getComplaints({ limit: 100, state: 'Delhi' });
+        const comps = await api.getComplaints({ limit: 100, region_id: selectedRegionId });
         let allComps = [...comps];
 
         const hasClusterParam = Boolean(searchParams.get('cluster'));
@@ -504,7 +504,18 @@ export const RiskMap: React.FC = () => {
             <span className="text-xs text-blue-700 font-semibold shrink-0">Active Case:</span>
             <select
               value={selectedComplaintId}
-              onChange={(e) => setSelectedComplaintId(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                setSelectedComplaintId(val);
+                if (val) {
+                  setShowHotspots(false);
+                  setShowAtms(false);
+                  setShowPredictionZones(true);
+                } else {
+                  setShowHotspots(true);
+                  setShowAtms(false);
+                }
+              }}
               className="bg-transparent text-xs text-slate-800 focus:outline-none cursor-pointer font-medium w-full sm:max-w-[220px]"
             >
               <option value="" className="bg-white text-slate-500">-- Overview (No Single Case) --</option>

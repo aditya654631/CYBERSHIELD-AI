@@ -96,7 +96,7 @@ export const api = {
   },
 
   // Complaints
-  getComplaints: async (params?: { fraud_type?: string; risk_level?: string; search?: string; limit?: number; skip?: number; state?: string }) => {
+  getComplaints: async (params?: { fraud_type?: string; risk_level?: string; search?: string; limit?: number; skip?: number; state?: string; region_id?: string }) => {
     const res = await apiClient.get<Complaint[]>('/complaints', { params });
     return res.data;
   },
@@ -329,6 +329,19 @@ export const api = {
   getComplaintReport: async (complaintId: string | number) => {
     const res = await apiClient.get<InvestigatorReportData>(`/complaints/${complaintId}/report`);
     return res.data;
+  },
+  exportComplaintDossier: async (complaintId: string | number, format: string = 'html') => {
+    const res = await apiClient.get<Blob>(
+      `/complaints/${complaintId}/report/export`,
+      {
+        params: {
+          format,
+          download: true,
+        },
+        responseType: 'blob',
+      }
+    );
+    return res;
   },
   getReportExportUrl: (complaintId: string | number, format: string = 'html', download: boolean = false) => {
     const base = apiClient.defaults.baseURL || '/api/v1';

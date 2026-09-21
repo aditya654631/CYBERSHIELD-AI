@@ -499,6 +499,8 @@ class DelhiSyntheticDataGenerator:
                 max_tx_time = incident_time
 
             # 3. Pre-Withdrawal Corridor Context & Probabilistic Target Sampling
+            # Target cash-out cluster emerges causally from the money network (mules, layering, hotspots)
+            # ZERO direct shortcuts based on victim origin geography.
             if terminal_transactions:
                 chosen_term_tx, term_account = max(terminal_transactions, key=lambda pair: pair[0]["amount"])
             else:
@@ -507,45 +509,55 @@ class DelhiSyntheticDataGenerator:
 
             term_zone = term_account.get("district", origin_zone)
 
-            # Probabilistic Cash-Out Corridor Mixture:
-            # A: LOCAL (35%)
-            # B: MULE CORRIDOR (35%)
-            # C: HISTORICAL HOTSPOT (18%)
-            # D: CROSS ZONE / EVASION (12%)
+            # Collect intermediate layering account zones across the multi-hop network
+            int_zones = []
+            for layer_idx, layer in enumerate(layers_nodes[:-1]):
+                for m_idx in layer:
+                    m_z = accounts[m_idx].get("district")
+                    if m_z:
+                        int_zones.append(m_z)
+
+            # Causal Cash-Out Corridor Mixture:
+            # 1. TERMINAL_MULE_CORRIDOR (50%): cash-out occurs near terminal recipient mule node
+            # 2. INTERMEDIARY_CORRIDOR (25%): cash-out occurs at intermediary layering node
+            # 3. FRAUD_HOTSPOT (15%): cash-out occurs at top Delhi cybercrime commercial hotspots
+            # 4. CROSS_ZONE_EVASION (10%): deliberate evasive cash-out across distant Delhi zones
             r_scen = self.rng.random()
-            if r_scen < 0.35:
-                # LOCAL CASH-OUT (35%)
-                scen_pattern = "LOCAL"
-                if self.rng.random() < 0.60:
-                    target_cluster = origin_cluster
-                else:
-                    zone_cands = [c for c in clusters_by_zone.get(origin_zone, []) if c["name"] != origin_cluster["name"]]
-                    target_cluster = self.sample_cluster_weighted(zone_cands) if zone_cands else origin_cluster
-            elif r_scen < 0.70:
-                # MULE CORRIDOR CASH-OUT (35%)
-                scen_pattern = "MULE_CORRIDOR"
-                r_mule = self.rng.random()
-                if r_mule < 0.70:
+            if r_scen < 0.50:
+                scen_pattern = "TERMINAL_MULE_CORRIDOR"
+                r_sub = self.rng.random()
+                if r_sub < 0.70:
                     target_cluster = self.sample_cluster_weighted(clusters_by_zone.get(term_zone, []))
-                elif r_mule < 0.90:
-                    adj_zones = ZONE_ADJACENCY.get(term_zone, [origin_zone])
+                elif r_sub < 0.90:
+                    adj_zones = ZONE_ADJACENCY.get(term_zone, [term_zone])
                     chosen_adj = self.rng.choice(adj_zones)
                     target_cluster = self.sample_cluster_weighted(clusters_by_zone.get(chosen_adj, []))
                 else:
                     target_cluster = self.sample_cluster_weighted(top_hotspots)
-            elif r_scen < 0.88:
-                # HISTORICAL HOTSPOT CASH-OUT (18%)
-                scen_pattern = "HISTORICAL_HOTSPOT"
-                favored_zones = FRAUD_TYPE_ZONE_AFFINITY.get(fraud_type, [origin_zone])
+            elif r_scen < 0.75:
+                scen_pattern = "INTERMEDIARY_CORRIDOR"
+                if int_zones:
+                    chosen_int_zone = self.rng.choice(int_zones)
+                    r_sub = self.rng.random()
+                    if r_sub < 0.75:
+                        target_cluster = self.sample_cluster_weighted(clusters_by_zone.get(chosen_int_zone, []))
+                    else:
+                        adj_zones = ZONE_ADJACENCY.get(chosen_int_zone, [chosen_int_zone])
+                        chosen_adj = self.rng.choice(adj_zones)
+                        target_cluster = self.sample_cluster_weighted(clusters_by_zone.get(chosen_adj, []))
+                else:
+                    target_cluster = self.sample_cluster_weighted(clusters_by_zone.get(term_zone, []))
+            elif r_scen < 0.90:
+                scen_pattern = "FRAUD_HOTSPOT"
+                favored_zones = FRAUD_TYPE_ZONE_AFFINITY.get(fraud_type, [])
                 favored_clusters = [c for c in top_hotspots if c.get("zone", c.get("district")) in favored_zones]
                 if favored_clusters and self.rng.random() < 0.75:
                     target_cluster = self.sample_cluster_weighted(favored_clusters)
                 else:
                     target_cluster = self.sample_cluster_weighted(top_hotspots)
             else:
-                # CROSS ZONE / EVASION (12%)
-                scen_pattern = "CROSS_ZONE"
-                distant_zones = [z for z in clusters_by_zone.keys() if z != origin_zone and z != term_zone]
+                scen_pattern = "CROSS_ZONE_EVASION"
+                distant_zones = [z for z in clusters_by_zone.keys() if z != term_zone and z != origin_zone]
                 if distant_zones:
                     chosen_d_zone = self.rng.choice(distant_zones)
                     target_cluster = self.sample_cluster_weighted(clusters_by_zone.get(chosen_d_zone, []))
@@ -553,7 +565,7 @@ class DelhiSyntheticDataGenerator:
                     target_cluster = self.sample_cluster_weighted(top_hotspots)
 
             if target_cluster is None:
-                target_cluster = origin_cluster
+                target_cluster = self.sample_cluster_weighted(clusters)
 
             scenario_counts[scen_pattern] += 1
 

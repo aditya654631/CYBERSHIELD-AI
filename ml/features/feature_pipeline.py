@@ -145,6 +145,30 @@ FEATURE_COLUMNS_LOCATION_V3_1 = list(FEATURE_COLUMNS_LOCATION_V3) + [
     "dist_to_terminal_zone_km"
 ]
 
+# V8 Debiased Location Schema (derived from V3.1 minus victim-origin shortcuts, plus new within-zone discriminators)
+DEBIASED_EXCLUDED_FEATURES = {
+    "distance_from_victim",
+    "candidate_same_complaint_zone",
+    "dist_to_complaint_zone_km",
+}
+# Base 40 features (V3.1 minus 3 forbidden victim-origin features)
+_V8_BASE_FEATURES = [
+    col for col in FEATURE_COLUMNS_LOCATION_V3_1 if col not in DEBIASED_EXCLUDED_FEATURES
+]
+# 9 additional within-zone discriminative features (NO victim-location, all pre-outcome cluster infrastructure)
+_V8_EXTRA_FEATURES = [
+    "dist_to_terminal_centroid_km",       # Continuous distance to terminal zone centroid
+    "log_cluster_network_exposure",        # log(hist_count * risk) — risk-weighted history
+    "cluster_fraud_type_match_score",      # Fraud-type × cluster historical match (v8 version, continuous)
+    "cluster_channel_match_score",         # Payment channel × cluster historical co-occurrence
+    "cluster_hourly_match_score",          # Hour-of-day × cluster cashout probability
+    "cluster_weekday_match_score",         # Weekday class × cluster cashout probability
+    "atm_density_log",                     # log(atm_density+1) for scale invariance
+    "cluster_risk_x_count",                # Product of risk_score × log(historical_count)
+    "dist_to_second_account_zone_km",      # Distance to second-most-common tx account zone centroid
+]
+FEATURE_COLUMNS_LOCATION_V8_DEBIASED = _V8_BASE_FEATURES + _V8_EXTRA_FEATURES
+
 FEATURE_COLUMNS_LOCATION = [
     "log_amount",
     "fraud_type_encoded",
@@ -836,6 +860,167 @@ class FeaturePipeline:
 
         X_location = np.array(location_rows, dtype=np.float32) if location_rows else np.empty((0, len(FEATURE_COLUMNS_LOCATION_V3_1)), dtype=np.float32)
         return X_location, X_time, FEATURE_COLUMNS_LOCATION_V3_1, self.time_feature_names
+
+    def build_candidate_row_v8_debiased(
+        self,
+        base_features: Dict[str, Any],
+        graph_tx_features: Dict[str, Any],
+        candidate: Dict[str, Any],
+        terminal_zone: Optional[str] = None,
+        all_tx_zones: Optional[Any] = None
+    ) -> Dict[str, Any]:
+        """
+        Builds a single candidate row with (40 + 9) = 49 features for Location Model V8 Debiased.
+        Excludes distance_from_victim, candidate_same_complaint_zone, and dist_to_complaint_zone_km.
+        Adds 9 new within-zone discriminative features (all pre-outcome cluster infrastructure).
+        """
+        row_31 = self.build_candidate_row_v3_1(
+            base_features=base_features,
+            graph_tx_features=graph_tx_features,
+            candidate=candidate,
+            comp_zone=None,
+            terminal_zone=terminal_zone,
+            all_tx_zones=all_tx_zones
+        )
+        # Keep all V3.1 base features that are allowed in V8
+        row = {k: row_31[k] for k in _V8_BASE_FEATURES if k in row_31}
+
+        # --- 9 new within-zone discriminative features ---
+        c_lat = float(candidate.get("lat") or candidate.get("latitude") or 28.6139)
+        c_lon = float(candidate.get("lon") or candidate.get("longitude") or 77.2090)
+        c_zone = candidate.get("district") or candidate.get("zone") or ""
+        f_type_code = float(base_features.get("fraud_type_encoded", 0.0))
+        ch_code = float(base_features.get("payment_channel_encoded", 1.0))
+        tx_hour = float(base_features.get("transaction_hour", 12.0))
+        is_weekend = float(base_features.get("weekend_flag", 0.0))
+        cl_count = float(candidate.get("historical_cashout_count", 230.0))
+        cl_risk = float(candidate.get("historical_risk", 0.50))
+        atm_dens = float(candidate.get("atm_density", 15.0))
+
+        # 1. Continuous distance to terminal zone centroid
+        if terminal_zone and terminal_zone in DELHI_ZONE_CENTROIDS:
+            tz_lat, tz_lon = DELHI_ZONE_CENTROIDS[terminal_zone]
+            dist_terminal_centroid = haversine_km(tz_lat, tz_lon, c_lat, c_lon)
+        else:
+            dist_terminal_centroid = float("nan")
+        row["dist_to_terminal_centroid_km"] = dist_terminal_centroid
+
+        # 2. log(risk * count) — risk-weighted network exposure
+        row["log_cluster_network_exposure"] = float(np.log1p(cl_risk * max(1.0, cl_count)))
+
+        # 3. Fraud-type × cluster historical match (fraud-code-scaled risk proxy, continuous)
+        ft_weight = {1.0: 1.4, 2.0: 1.3, 3.0: 1.1, 4.0: 1.0, 5.0: 1.2, 6.0: 0.9}.get(f_type_code, 1.0)
+        row["cluster_fraud_type_match_score"] = round(cl_risk * ft_weight, 4)
+
+        # 4. Payment channel × cluster historical co-occurrence (channel-code-scaled)
+        ch_weight = {1.0: 1.3, 2.0: 1.2, 3.0: 0.9, 4.0: 0.8, 5.0: 1.0, 6.0: 1.0}.get(ch_code, 1.0)
+        row["cluster_channel_match_score"] = round(cl_risk * ch_weight, 4)
+
+        # 5. Hour-of-day × cluster cashout probability (peak hours 9-11, 14-16, 18-20 = high)
+        if 9 <= tx_hour <= 11 or 14 <= tx_hour <= 16 or 18 <= tx_hour <= 20:
+            hour_factor = 1.3
+        elif 6 <= tx_hour <= 9 or 11 <= tx_hour <= 14:
+            hour_factor = 1.0
+        else:
+            hour_factor = 0.7
+        row["cluster_hourly_match_score"] = round(cl_risk * hour_factor, 4)
+
+        # 6. Weekday class × cluster cashout probability
+        row["cluster_weekday_match_score"] = round(cl_risk * (0.9 if is_weekend > 0.5 else 1.1), 4)
+
+        # 7. log(atm_density+1) for scale invariance
+        row["atm_density_log"] = float(np.log1p(atm_dens))
+
+        # 8. risk_score × log(historical_count) — high-traffic high-risk product
+        row["cluster_risk_x_count"] = round(cl_risk * float(np.log1p(cl_count)), 4)
+
+        # 9. Distance to second-most-common tx account zone centroid
+        if all_tx_zones and len(all_tx_zones) >= 2:
+            # Sort zone set and pick the second zone (not the terminal zone)
+            sorted_zones = sorted(str(z) for z in all_tx_zones if str(z) != str(terminal_zone or ""))
+            second_zone = sorted_zones[0] if sorted_zones else None
+            if second_zone and second_zone in DELHI_ZONE_CENTROIDS:
+                sz_lat, sz_lon = DELHI_ZONE_CENTROIDS[second_zone]
+                dist_second = haversine_km(sz_lat, sz_lon, c_lat, c_lon)
+            else:
+                dist_second = float("nan")
+        else:
+            dist_second = float("nan")
+        row["dist_to_second_account_zone_km"] = dist_second
+
+        return row
+
+    def build_candidate_matrix_v8_debiased(
+        self,
+        complaint: Dict[str, Any],
+        candidates: List[Dict[str, Any]],
+        transactions: Optional[List[Any]] = None,
+        graph_metrics: Optional[Dict[str, Any]] = None,
+        terminal_zone: Optional[str] = None,
+        all_tx_zones: Optional[Any] = None
+    ) -> Tuple[np.ndarray, np.ndarray, List[str], List[str]]:
+        """
+        Builds the 40-feature Location Model V8 Debiased candidate matrix for a given complaint.
+        Evaluates candidate clusters strictly against transaction network evidence and cluster infrastructure.
+        """
+        base = self.extract_complaint_base_v3(complaint)
+        gtx = self.extract_graph_and_tx_features_v3(base, transactions, graph_metrics)
+
+        # Resolve zones if not explicitly passed
+        if terminal_zone is None or all_tx_zones is None:
+            res_term = None
+            res_all = set()
+            if transactions:
+                max_h = -1
+                term_cand_txs = []
+                for tx in transactions:
+                    hop = getattr(tx, "hop_number", None)
+                    if hop is None and isinstance(tx, dict):
+                        hop = tx.get("hop_number")
+                    hop = int(hop or 1)
+                    if hop > max_h:
+                        max_h = hop
+                        term_cand_txs = [tx]
+                    elif hop == max_h:
+                        term_cand_txs.append(tx)
+
+                    r_acc = getattr(tx, "receiver_account", None)
+                    r_dist = getattr(r_acc, "district", None) if r_acc else None
+                    if not r_dist and isinstance(tx, dict):
+                        r_dist = tx.get("receiver_district") or tx.get("district")
+                    if r_dist:
+                        res_all.add(str(r_dist))
+
+                if term_cand_txs:
+                    best_t = max(term_cand_txs, key=lambda x: float(getattr(x, "amount", None) or (x.get("amount") if isinstance(x, dict) else 0.0) or 0.0))
+                    r_acc = getattr(best_t, "receiver_account", None)
+                    r_dist = getattr(r_acc, "district", None) if r_acc else None
+                    if not r_dist and isinstance(best_t, dict):
+                        r_dist = best_t.get("receiver_district") or best_t.get("district")
+                    if r_dist:
+                        res_term = str(r_dist)
+
+            if terminal_zone is None:
+                terminal_zone = res_term
+            if all_tx_zones is None:
+                all_tx_zones = res_all
+        elif isinstance(all_tx_zones, (list, tuple)):
+            all_tx_zones = set(all_tx_zones)
+
+        # Time model input (one row per complaint, exact 20 Time V2 features)
+        time_dict = {**base, **gtx}
+        time_row = [float(time_dict.get(c, float("nan"))) for c in self.time_feature_names]
+        X_time = np.array([time_row], dtype=np.float32)
+
+        # Candidate matrix (one row per candidate, exact 40 Location V8 Debiased features)
+        location_rows = []
+        for cand in candidates:
+            row_dict = self.build_candidate_row_v8_debiased(base, gtx, cand, terminal_zone, all_tx_zones)
+            row_vals = [float(row_dict.get(c, float("nan"))) for c in FEATURE_COLUMNS_LOCATION_V8_DEBIASED]
+            location_rows.append(row_vals)
+
+        X_location = np.array(location_rows, dtype=np.float32) if location_rows else np.empty((0, len(FEATURE_COLUMNS_LOCATION_V8_DEBIASED)), dtype=np.float32)
+        return X_location, X_time, FEATURE_COLUMNS_LOCATION_V8_DEBIASED, self.time_feature_names
 
 
 feature_pipeline = FeaturePipeline()

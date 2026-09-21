@@ -15,6 +15,7 @@ Existing rows are backfilled deterministically:
 
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = "0010_explicit_analysis_purpose"
@@ -24,22 +25,34 @@ depends_on = None
 
 
 def upgrade():
+    bind = op.get_bind()
+    insp = Inspector.from_engine(bind)
+
+    def get_column_names(table_name):
+        try:
+            return {c["name"] for c in insp.get_columns(table_name)}
+        except Exception:
+            return set()
+
+    pred_cols = get_column_names("predictions")
+
     # Add analysis_purpose as nullable VARCHAR(50)
-    with op.batch_alter_table("predictions", schema=None) as batch_op:
-        batch_op.add_column(sa.Column(
-            "analysis_purpose",
-            sa.String(length=50),
-            nullable=True,
-            server_default=None,
-        ))
+    if "analysis_purpose" not in pred_cols:
+        with op.batch_alter_table("predictions", schema=None) as batch_op:
+            batch_op.add_column(sa.Column(
+                "analysis_purpose",
+                sa.String(length=50),
+                nullable=True,
+                server_default=None,
+            ))
 
     # Deterministic backfill: classify existing rows by analysis_as_of presence
     conn = op.get_bind()
     conn.execute(sa.text(
-        "UPDATE predictions SET analysis_purpose = 'OPERATIONAL' WHERE analysis_as_of IS NULL"
+        "UPDATE predictions SET analysis_purpose = 'OPERATIONAL' WHERE analysis_as_of IS NULL AND analysis_purpose IS NULL"
     ))
     conn.execute(sa.text(
-        "UPDATE predictions SET analysis_purpose = 'HISTORICAL_REPLAY' WHERE analysis_as_of IS NOT NULL"
+        "UPDATE predictions SET analysis_purpose = 'HISTORICAL_REPLAY' WHERE analysis_as_of IS NOT NULL AND analysis_purpose IS NULL"
     ))
 
 

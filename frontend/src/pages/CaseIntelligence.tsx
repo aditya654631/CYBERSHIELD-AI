@@ -102,6 +102,8 @@ export const CaseIntelligence: React.FC = () => {
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [integrityResults, setIntegrityResults] = useState<Record<number, EvidenceIntegrityResult>>({});
   const [checkingIntegrityId, setCheckingIntegrityId] = useState<number | null>(null);
+  const [exportingDossier, setExportingDossier] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   // Cross-Jurisdiction Handoffs state (Phase 7)
   const [handoffsList, setHandoffsList] = useState<CaseHandoffItem[]>([]);
@@ -335,9 +337,48 @@ export const CaseIntelligence: React.FC = () => {
     }
   };
 
-  const handleExportReport = (download: boolean = false) => {
-    const url = api.getReportExportUrl(caseId, 'html', download);
-    window.open(url, '_blank');
+  const handleExportReport = async () => {
+    if (exportingDossier) return;
+    setExportingDossier(true);
+    setExportError(null);
+    try {
+      const response = await api.exportComplaintDossier(caseId);
+
+      let filename = `dossier_${complaint?.complaint_number || caseId}.html`;
+      const disposition =
+        response.headers?.['content-disposition'] ||
+        (response.headers as any)?.get?.('content-disposition');
+      if (disposition && typeof disposition === 'string') {
+        const match = disposition.match(/filename=["']?([^"';]+)["']?/i);
+        if (match && match[1]) {
+          filename = match[1].trim();
+        }
+      }
+
+      const blob = new Blob(
+        [response.data],
+        { type: (response.headers?.['content-type'] as string) || 'text/html;charset=utf-8' }
+      );
+
+      const url = window.URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      console.error('Failed to export dossier', err);
+      setExportError(
+        apiErrorMessage(
+          err,
+          'Failed to export dossier report. Please ensure you have permission for this case.'
+        )
+      );
+    } finally {
+      setExportingDossier(false);
+    }
   };
 
   const handleCreateHandoff = async (e: React.FormEvent) => {
@@ -538,15 +579,23 @@ export const CaseIntelligence: React.FC = () => {
             ) : null}
 
             <Button
-              onClick={() => handleExportReport(false)}
+              onClick={handleExportReport}
+              disabled={exportingDossier}
               variant="outline"
               size="sm"
-              icon={<FileText className="w-3.5 h-3.5 text-blue-600" />}
+              icon={<FileText className={`w-3.5 h-3.5 text-blue-600 ${exportingDossier ? 'animate-spin' : ''}`} />}
             >
-              Export Dossier
+              {exportingDossier ? 'Exporting...' : 'Export Dossier'}
             </Button>
           </div>
         </div>
+
+        {exportError && (
+          <div className="mt-3.5 p-3 rounded-md bg-red-50 border border-red-200 text-red-800 text-xs flex items-center space-x-2">
+            <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+            <span className="font-medium">{exportError}</span>
+          </div>
+        )}
 
         {alertSuccess && (
           <div className="mt-3.5 p-3 rounded-md bg-green-50 border border-green-200 text-green-800 text-xs flex items-center space-x-2">
@@ -1705,20 +1754,13 @@ export const CaseIntelligence: React.FC = () => {
           </div>
           <div className="flex items-center space-x-2">
             <Button
-              onClick={() => handleExportReport(false)}
+              onClick={handleExportReport}
+              disabled={exportingDossier}
               variant="outline"
               size="sm"
-              icon={<Eye className="w-3.5 h-3.5 text-blue-600" />}
+              icon={<FileText className={`w-3.5 h-3.5 text-blue-600 ${exportingDossier ? 'animate-spin' : ''}`} />}
             >
-              View Dossier
-            </Button>
-            <Button
-              onClick={() => handleExportReport(true)}
-              variant="secondary"
-              size="sm"
-              icon={<Download className="w-3.5 h-3.5" />}
-            >
-              Download HTML
+              {exportingDossier ? 'Exporting...' : 'Export Dossier'}
             </Button>
             <Button
               onClick={() => {

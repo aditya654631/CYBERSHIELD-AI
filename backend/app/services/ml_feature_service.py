@@ -29,6 +29,7 @@ from ml.features.feature_pipeline import (
     feature_pipeline,
     FEATURE_COLUMNS_LOCATION_V3,
     FEATURE_COLUMNS_LOCATION_V3_1,
+    FEATURE_COLUMNS_LOCATION_V8_DEBIASED,
     FEATURE_COLUMNS_TIME,
     FRAUD_TYPE_MAP_V3,
     CHANNEL_MAP_V3
@@ -154,17 +155,23 @@ def _load_clusters_from_db(db: Session, region_id: str = "delhi") -> List[Dict[s
 def build_location_features(
     db: Session,
     complaint_id: int,
-    top_k: int = 25,
+    top_k: Optional[int] = 25,
     model_version: str = "v3.1",
     analysis_as_of: Optional[Any] = None
 ) -> Dict[str, Any]:
     """
     Builds the candidate matrix for a given complaint.
     Supports:
+    - "v8_debiased": 40 features (leakage-free, causal money network corridors, evaluating all 60 Delhi clusters)
     - "v3.1": 43 features (38 V3 features + 5 safe candidate-specific features, corridor-aware)
     - "v3": 38 features (legacy clean V3 baseline)
     """
-    selected_feature_names = FEATURE_COLUMNS_LOCATION_V3_1 if model_version == "v3.1" else FEATURE_COLUMNS_LOCATION_V3
+    if model_version == "v8_debiased":
+        selected_feature_names = FEATURE_COLUMNS_LOCATION_V8_DEBIASED
+    elif model_version == "v3.1":
+        selected_feature_names = FEATURE_COLUMNS_LOCATION_V3_1
+    else:
+        selected_feature_names = FEATURE_COLUMNS_LOCATION_V3
 
     complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
     if not complaint:
@@ -236,7 +243,7 @@ def build_location_features(
 
     db_clusters = _load_clusters_from_db(db, region_id=region_id)
     cand_gen = CandidateLocationGenerator(clusters=db_clusters)
-    if model_version == "v3.1":
+    if model_version in ("v8_debiased", "v3.1", "v7_compat", "v4"):
         candidates = cand_gen.generate_candidates_for_complaint(
             complaint=comp_dict,
             top_k=top_k,
@@ -260,7 +267,16 @@ def build_location_features(
         }
 
     # 4. Multimodal Feature Matrix Construction
-    if model_version == "v3.1":
+    if model_version == "v8_debiased":
+        X_location, _, feature_names, _ = feature_pipeline.build_candidate_matrix_v8_debiased(
+            complaint=comp_dict,
+            candidates=candidates,
+            transactions=transactions,
+            graph_metrics=graph_metrics,
+            terminal_zone=terminal_zone,
+            all_tx_zones=all_tx_zones
+        )
+    elif model_version in ("v3.1", "v7_compat", "v4"):
         X_location, _, feature_names, _ = feature_pipeline.build_candidate_matrix_v3_1(
             complaint=comp_dict,
             candidates=candidates,

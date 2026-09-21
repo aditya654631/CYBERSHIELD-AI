@@ -345,6 +345,7 @@ def get_risk_map_overview(
     time_basis: Optional[str] = "predicted_window",
     start_time: Optional[str] = None,
     end_time: Optional[str] = None,
+    complaint_id: Optional[int] = None,  # Case Focus mode: restrict to this complaint's predicted clusters
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
@@ -353,6 +354,92 @@ def get_risk_map_overview(
 
     start_dt, end_dt, basis = _validate_time_filter(start_time, end_time, time_basis)
 
+    # ---------------------------------------------------------------
+    # CASE FOCUS MODE: complaint_id restricts the map to only clusters
+    # predicted for that specific complaint. All Delhi-wide context
+    # (unrelated hotspots, prototype ATMs) defaults OFF.
+    # ---------------------------------------------------------------
+    if complaint_id is not None:
+        # Verify access
+        target_complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+        if not target_complaint:
+            raise HTTPException(status_code=404, detail=f"Complaint {complaint_id} not found")
+        verify_complaint_access(target_complaint, current_user, db)
+
+        # Get the latest prediction's Top-K cluster IDs for this complaint
+        latest_pred = (
+            db.query(Prediction)
+            .filter(Prediction.complaint_id == complaint_id)
+            .order_by(Prediction.created_at.desc())
+            .first()
+        )
+        case_cluster_ids: List[int] = []
+        if latest_pred:
+            pred_locs = (
+                db.query(PredictionLocation)
+                .filter(PredictionLocation.prediction_id == latest_pred.id)
+                .order_by(PredictionLocation.rank.asc())
+                .all()
+            )
+            case_cluster_ids = [pl.cluster_id for pl in pred_locs if pl.cluster_id is not None]
+
+        # Only show predicted clusters; if no prediction yet, return empty map
+        if not case_cluster_ids:
+            empty_summary = {
+                "total_hotspots": 0, "total_active_candidates": 0, "total_historical_hotspots": 0,
+                "critical_clusters": 0, "total_associated_amount": 0.0, "total_unique_active_cases": 0,
+                "total_monitored_atms": 0, "primary_threat_epicenter": "No active prediction for this case",
+                "state": "Delhi", "region_id": "case_focus",
+                "data_basis": f"Case Focus mode: complaint {complaint_id} has no active prediction.",
+                "filters_applied": {"complaint_id": complaint_id, "mode": "case_focus"}
+            }
+            return {"hotspots": [], "active_candidates": [], "historical_hotspots": [], "atms": [], "summary": empty_summary}
+
+        # Restrict clusters to Top-K predicted only
+        query_clusters = db.query(LocationCluster).filter(LocationCluster.id.in_(case_cluster_ids))
+        clusters = query_clusters.all()
+        # Sort by predicted rank order
+        cl_rank = {cl_id: i for i, cl_id in enumerate(case_cluster_ids)}
+        clusters = sorted(clusters, key=lambda c: cl_rank.get(c.id, 999))
+
+        hotspots, evidence = _cluster_items(
+            db, clusters,
+            allowed_state="Delhi",
+            user=current_user,
+            start_dt=start_dt, end_dt=end_dt,
+            time_basis=basis, crime_category=crime_category,
+        )
+        # Only include directly linked ATMs for the predicted clusters (not global prototype ATMs)
+        case_atms = db.query(ATMLocation).filter(
+            ATMLocation.cluster_id.in_(case_cluster_ids)
+        ).order_by(ATMLocation.id).all()
+        atm_items_case = [
+            {
+                "id": a.id, "atm_code": a.atm_code, "bank_name": a.bank_name,
+                "address": a.address, "city": a.city, "district": a.district,
+                "latitude": a.latitude, "longitude": a.longitude,
+                "cash_available": a.cash_available, "risk_rating": a.risk_rating,
+                "cluster_name": a.cluster.cluster_name if a.cluster else "General Grid"
+            }
+            for a in case_atms
+        ]
+        active_candidates = [h for h in hotspots if h["is_active_candidate"]]
+        historical_hotspots = []  # Case Focus: no unrelated historical context
+        case_summary = {
+            "total_hotspots": len(hotspots), "total_active_candidates": len(active_candidates),
+            "total_historical_hotspots": 0, "critical_clusters": sum(1 for h in active_candidates if h.get("operational_priority") == "CRITICAL"),
+            "total_associated_amount": sum(float(target_complaint.amount or 0.0) for _ in active_candidates[:1]),
+            "total_unique_active_cases": 1, "total_monitored_atms": len(atm_items_case),
+            "primary_threat_epicenter": active_candidates[0]["cluster_name"] if active_candidates else hotspots[0]["cluster_name"] if hotspots else "Pending",
+            "state": "Delhi", "region_id": "case_focus",
+            "data_basis": f"Case Focus mode: showing only Top-{len(case_cluster_ids)} predicted clusters for complaint {complaint_id}. Delhi-wide context is OFF.",
+            "filters_applied": {"complaint_id": complaint_id, "mode": "case_focus", "predicted_clusters": len(case_cluster_ids)}
+        }
+        return {"hotspots": hotspots, "active_candidates": active_candidates, "historical_hotspots": historical_hotspots, "atms": atm_items_case, "summary": case_summary}
+
+    # ---------------------------------------------------------------
+    # GLOBAL MODE (no complaint_id): standard Delhi-wide risk map
+    # ---------------------------------------------------------------
     query_clusters = _scope_cluster_query(db.query(LocationCluster), db, current_user)
     target_state = current_user.organization.state if current_user.organization and not is_national_scope(current_user) else "ALL"
 

@@ -206,6 +206,7 @@ class Complaint(Base):
     handoffs = relationship("CaseHandoff", back_populates="complaint", cascade="all, delete-orphan")
     outcome_observations = relationship("OutcomeObservation", back_populates="complaint", cascade="all, delete-orphan", foreign_keys="[OutcomeObservation.complaint_id]")
     accounts = relationship("Account", secondary="complaint_accounts", back_populates="complaints")
+    withdrawals = relationship("Withdrawal", back_populates="complaint", cascade="all, delete-orphan")
     owner_organization = relationship("Organization", foreign_keys=[owner_organization_id], overlaps="owned_complaints")
     owner_user = relationship("User", foreign_keys=[owner_user_id])
 
@@ -300,6 +301,8 @@ class Withdrawal(Base):
     __tablename__ = "withdrawals"
 
     id = Column(Integer, primary_key=True, index=True)
+    withdrawal_ref = Column(String(100), unique=True, index=True, nullable=True)
+    complaint_id = Column(Integer, ForeignKey("complaints.id", ondelete="SET NULL"), nullable=True, index=True)
     atm_id = Column(Integer, ForeignKey("atm_locations.id"), nullable=False, index=True)
     account_id = Column(Integer, ForeignKey("accounts.id"), nullable=False, index=True)
     amount = Column(Numeric(14, 2), nullable=False)
@@ -307,6 +310,9 @@ class Withdrawal(Base):
     success = Column(Boolean, default=True)
     camera_flagged = Column(Boolean, default=False)
 
+    complaint = relationship("Complaint", back_populates="withdrawals")
+    atm = relationship("ATMLocation", foreign_keys=[atm_id])
+    account = relationship("Account", foreign_keys=[account_id])
 class Prediction(Base):
     __tablename__ = "predictions"
 

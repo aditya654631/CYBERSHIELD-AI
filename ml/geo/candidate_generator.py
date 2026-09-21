@@ -156,7 +156,7 @@ class CandidateLocationGenerator:
                 aff_zones = vz
                 break
 
-        # Score every cluster in self.clusters
+        # Score every cluster in self.clusters without victim-location bias
         scored_candidates = []
         for c in self.clusters:
             c_zone = c.get("district") or c.get("zone")
@@ -166,38 +166,28 @@ class CandidateLocationGenerator:
             c_lon = float(c.get("lon", c.get("center_lon", 77.2090)))
 
             sc = 0.0
-            # 1. Terminal zone matching
+            # 1. Terminal mule zone matching (Causal network evidence)
             if terminal_zone and c_zone == terminal_zone:
                 sc += 50.0
             elif terminal_zone and c_zone in ZONE_ADJACENCY.get(terminal_zone, []):
                 sc += 25.0
 
-            # 2. Complaint origin zone matching
-            if comp_zone and c_zone == comp_zone:
-                sc += 45.0
-            elif comp_zone and c_zone in ZONE_ADJACENCY.get(comp_zone, []):
-                sc += 18.0
-
-            # 3. Intermediate account zones
+            # 2. Intermediate account zones (Money flow path)
             if all_tx_zones and c_zone in all_tx_zones:
                 sc += 15.0
 
-            # 4. Fraud type affinity prior
+            # 3. Fraud type affinity prior
             if aff_zones and c_zone in aff_zones:
                 sc += 20.0
 
-            # 5. Risk & ATM density
+            # 4. Cluster historical risk & ATM infrastructure density
             sc += c_risk * 30.0
             sc += (c_atm / 30.0) * 15.0
 
-            # 6. Distance from victim if coordinates present
+            # Distance calculation for informational display only (NO bias score added)
             dist = float("nan")
             if has_valid_coords:
                 dist = haversine_km(v_lat, v_lon, c_lat, c_lon)
-                if dist < 10.0:
-                    sc += (10.0 - dist) * 2.0
-                elif dist < 25.0:
-                    sc += (25.0 - dist) * 0.5
 
             cand_obj = {
                 "cluster_id": int(c["id"]),
@@ -217,12 +207,16 @@ class CandidateLocationGenerator:
                 "historical_cashout_count": float(c.get("historical_cashout_count", c.get("historical_fraud_count", 230.0))),
                 "historical_cashout_amount": float(c.get("historical_cashout_amount", float(c.get("historical_fraud_count", 230.0)) * 50000.0)),
                 "distance_from_victim_km": round(dist, 1) if not math.isnan(dist) else float("nan"),
+                "candidate_generation_score": round(sc, 2),
                 "reasoning": f"Corridor-aware candidate match (score={sc:.1f})"
             }
             scored_candidates.append((sc, cand_obj))
 
         # Sort by candidate generation score descending
         scored_candidates.sort(key=lambda item: (-item[0], item[1]["id"]))
-        top_candidates = [item[1] for item in scored_candidates[:top_k]]
+        if top_k is not None and top_k > 0:
+            top_candidates = [item[1] for item in scored_candidates[:top_k]]
+        else:
+            top_candidates = [item[1] for item in scored_candidates]
         return top_candidates
 

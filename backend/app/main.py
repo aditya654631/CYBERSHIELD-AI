@@ -89,9 +89,12 @@ app.add_middleware(
         "X-Limit",
         "X-Context-Type",
         "X-Source-Scenario",
-        "X-Transaction-Count"
+        "X-Transaction-Count",
+        "Content-Disposition"
     ],
 )
+
+from fastapi.responses import JSONResponse
 
 # Root Health Check (Reports real database connectivity without leaking credentials)
 @app.get("/health", tags=["Health"])
@@ -100,7 +103,6 @@ def health_check():
     db_health = check_database_connection()
     provider = prediction_service.ml_provider
     model_ready = provider.is_available()
-    bootstrap_state = getattr(app.state, "bootstrap_ready", None)
     schema_ready = db_health.get("status") == "connected"
     db_status = db_health.get("status", "disconnected")
     db_engine = db_health.get("engine", "PostgreSQL")
@@ -121,6 +123,45 @@ def health_check():
         "models": {"available": model_ready, "location": provider.model_version, "time": provider.time_model_version},
         "bank_gateway_status": "SIMULATED_LOCAL_PROTOTYPE (No external API connected)"
     }
+
+
+@app.get("/health/live", tags=["Health"])
+def liveness_check():
+    """Liveness probe: verifies process is alive and receiving HTTP traffic."""
+    return {"status": "alive", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
+@app.get("/health/ready", tags=["Health"])
+def readiness_check():
+    """Readiness probe: verifies database connectivity, schema readiness, and ML model availability."""
+    from backend.app.services.prediction_service import prediction_service
+    from backend.app.services.model_verification_service import model_verification_service
+    db_health = check_database_connection()
+    provider = prediction_service.ml_provider
+    model_ready = provider.is_available()
+    db_connected = db_health.get("status") == "connected"
+    
+    # Verify active model integrity based on configured environment target
+    active_target = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v7_compat")
+    meta_file = "model_metadata_v8_debiased.json" if active_target == "v8_debiased" else "model_metadata_v7_compat.json"
+    verification = model_verification_service.verify_model_artifacts(meta_file)
+    model_verified = verification.get("is_ready", False)
+
+    is_ready = db_connected and model_ready and model_verified
+
+    payload = {
+        "status": "ready" if is_ready else "not_ready",
+        "database_connected": db_connected,
+        "model_available": model_ready,
+        "model_verified": model_verified,
+        "active_model_version": provider.model_version if model_ready else "MODEL_UNAVAILABLE",
+        "artifact_verification_status": verification.get("status", "UNKNOWN"),
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    }
+
+    if not is_ready:
+        return JSONResponse(status_code=503, content=payload)
+    return payload
 
 # Include API Routers under /api/v1
 api_prefix = "/api/v1"

@@ -7,7 +7,7 @@ import bcrypt
 from jose import JWTError, jwt, ExpiredSignatureError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from backend.app.config.settings import settings
 from backend.app.models.db import get_db
 from backend.app.models.models import User
@@ -86,7 +86,7 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> User:
     """
-    Validates JWT token and retrieves active user.
+    Validates JWT token and retrieves active user with eagerly-loaded organization scope.
     Rejects missing, forged, expired, and inactive-user credentials.
     """
     credentials_exception = HTTPException(
@@ -108,7 +108,12 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.email == email).first()
+    user = (
+        db.query(User)
+        .options(joinedload(User.organization))
+        .filter(User.email == email)
+        .first()
+    )
     if user is None:
         raise credentials_exception
 
@@ -128,9 +133,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
+_CONSUMED_WS_JTIS: dict[str, float] = {}
+
+
 def verify_ws_token(token: Optional[str], db: Session) -> User:
     """
-    Validates a JWT token supplied via WebSocket query parameter.
+    Validates a JWT token supplied via WebSocket query parameter with eagerly-loaded organization scope.
+    Enforces strict single-use consumption for ws_stream tickets.
     Returns the authenticated active User, or raises HTTPException(401).
     """
     if not token:
@@ -143,15 +152,39 @@ def verify_ws_token(token: Optional[str], db: Session) -> User:
         email: str = payload.get("sub")
         if not email:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token claims")
+        
+        # Enforce single-use ticket verification for ws_stream scope
+        if payload.get("scope") == "ws_stream":
+            jti = payload.get("jti")
+            if not jti:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing ticket identifier")
+            if jti in _CONSUMED_WS_JTIS:
+                raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="WebSocket single-use ticket already consumed")
+            
+            exp = float(payload.get("exp", datetime.now(timezone.utc).timestamp() + 120))
+            _CONSUMED_WS_JTIS[jti] = exp
+            
+            # Prune expired JTIs
+            now_ts = datetime.now(timezone.utc).timestamp()
+            expired_keys = [k for k, v in _CONSUMED_WS_JTIS.items() if v < now_ts]
+            for k in expired_keys:
+                _CONSUMED_WS_JTIS.pop(k, None)
+
     except ExpiredSignatureError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="WebSocket token has expired")
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid WebSocket token signature")
 
-    user = db.query(User).filter(User.email == email).first()
+    user = (
+        db.query(User)
+        .options(joinedload(User.organization))
+        .filter(User.email == email)
+        .first()
+    )
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found or inactive")
     if not has_valid_role_organization_scope(user):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="User scope is not configured")
 
     return user
+
