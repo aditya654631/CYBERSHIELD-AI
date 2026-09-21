@@ -352,13 +352,14 @@ class MLPredictionProvider:
                 logger.error(self.load_error)
                 return
 
-            v8_loc_hash = compute_file_sha256(loc_v8_path)
-            v8_cal_hash = compute_file_sha256(cal_v8_path)
-            v8_schema_hash = compute_file_sha256(schema_v8_path)
+            EXPECTED_V8_SCHEMA_HASHES = {
+                "68c9643cea2c3f2480ca085e5da37299568cf72fef98e3f2c7f39b840c514b4b",  # Windows CRLF
+                "3f263a88735f5df3d397561b4c37d1c6ae7b6498ca8f676dc159655ca1556a82",  # Linux LF
+            }
 
             if (v8_loc_hash != EXPECTED_HASHES.get(loc_v8_filename) or
                 v8_cal_hash != EXPECTED_HASHES.get(cal_v8_filename) or
-                v8_schema_hash != EXPECTED_HASHES.get(schema_v8_filename)):
+                v8_schema_hash not in EXPECTED_V8_SCHEMA_HASHES):
                 self.load_error = f"V8-debiased artifact verification failed (loc={v8_loc_hash}, cal={v8_cal_hash}, schema={v8_schema_hash})"
                 self.is_loaded = False
                 self.model_version = "MODEL_UNAVAILABLE"
