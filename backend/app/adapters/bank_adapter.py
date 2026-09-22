@@ -18,7 +18,13 @@ from backend.app.models.models import BankAction, Alert, Complaint, AuditLog, Ac
 from backend.app.services.audit_service import log_audit
 
 
-SANDBOX_SHARED_SECRET = "cybershield_sandbox_partner_secret_2026"
+# Sandbox HMAC secret is sourced from environment config.
+# The fallback is a dev-only placeholder and MUST NOT be used in production.
+import os as _os
+SANDBOX_SHARED_SECRET: str = _os.environ.get(
+    "SANDBOX_BANK_SECRET",
+    "cybershield_sandbox_dev_only_2026"  # DEV-ONLY FALLBACK — override via SANDBOX_BANK_SECRET env var
+)
 MAX_TIMESTAMP_SKEW_SECONDS = 300  # 5 minutes
 
 

@@ -156,7 +156,7 @@ export const ModelPerformance: React.FC = () => {
           <div className="flex items-center justify-between">
             <span className="text-slate-500">Feature Schema:</span>
             <span className="text-blue-700 font-bold">
-              {data.runtime_info?.feature_schema_version || 'v7_compat'} ({data.location_features_count ?? 47} Location Signals)
+              {data.runtime_info?.feature_schema_version ?? 'Unavailable'} ({data.location_features_count != null ? `${data.location_features_count} Location Signals` : 'Count unavailable'})
             </span>
           </div>
           <div className="flex items-center justify-between">

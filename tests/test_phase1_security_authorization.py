@@ -186,7 +186,8 @@ def test_audit_logs_rbac_isolation():
     """Only I4C_ADMIN and AUDITOR can access audit logs; other roles get 403."""
     admin_headers = _make_auth_header("admin@cybershield.gov.in", "I4C_ADMIN")
     auditor_headers = _make_auth_header("auditor@mha.gov.in", "AUDITOR")
-    district_headers = _make_auth_header("district.lea@indore.police.gov.in", "DISTRICT_LEA")
+    # Use active Delhi Pilot district officer (User 13 — Inspector Amit Sharma, South Delhi)
+    district_headers = _make_auth_header("district.lea@southdelhi.cyber.gov.in", "DISTRICT_LEA")
     analyst_headers = _make_auth_header("analyst@cybershield.gov.in", "ANALYST")
 
     # Allowed roles
@@ -225,23 +226,24 @@ def test_cross_jurisdiction_isolation_and_404(db_session):
         db_session.commit()
         db_session.refresh(delhi_complaint)
 
-    # Indore (Madhya Pradesh) officer token
-    indore_headers = _make_auth_header("district.lea@indore.police.gov.in", "DISTRICT_LEA")
+    # South Delhi Cyber Cell officer token (active Delhi Pilot user, distinct district from 'New Delhi')
+    south_delhi_headers = _make_auth_header("district.lea@southdelhi.cyber.gov.in", "DISTRICT_LEA")
 
-    # 1. Collection query: Delhi complaint must NOT appear in the Indore officer's list
-    list_resp = client.get("/api/v1/complaints", headers=indore_headers)
+    # 1. Collection query: a New Delhi complaint must NOT appear in the South Delhi officer's list
+    list_resp = client.get("/api/v1/complaints", headers=south_delhi_headers)
     assert list_resp.status_code == 200
     complaints = list_resp.json()
     for c in complaints:
-        assert c.get("state") == "Madhya Pradesh", f"Found leak: {c}"
-        assert c.get("district") == "Indore", f"Found leak: {c}"
+        # Org 11 district is 'SOUTH' as seeded in conftest
+        assert c.get("state") == "Delhi", f"Found state leak: {c}"
+        assert c.get("district") in ("SOUTH", "South Delhi"), f"Found district leak: {c}"
 
-    # 2. Detail query for the Delhi complaint ID: MUST return 404 (not 403)
-    detail_resp = client.get(f"/api/v1/complaints/{delhi_complaint.complaint_number}", headers=indore_headers)
+    # 2. Detail query for the New Delhi complaint ID: MUST return 404 (not 403)
+    detail_resp = client.get(f"/api/v1/complaints/{delhi_complaint.complaint_number}", headers=south_delhi_headers)
     assert detail_resp.status_code == 404, f"Expected 404, got {detail_resp.status_code}"
 
-    # 3. Graph query for the Delhi complaint: MUST return 404
-    graph_resp = client.get(f"/api/v1/complaints/{delhi_complaint.complaint_number}/graph", headers=indore_headers)
+    # 3. Graph query for the New Delhi complaint: MUST return 404
+    graph_resp = client.get(f"/api/v1/complaints/{delhi_complaint.complaint_number}/graph", headers=south_delhi_headers)
     assert graph_resp.status_code == 404
 
     # 4. National I4C Admin CAN access the Delhi complaint
@@ -258,7 +260,8 @@ def test_spoof_proof_jurisdiction_enforcement_on_intake(db_session):
     When an officer submits a complaint with spoofed state/district in the body,
     the backend strictly overrides it with the officer's real database jurisdiction.
     """
-    indore_headers = _make_auth_header("district.lea@indore.police.gov.in", "DISTRICT_LEA")
+    # Active Delhi Pilot district officer (User 13 — Inspector Amit Sharma, South Delhi)
+    south_delhi_headers = _make_auth_header("district.lea@southdelhi.cyber.gov.in", "DISTRICT_LEA")
     spoofed_num = f"CMP-SPOOF-{int(time.time())}"
 
     payload = {
@@ -273,13 +276,14 @@ def test_spoof_proof_jurisdiction_enforcement_on_intake(db_session):
         "demo_mode": False
     }
 
-    resp = client.post("/api/v1/complaints", json=payload, headers=indore_headers)
+    resp = client.post("/api/v1/complaints", json=payload, headers=south_delhi_headers)
     assert resp.status_code == 200, resp.text
     created = resp.json()
 
-    # The persisted state and district MUST be Madhya Pradesh / Indore, NOT Maharashtra / Mumbai
-    assert created["state"] == "Madhya Pradesh"
-    assert created["district"] == "Indore"
+    # The persisted state MUST be Delhi (Org 11 = district 'SOUTH'), NOT Maharashtra / Mumbai
+    assert created["state"] == "Delhi"
+    # Org 11 district is seeded as 'SOUTH' in conftest
+    assert created["district"] in ("SOUTH", "South Delhi")
 
 
 # ==============================================================================
@@ -295,7 +299,8 @@ def test_bank_action_lifecycle_and_truthful_simulation(db_session):
     """
     admin_headers = _make_auth_header("admin@cybershield.gov.in", "I4C_ADMIN")
     bank_headers = _make_auth_header("officer@sbi.co.in", "BANK_OFFICER")
-    lea_headers = _make_auth_header("district.lea@indore.police.gov.in", "DISTRICT_LEA")
+    # Active Delhi Pilot district officer (User 13 — Inspector Amit Sharma, South Delhi)
+    lea_headers = _make_auth_header("district.lea@southdelhi.cyber.gov.in", "DISTRICT_LEA")
 
     complaint = db_session.query(Complaint).first()
     unique_ref = f"TEST-ALERT-{int(time.time()*1000)}"

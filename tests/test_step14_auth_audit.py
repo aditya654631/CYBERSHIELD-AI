@@ -154,16 +154,16 @@ def test_complaint_creation_records_authenticated_officer_in_audit(db):
 
 # 7. Request body actor spoofing ignored on complaint registration
 def test_complaint_creation_ignores_body_spoofed_officer(db):
-    # Authenticate as User 3 (DSP Rajesh Sharma, DISTRICT_LEA)
-    headers = _get_auth_headers("district.lea@indore.police.gov.in", "DISTRICT_LEA")
+    # Authenticate as User 13 (Inspector Amit Sharma, DISTRICT_LEA, South Delhi Cyber Cell)
+    headers = _get_auth_headers("district.lea@southdelhi.cyber.gov.in", "DISTRICT_LEA")
 
     payload = {
         "victim_name": "Sunil Sharma",
         "fraud_type": "Debit Card Fraud",
         "amount": 25000.0,
-        "state": "Madhya Pradesh",
-        "district": "Indore",
-        "locality": "Vijay Nagar",
+        "state": "Delhi",
+        "district": "South Delhi",
+        "locality": "Saket",
         "payment_channel": "ATM",
         "incident_time": datetime.utcnow().isoformat(),
         "reported_at": datetime.utcnow().isoformat(),
@@ -185,16 +185,17 @@ def test_complaint_creation_ignores_body_spoofed_officer(db):
 
     assert audit is not None
     # Authoritative identity must match token, NOT spoofed payload
-    assert audit.user_id == 3
-    assert audit.officer_name == "Inspector Rajesh Verma"
+    assert audit.user_id == 13
+    assert audit.officer_name == "Inspector Amit Sharma"
     assert audit.role == "DISTRICT_LEA"
     assert "Ghost Hacker" not in audit.officer_name
 
 
 # 8. Predictive analysis execution records authenticated officer in AuditLog
 def test_prediction_run_records_authenticated_officer_in_audit(db):
-    headers = _get_auth_headers("state.lea@mp.police.gov.in", "STATE_LEA")
-    comp = db.query(Complaint).filter(Complaint.state == "Madhya Pradesh").first()
+    # Use active Delhi STATE_LEA (User 12: DCP Rajesh Kumar, IPS)
+    headers = _get_auth_headers("state.lea@delhi.cyber.gov.in", "STATE_LEA")
+    comp = db.query(Complaint).filter(Complaint.state == "Delhi").first()
     assert comp is not None
     comp_num = comp.complaint_number
 
@@ -207,8 +208,8 @@ def test_prediction_run_records_authenticated_officer_in_audit(db):
     ).order_by(AuditLog.id.desc()).first()
 
     assert audit is not None
-    assert audit.user_id == 2  # SP Anand Shekhawat, IPS
-    assert audit.officer_name == "SP Anand Shekhawat, IPS"
+    assert audit.user_id == 12  # DCP Rajesh Kumar, IPS
+    assert audit.officer_name == "DCP Rajesh Kumar, IPS"
     assert audit.role == "STATE_LEA"
 
 
@@ -367,15 +368,16 @@ def test_alert_acknowledgement_ignores_body_spoofed_officer(db):
 
 # 14. Alert escalation records authenticated officer
 def test_alert_escalation_records_authenticated_officer(db):
-    headers = _get_auth_headers("state.lea@mp.police.gov.in", "STATE_LEA")
-    alert = db.query(Alert).join(Complaint).filter(Complaint.state == "Madhya Pradesh").first()
+    # Use active Delhi STATE_LEA (User 12: DCP Rajesh Kumar, IPS)
+    headers = _get_auth_headers("state.lea@delhi.cyber.gov.in", "STATE_LEA")
+    alert = db.query(Alert).join(Complaint).filter(Complaint.state == "Delhi").first()
     if not alert:
         comp = Complaint(
-            complaint_number=f"CMP-MP-ESC-{int(datetime.utcnow().timestamp())}",
+            complaint_number=f"CMP-DELHI-ESC-{int(datetime.utcnow().timestamp())}",
             fraud_type="UPI Fraud",
             amount=50000.0,
-            state="Madhya Pradesh",
-            district="Indore",
+            state="Delhi",
+            district="South Delhi",
             incident_time=datetime.utcnow(),
             reported_at=datetime.utcnow()
         )
@@ -393,9 +395,9 @@ def test_alert_escalation_records_authenticated_officer(db):
         alert = Alert(
             complaint_id=comp.id,
             prediction_id=pred.id,
-            title="Suspicious Activity in Indore",
+            title="Suspicious Activity in South Delhi",
             severity="HIGH",
-            location_name="Indore ATM",
+            location_name="Saket ATM Cluster",
             risk_score=0.9,
             status="GENERATED"
         )
@@ -404,7 +406,7 @@ def test_alert_escalation_records_authenticated_officer(db):
 
     resp = client.post(
         f"/api/v1/alerts/{alert.id}/escalate",
-        json={"notes": "State-level bank freeze request initiated"},
+        json={"notes": "Delhi state-level bank freeze request initiated"},
         headers=headers
     )
     assert resp.status_code == 200
@@ -415,8 +417,8 @@ def test_alert_escalation_records_authenticated_officer(db):
     ).order_by(AuditLog.id.desc()).first()
 
     assert audit is not None
-    assert audit.user_id == 2
-    assert audit.officer_name == "SP Anand Shekhawat, IPS"
+    assert audit.user_id == 12
+    assert audit.officer_name == "DCP Rajesh Kumar, IPS"
     assert audit.role == "STATE_LEA"
 
 

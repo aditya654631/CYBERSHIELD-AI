@@ -27,6 +27,7 @@ router = APIRouter(prefix="/model", tags=["Model Performance"])
 
 # Authoritative registry mapping trained model versions to their official evaluation metadata files
 MODEL_METADATA_REGISTRY: Dict[str, str] = {
+    "cashout-location-xgb-v8-debiased": "model_metadata_v8_debiased.json",
     "cashout-location-xgb-v7-compat": "model_metadata_v7_compat.json",
     "cashout-location-xgb-v4": "model_metadata_v4.json",
     "cashout-location-xgb-v3_1": "model_metadata_v3_1.json",
@@ -101,7 +102,7 @@ def get_model_performance(current_user: User = Depends(get_current_user)):
         is_trained_ready = True
         runtime_status = "TRAINED_READY"
         prediction_mode = "trained_ml"
-        active_loc_model = str(provider.model_version) if getattr(provider, "model_version", None) else "cashout-location-xgb-v7-compat"
+        active_loc_model = str(provider.model_version) if getattr(provider, "model_version", None) else "cashout-location-xgb-v8-debiased"
         active_time_model = str(provider.time_model_version) if getattr(provider, "time_model_version", None) else "cashout-time-xgb-v3"
         loc_hash = provider.location_hash if isinstance(getattr(provider, "location_hash", None), str) else None
         cal_hash = provider.calibrator_hash if isinstance(getattr(provider, "calibrator_hash", None), str) else None
@@ -157,7 +158,7 @@ def get_model_performance(current_user: User = Depends(get_current_user)):
         model_version=active_loc_model,
         location_model_version=active_loc_model,
         time_model_version=active_time_model,
-        algorithm="pairwise_xgb_ranker" if "v7" in str(active_loc_model) else ("xgboost.XGBClassifier" if "v4" in str(active_loc_model) else loc_model_cls),
+        algorithm="pairwise_xgb_ranker" if ("v8-debiased" in str(active_loc_model) or "v7" in str(active_loc_model)) else ("xgboost.XGBClassifier" if "v4" in str(active_loc_model) else loc_model_cls),
         model_class=loc_model_cls,
         calibrator_class=calibrator_cls,
         calibration_method="Platt Logistic Regression (Calibrated on Validation)" if is_trained_ready else "None",
@@ -615,13 +616,13 @@ def get_model_performance(current_user: User = Depends(get_current_user)):
         current_prediction_mode=current_prediction_mode,
         model_version=active_loc_model,
         provider_version=active_loc_model,
-        official_production_model="cashout-location-xgb-v7-compat",
+        official_production_model="cashout-location-xgb-v8-debiased",
         location_model_version=active_loc_model,
         time_model_version=active_time_model,
         location_features_count=loc_features_count,
         time_features_count=time_features_count,
         calibration_method=cal_method_name,
-        model_class="pairwise_xgb_ranker" if "v7" in str(active_loc_model) else loc_model_cls,
+        model_class="pairwise_xgb_ranker" if ("v8-debiased" in str(active_loc_model) or "v7" in str(active_loc_model)) else loc_model_cls,
         calibrator_class=calibrator_cls,
         dataset_type=dataset_type,
         dataset_split=dataset_split,
@@ -801,7 +802,7 @@ def get_model_promotion_gates(current_user: User = Depends(get_current_user)):
     from ml.evaluation.promotion_gates import verify_production_artifact_integrity, PROMOTION_GATE_SPECS
     artifact_status = verify_production_artifact_integrity()
     return {
-        "active_production_model": "cashout-location-xgb-v7-compat",
+        "active_production_model": "cashout-location-xgb-v8-debiased",
         "promotion_policy": (
             "Predeclared promotion gates strictly protect production. "
             "No experimental model can replace production without meeting all statistical, "
