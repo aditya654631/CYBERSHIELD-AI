@@ -21,6 +21,7 @@ import {
   SlidersHorizontal,
   ChevronDown,
   ChevronUp,
+  ArrowLeft,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { HotspotCluster, ATMLocationItem, Complaint, Prediction, PredictionLocationItem, GISOverviewResponse, RegionItem } from '../types';
@@ -463,6 +464,19 @@ export const RiskMap: React.FC = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      {selectedComplaintId && (
+        <div className="flex items-center">
+          <button
+            id="btn-back-to-case"
+            onClick={() => navigate(`/cases/${selectedComplaintId}`)}
+            className="flex items-center space-x-1.5 text-xs text-slate-500 hover:text-blue-600 transition-colors group py-1 pr-2"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+            <span className="font-medium">Back to Case Intelligence ({selectedComplaintId})</span>
+          </button>
+        </div>
+      )}
+
       {/* GIS Header & Complaint Selector Bar */}
       <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs flex flex-col lg:flex-row lg:items-center justify-between gap-4">
         <div>

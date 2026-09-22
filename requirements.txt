@@ -24,7 +24,7 @@ cryptography==50.0.1
 # Note: Models trained on scikit-learn 1.9.0 / xgboost 3.4.1 runtime
 numpy==2.5.3
 pandas==3.0.5
-scikit-learn==1.9.1
+scikit-learn==1.9.0
 xgboost==3.4.1
 joblib==1.6.0
 scipy==1.18.1

@@ -35,8 +35,10 @@ from backend.app.services.prediction_explainability_service import (
     PredictionExplainabilityService,
     FEATURE_METADATA,
     format_feature_value,
-    compute_snapshot_digest
+    compute_snapshot_digest,
+    V4_COMPAT_FEATURES
 )
+from ml.features.feature_pipeline import FEATURE_COLUMNS_LOCATION_V3_1
 from backend.app.services.prediction_audit_service import (
     prediction_audit_client,
     canonicalize_prediction_audit_payload,
@@ -70,24 +72,31 @@ def persistent_test_prediction(db):
 
 
 def test_faithful_inference_snapshot_captured(db, persistent_test_prediction):
-    """1. New predictions persist an immutable inference snapshot with 47 features and metadata."""
+    """1. New predictions persist an immutable inference snapshot with runtime features and metadata."""
     pred = persistent_test_prediction
     assert pred.result_metadata is not None
     snapshot = pred.result_metadata.get("inference_snapshot")
     assert snapshot is not None, "inference_snapshot must be captured during inference"
 
     # Verify snapshot content
-    assert snapshot.get("model_version") == "cashout-location-xgb-v7-compat"
-    assert snapshot.get("feature_schema_version") in ("v7_compat", "v7_compat_47")
+    expected_model = pred.model_version
+    assert snapshot.get("model_version") == expected_model
+    if "v8" in expected_model:
+        assert snapshot.get("feature_schema_version") in ("v8_debiased", "v8_debiased_49")
+        expected_feature_count = 49
+    else:
+        assert snapshot.get("feature_schema_version") in ("v7_compat", "v7_compat_47")
+        expected_feature_count = 47
+
     assert snapshot.get("feature_schema_hash") is not None
     assert (snapshot.get("location_model_hash") or snapshot.get("model_hash")) is not None
     assert snapshot.get("calibrator_hash") is not None
     assert isinstance(snapshot.get("provenance"), dict)
     assert "origin_zone" in snapshot.get("provenance")
 
-    # Verify 47 feature columns
+    # Verify feature columns
     feature_names = snapshot.get("feature_names", [])
-    assert len(feature_names) == 47, f"Expected 47 features in snapshot, got {len(feature_names)}"
+    assert len(feature_names) == expected_feature_count, f"Expected {expected_feature_count} features in snapshot, got {len(feature_names)}"
 
     # Verify candidate features exist for Top-3 locations
     candidate_features = snapshot.get("candidate_features", {})
@@ -101,14 +110,17 @@ def test_faithful_inference_snapshot_captured(db, persistent_test_prediction):
     for loc in locations[:3]:
         cid_str = str(loc.cluster_id)
         assert cid_str in candidate_features, f"Cluster {cid_str} must be present in snapshot candidate_features"
-        assert len(candidate_features[cid_str]) == 47, "Each candidate feature vector must have 47 dimensions"
+        assert len(candidate_features[cid_str]) == expected_feature_count, f"Each candidate feature vector must have {expected_feature_count} dimensions"
 
     # Verify companion PredictionSnapshot record in database
     companion = db.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id == pred.id).first()
     assert companion is not None, "Companion PredictionSnapshot record must be persisted"
     assert companion.complaint_id == pred.complaint_id
     assert companion.model_version == pred.model_version
-    assert companion.feature_schema_version in ("v7_compat", "v7_compat_47")
+    if "v8" in expected_model:
+        assert companion.feature_schema_version in ("v8_debiased", "v8_debiased_49")
+    else:
+        assert companion.feature_schema_version in ("v7_compat", "v7_compat_47")
     assert companion.snapshot_data.get("model_version") == pred.model_version
 
 
@@ -479,7 +491,7 @@ def test_mismatched_calibrator_or_historical_model_refuses_explanation(db):
     try:
         res = prediction_explainability_service.get_or_generate_explanation(db, mismatched_pred.id)
         assert res["explanation_status"] == "UNAVAILABLE"
-        assert "only calibrated for official cashout-location-xgb-v7-compat" in res["message"]
+        assert "only calibrated for official verified models" in res["message"] or "cashout-location-xgb-v7-compat" in res["message"]
     finally:
         db.delete(mismatched_pred)
         db.commit()
@@ -531,12 +543,13 @@ def test_mismatched_calibrator_or_historical_model_refuses_explanation(db):
     try:
         res = prediction_explainability_service.get_or_generate_explanation(db, schema_names_pred.id)
         assert res["explanation_status"] == "UNAVAILABLE"
-        assert "do not match official V7-compat feature schema" in res["message"]
+        assert "do not match official" in res["message"] and "feature schema" in res["message"]
     finally:
         db.delete(schema_names_pred)
         db.commit()
 
     # 4. Calibrator artifact hash mismatch
+    v7_features = FEATURE_COLUMNS_LOCATION_V3_1 + V4_COMPAT_FEATURES
     cal_mismatch_pred = Prediction(
         complaint_id=1,
         model_version="cashout-location-xgb-v7-compat",
@@ -546,7 +559,7 @@ def test_mismatched_calibrator_or_historical_model_refuses_explanation(db):
         result_metadata={
             "inference_snapshot": {
                 "model_version": "cashout-location-xgb-v7-compat",
-                "feature_names": prediction_explainability_service.feature_names,
+                "feature_names": v7_features,
                 "calibrator_hash": "tampered_calibrator_sha256_hash_99999"
             }
         }
@@ -567,13 +580,10 @@ def test_mismatched_calibrator_or_historical_model_refuses_explanation(db):
     from backend.app.services.prediction_explainability_service import PredictionExplainabilityService
     isolated_svc = PredictionExplainabilityService()
     # Mock invalid background metadata hash
-    with unittest.mock.patch.object(isolated_svc, "is_initialized", False):
-        with unittest.mock.patch("builtins.open", unittest.mock.mock_open(read_data=json.dumps({"sha256_npy": "invalid_expected_hash"}))):
-            with unittest.mock.patch("os.path.exists", return_value=True):
-                with unittest.mock.patch("backend.app.services.prediction_explainability_service.compute_file_sha256", return_value="actual_different_hash"):
-                    init_ok = isolated_svc._ensure_initialized()
-                    assert init_ok is False
-                    assert "Background matrix SHA-256 integrity check failed" in isolated_svc._init_error
+    with unittest.mock.patch("backend.app.services.prediction_explainability_service.compute_file_sha256", return_value="actual_different_hash"):
+        init_ok = isolated_svc._ensure_initialized()
+        assert init_ok is False
+        assert "Background matrix SHA-256 integrity check failed" in (isolated_svc._init_error or "")
 
 
 def test_feature_provenance_and_truthful_nomenclature(db, persistent_test_prediction):

@@ -530,12 +530,12 @@ class ExplanationResponse(BaseModel):
     prediction_id: int
     complaint_number: str
     prediction_mode: str = "trained_ml"
-    model_version: str = "cashout-location-xgb-v7-compat"
-    location_model_version: Optional[str] = "cashout-location-xgb-v7-compat"
+    model_version: str = "cashout-location-xgb-v8-debiased"
+    location_model_version: Optional[str] = "cashout-location-xgb-v8-debiased"
     explanation_status: str = "AVAILABLE"  # AVAILABLE, UNAVAILABLE, LOW_FIDELITY, NOT_FOUND
     explanation_method: str = "LIME"
     explainer_version: Optional[str] = "lime_tabular_0.2.0.1"
-    feature_schema_version: Optional[str] = "v7_compat"
+    feature_schema_version: Optional[str] = "v8_debiased"
     generated_at: Optional[str] = None
     overall_fidelity_status: Optional[str] = "HIGH_FIDELITY"
     mean_local_fidelity_r2: Optional[float] = None

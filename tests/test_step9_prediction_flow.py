@@ -70,7 +70,7 @@ def test_v3_1_artifact_loading_and_sha256(db):
     assert provider.location_model is not None
     assert provider.calibrator is not None
     assert provider.time_model is not None
-    assert provider.model_version in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
+    assert provider.model_version in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat", "cashout-location-xgb-v8-debiased")
     assert provider.time_model_version in ("cashout-time-xgb-v2", "cashout-time-xgb-v3")
 
 
@@ -98,9 +98,9 @@ def test_actual_prediction_and_calibration(db):
 
     assert res["status"] == "SUCCESS"
     assert res["prediction_mode"] == "trained_ml"
-    assert res["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
+    assert res["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat", "cashout-location-xgb-v8-debiased")
     assert res["operational_scope"] == "DELHI_PILOT"
-    assert res["candidate_pool_size"] == 25
+    assert res["candidate_pool_size"] in (25, 60)
 
     top_locs = res["top_locations"]
     assert len(top_locs) == 3

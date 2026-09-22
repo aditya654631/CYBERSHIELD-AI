@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   ArrowRight,
+  ArrowLeft,
   Info,
   Layers,
   Map as MapIcon,
@@ -76,6 +77,10 @@ export const CaseIntelligence: React.FC = () => {
   const [auditVerification, setAuditVerification] = useState<any | null>(null);
   const [verifyingAudit, setVerifyingAudit] = useState(false);
   const [auditError, setAuditError] = useState<string | null>(null);
+
+  // Info popover state for contextual ⓘ buttons
+  const [activeInfoPopover, setActiveInfoPopover] = useState<string | null>(null);
+  const toggleInfoPopover = (key: string) => setActiveInfoPopover(prev => prev === key ? null : key);
 
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [clusters, setClusters] = useState<HotspotCluster[]>([]);
@@ -490,8 +495,25 @@ export const CaseIntelligence: React.FC = () => {
   const nodeCount = graphData?.metrics?.node_count ?? (complaint.linked_account_count || 2);
   const transferCount = graphData?.metrics?.edge_count ?? (complaint.available_transaction_count || 1);
 
+  // Close any open popover when clicking outside
+  const handlePageClick = () => { if (activeInfoPopover) setActiveInfoPopover(null); };
+
   return (
-    <div className="space-y-5 pb-12 font-sans">
+    <div className="space-y-5 pb-12 font-sans" onClick={handlePageClick}>
+      {/* ===================================================================== */}
+      {/* BACK TO COMPLAINTS NAVIGATION */}
+      {/* ===================================================================== */}
+      <div className="flex items-center">
+        <button
+          id="btn-back-to-complaints"
+          onClick={(e) => { e.stopPropagation(); navigate('/complaints'); }}
+          className="flex items-center space-x-1.5 text-xs text-slate-500 hover:text-slate-800 transition-colors group py-1 pr-2"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 group-hover:-translate-x-0.5 transition-transform" />
+          <span className="font-medium">Back to Complaints</span>
+        </button>
+      </div>
+
       {/* ==================================================================== */}
       {/* B2: COMPACT PROFESSIONAL CASE HEADER */}
       {/* ==================================================================== */}
@@ -1127,8 +1149,26 @@ export const CaseIntelligence: React.FC = () => {
 
                 {/* Top-3 Location Table (Section 21) */}
                 <div>
-                  <div className="text-xs font-semibold text-[#173A63] uppercase tracking-wider">
-                    Ranked Cash-Out Candidate Zones (Delhi Pilot)
+                  <div className="flex items-center space-x-1.5">
+                    <div className="text-xs font-semibold text-[#173A63] uppercase tracking-wider">
+                      Ranked Cash-Out Candidate Zones (Delhi Pilot)
+                    </div>
+                    <div className="relative" onClick={(e) => e.stopPropagation()}>
+                      <button
+                        id="info-btn-top3"
+                        onClick={() => toggleInfoPopover('top3')}
+                        className="text-slate-400 hover:text-blue-600 transition-colors"
+                        title="About candidate zones"
+                      >
+                        <Info className="w-3.5 h-3.5" />
+                      </button>
+                      {activeInfoPopover === 'top3' && (
+                        <div className="absolute left-0 top-5 z-30 w-64 p-3 bg-white border border-slate-200 rounded-lg shadow-lg text-[11px] text-slate-600 leading-relaxed">
+                          <p className="font-semibold text-slate-800 mb-1">Top-3 Candidate Cash-Out Zones</p>
+                          <p>These are ranked predictive candidate locations, not confirmed withdrawal locations. Scores are relative ranking metrics used to compare candidate zones for this complaint — they are not verified real-world probabilities.</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <p className="text-[11px] text-slate-500 leading-relaxed mt-1 mb-2">
                     Scores are relative model ranking scores used to compare candidate cash-out zones. They are not literal probabilities of withdrawal and do not need to sum to 100%.
@@ -1280,17 +1320,38 @@ export const CaseIntelligence: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
                       <div>
-                        <h4 className="text-xs font-bold text-[#173A63] uppercase">
-                          Model Attribution & Local Explainability (LIME)
-                        </h4>
+                        <div className="flex items-center space-x-1.5">
+                          <h4 className="text-xs font-bold text-[#173A63] uppercase">
+                            Model Attribution & Local Explainability (LIME)
+                          </h4>
+                          <div className="relative" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              id="info-btn-lime"
+                              onClick={() => toggleInfoPopover('lime')}
+                              className="text-slate-400 hover:text-blue-600 transition-colors"
+                            >
+                              <Info className="w-3 h-3" />
+                            </button>
+                            {activeInfoPopover === 'lime' && (
+                              <div className="absolute left-0 top-4 z-30 w-72 p-3 bg-white border border-slate-200 rounded-lg shadow-lg text-[11px] text-slate-600 leading-relaxed">
+                                <p className="font-semibold text-slate-800 mb-1">About LIME Explainability</p>
+                                <p>LIME is a local surrogate explanation showing which features locally influenced this specific candidate ranking. It does not establish causation and does not modify the official prediction or probabilities.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
                         <p className="text-[11px] text-slate-500">
-                          Explains why the trained model prioritized Top-3 candidates without altering rankings.
+                          Local factors influencing this prediction without altering candidate ranking.
                         </p>
                       </div>
                     </div>
                     <Button
                       onClick={handleExplainPrediction}
-                      disabled={loadingExplanation || (explanation?.explanation_status === 'UNAVAILABLE' && !!explanation.is_legacy_prediction)}
+                      disabled={
+                        loadingExplanation ||
+                        (explanation?.explanation_status === 'UNAVAILABLE' && !!explanation.is_legacy_prediction) ||
+                        (explanation?.explanation_status === 'UNAVAILABLE' && explanation.reason === 'CALIBRATOR_HASH_MISMATCH')
+                      }
                       variant="outline"
                       size="sm"
                       className="shrink-0 text-xs"
@@ -1298,6 +1359,8 @@ export const CaseIntelligence: React.FC = () => {
                     >
                       {loadingExplanation
                         ? 'Computing LIME...'
+                        : explanation?.explanation_status === 'UNAVAILABLE' && explanation.reason === 'CALIBRATOR_HASH_MISMATCH'
+                        ? 'Unavailable (Historical Artifact)'
                         : explanation?.explanation_status === 'UNAVAILABLE' && explanation.is_legacy_prediction
                         ? 'Unavailable (Legacy Prediction)'
                         : explanation
@@ -1313,17 +1376,74 @@ export const CaseIntelligence: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Unavailable Explanation Banner */}
-                  {explanation && explanation.explanation_status === 'UNAVAILABLE' && (
+                  {/* Unavailable Explanation Banner — CALIBRATOR_HASH_MISMATCH */}
+                  {explanation && explanation.explanation_status === 'UNAVAILABLE' && explanation.reason === 'CALIBRATOR_HASH_MISMATCH' && (
+                    <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span className="font-bold text-amber-900">Historical Prediction</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-200/70 text-amber-900">V7 Artifact</span>
+                      </div>
+                      <p className="text-amber-800 leading-relaxed">
+                        This prediction was generated using an earlier verified model/calibrator artifact.
+                        CyberShield will not generate a LIME explanation using different runtime artifacts
+                        because that could produce a misleading explanation.
+                      </p>
+                      <Button
+                        onClick={handleRunPrediction}
+                        disabled={runningPrediction}
+                        variant="primary"
+                        size="sm"
+                        icon={<Cpu className={`w-3.5 h-3.5 ${runningPrediction ? 'animate-spin' : ''}`} />}
+                      >
+                        {runningPrediction ? 'Running V8 Analysis...' : 'Run Current V8 Analysis'}
+                      </Button>
+                      <details className="text-[10px] text-amber-700 cursor-pointer">
+                        <summary className="font-semibold hover:text-amber-900 select-none">ⓘ Technical Details</summary>
+                        <div className="mt-2 p-2 bg-amber-100/60 rounded border border-amber-200/80 space-y-1 font-mono">
+                          <div>Historical model: <span className="font-semibold">{explanation.model_version || explanation.location_model_version || 'cashout-location-xgb-v7-compat'}</span></div>
+                          {explanation.snapshot_calibrator_hash_prefix && (
+                            <div>Snapshot calibrator: <span className="font-semibold">{explanation.snapshot_calibrator_hash_prefix}</span></div>
+                          )}
+                          {explanation.runtime_calibrator_hash_prefix && (
+                            <div>Runtime calibrator: <span className="font-semibold">{explanation.runtime_calibrator_hash_prefix}</span></div>
+                          )}
+                          <div className="pt-1 text-[9px] text-amber-600">Explanation refused to prevent misaligned probability scaling. Historical predictions remain tied to the exact artifacts used at prediction time.</div>
+                        </div>
+                      </details>
+                    </div>
+                  )}
+
+                  {/* Unavailable Explanation Banner — Legacy (no snapshot) */}
+                  {explanation && explanation.explanation_status === 'UNAVAILABLE' && explanation.is_legacy_prediction && (
+                    <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg text-xs space-y-3">
+                      <div className="flex items-center space-x-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+                        <span className="font-bold text-amber-900">Historical Snapshot Unavailable</span>
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-200/70 text-amber-900">No Snapshot</span>
+                      </div>
+                      <p className="text-amber-800 leading-relaxed">
+                        This historical prediction does not have an immutable feature snapshot attached.
+                        CyberShield does not reconstruct feature inputs from current database state to prevent evidence drift.
+                      </p>
+                      <Button
+                        onClick={handleRunPrediction}
+                        disabled={runningPrediction}
+                        variant="primary"
+                        size="sm"
+                        icon={<Cpu className={`w-3.5 h-3.5 ${runningPrediction ? 'animate-spin' : ''}`} />}
+                      >
+                        {runningPrediction ? 'Running V8 Analysis...' : 'Run Current V8 Analysis'}
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Unavailable Explanation Banner — Other/Generic */}
+                  {explanation && explanation.explanation_status === 'UNAVAILABLE' && !explanation.is_legacy_prediction && explanation.reason !== 'CALIBRATOR_HASH_MISMATCH' && (
                     <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-lg text-xs space-y-2">
                       <div className="flex items-center space-x-2 font-semibold text-amber-900">
                         <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
                         <span>LIME Explanation Unavailable</span>
-                        {explanation.is_legacy_prediction && (
-                          <span className="px-1.5 py-0.5 rounded text-[10px] font-mono bg-amber-200/70 text-amber-900">
-                            Historical Snapshot Missing
-                          </span>
-                        )}
                       </div>
                       <p className="text-amber-800 leading-relaxed">
                         {explanation.message || 'LIME explanation could not be generated for this prediction.'}
@@ -1545,9 +1665,26 @@ export const CaseIntelligence: React.FC = () => {
                 {/* Model Provenance Card (B12 & Final Integration) */}
                 <div className="p-4 bg-white rounded-lg border border-[#DCE5F0] space-y-2.5 shadow-xs text-xs">
                   <div className="flex items-center justify-between pb-2 border-b border-[#DCE5F0]">
-                    <span className="font-bold text-[#173A63] uppercase text-[11px]">
-                      Model & Provenance
-                    </span>
+                    <div className="flex items-center space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                      <span className="font-bold text-[#173A63] uppercase text-[11px]">
+                        Model & Provenance
+                      </span>
+                      <div className="relative">
+                        <button
+                          id="info-btn-provenance"
+                          onClick={() => toggleInfoPopover('provenance')}
+                          className="text-slate-400 hover:text-blue-600 transition-colors"
+                        >
+                          <Info className="w-3 h-3" />
+                        </button>
+                        {activeInfoPopover === 'provenance' && (
+                          <div className="absolute left-0 top-4 z-30 w-64 p-3 bg-white border border-slate-200 rounded-lg shadow-lg text-[11px] text-slate-600 leading-relaxed">
+                            <p className="font-semibold text-slate-800 mb-1">Model & Provenance</p>
+                            <p>Shows the exact prediction mode, model version, and supporting provenance associated with this specific prediction record.</p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                     <span className="font-mono text-blue-700 font-semibold">
                       #{prediction.prediction_id || prediction.id}
                     </span>
@@ -1560,7 +1697,17 @@ export const CaseIntelligence: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Location Model:</span>
-                      <span className="font-mono text-slate-800 font-semibold">{prediction.model_version || 'cashout-location-xgb-v7-compat'}</span>
+                      <span className="font-mono text-slate-800 font-semibold">{prediction.model_version || 'cashout-location-xgb-v8-debiased'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-slate-500">Feature Schema:</span>
+                      <span className="text-slate-800 font-medium">
+                        {(prediction.model_version && prediction.model_version.includes('v8')) || (!prediction.model_version && isTrained)
+                          ? 'V8 Debiased • 49 features'
+                          : prediction.model_version && prediction.model_version.includes('v7')
+                          ? 'V7-compat • 47 features (43 base + 4 compat)'
+                          : 'V3.1 Base • 43 features'}
+                      </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Time Model:</span>
@@ -1601,7 +1748,7 @@ export const CaseIntelligence: React.FC = () => {
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">Explainability:</span>
-                      <span className="text-slate-800 font-medium">LIME Tabular</span>
+                      <span className="text-slate-800 font-medium">LIME Local Explanation</span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-slate-500">LIME Fidelity:</span>
@@ -1639,9 +1786,26 @@ export const CaseIntelligence: React.FC = () => {
 
                     {/* Evaluated Risk Signals */}
                     <div className="pt-2.5 mt-2 border-t border-slate-200 space-y-1.5">
-                      <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
-                        Evaluated Risk Signals
-                      </span>
+                      <div className="flex items-center space-x-1.5" onClick={(e) => e.stopPropagation()}>
+                        <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">
+                          Evaluated Risk Signals
+                        </span>
+                        <div className="relative">
+                          <button
+                            id="info-btn-risk-signals"
+                            onClick={() => toggleInfoPopover('risk_signals')}
+                            className="text-slate-400 hover:text-blue-600 transition-colors"
+                          >
+                            <Info className="w-3 h-3" />
+                          </button>
+                          {activeInfoPopover === 'risk_signals' && (
+                            <div className="absolute right-0 top-4 z-30 w-72 p-3 bg-white border border-slate-200 rounded-lg shadow-lg text-[11px] text-slate-600 leading-relaxed">
+                              <p className="font-semibold text-slate-800 mb-1">Evaluated Risk Signals</p>
+                              <p>These are separate model, graph, and historical/contextual signals. They should not be interpreted as a single combined probability or as proof of a cash-out event.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                       <div className="flex justify-between items-center text-slate-600">
                         <span className="text-slate-500 flex items-center space-x-1 cursor-help" title="Trained XGBoost ranking score for the primary candidate cluster. Relative ranking metric across Delhi candidate zones; not real-world withdrawal probability.">
                           <span>Model Ranking Score:</span>

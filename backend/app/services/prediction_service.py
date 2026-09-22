@@ -771,7 +771,9 @@ class MLPredictionProvider:
 
             # Clean officer-facing intervention reasoning without raw percentage display
             if rank == 1:
-                if "v7-compat" in self.model_version:
+                if "v8" in self.model_version:
+                    loc_ver_name = "Location V8 Debiased"
+                elif "v7-compat" in self.model_version:
                     loc_ver_name = "Location V7-compat"
                 elif "v4" in self.model_version:
                     loc_ver_name = "Location V4"

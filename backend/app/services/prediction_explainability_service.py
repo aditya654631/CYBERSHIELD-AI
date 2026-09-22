@@ -43,7 +43,18 @@ V4_COMPAT_FEATURES = [
     "v4_score_gap_from_candidate1"
 ]
 
-# Officer-readable definitions, units, categories, provenance types, and honest descriptions for all 47 features
+# Forbidden victim-origin features in V8
+V8_FORBIDDEN_FEATURES = {
+    "distance_from_victim",
+    "candidate_same_complaint_zone",
+    "dist_to_complaint_zone_km",
+    "v4_candidate_score",
+    "v4_candidate_rank_normalized",
+    "v4_candidate_percentile",
+    "v4_score_gap_from_candidate1"
+}
+
+# Officer-readable definitions, units, categories, provenance types, and honest descriptions
 FEATURE_METADATA: Dict[str, Dict[str, str]] = {
     "log_amount": {
         "label": "Logarithm of Complaint Amount",
@@ -346,6 +357,69 @@ FEATURE_METADATA: Dict[str, Dict[str, str]] = {
         "unit": "km",
         "honest_description": "Haversine distance from candidate cluster to centroid of terminal recipient account district."
     },
+    "dist_to_terminal_centroid_km": {
+        "label": "Distance to Terminal Account Zone Centroid",
+        "category": "Spatial Corridor",
+        "provenance_type": "SPATIAL_DERIVED",
+        "unit": "km",
+        "honest_description": "Continuous Haversine distance from candidate cluster centroid to the centroid of the terminal recipient account's district."
+    },
+    "log_cluster_network_exposure": {
+        "label": "Risk-Weighted Historical Exposure",
+        "category": "Syndicate History",
+        "provenance_type": "SYNTHETIC_HISTORICAL_BASELINE",
+        "unit": "log exposure",
+        "honest_description": "Logarithm of risk-weighted historical cash-out volume and incident count for this cluster in baseline data."
+    },
+    "cluster_fraud_type_match_score": {
+        "label": "Fraud-Type Cluster Co-occurrence Affinity",
+        "category": "Syndicate History",
+        "provenance_type": "SYNTHETIC_HISTORICAL_BASELINE",
+        "unit": "affinity score",
+        "honest_description": "Historical affinity score between the reported fraud modus operandi and this location cluster."
+    },
+    "cluster_channel_match_score": {
+        "label": "Payment Channel Cluster Co-occurrence",
+        "category": "Financial Flow",
+        "provenance_type": "SYNTHETIC_HISTORICAL_BASELINE",
+        "unit": "affinity score",
+        "honest_description": "Historical co-occurrence score between the payment channel (UPI, IMPS, etc.) and cash-out activity in this cluster."
+    },
+    "cluster_hourly_match_score": {
+        "label": "Hour-of-Day Cluster Cash-Out Affinity",
+        "category": "Temporal Pattern",
+        "provenance_type": "SYNTHETIC_HISTORICAL_BASELINE",
+        "unit": "affinity score",
+        "honest_description": "Estimated temporal probability of cash-out occurring in this cluster during this clock hour."
+    },
+    "cluster_weekday_match_score": {
+        "label": "Weekday-Class Cluster Cash-Out Affinity",
+        "category": "Temporal Pattern",
+        "provenance_type": "SYNTHETIC_HISTORICAL_BASELINE",
+        "unit": "affinity score",
+        "honest_description": "Estimated temporal probability of cash-out in this cluster for this day of the week."
+    },
+    "atm_density_log": {
+        "label": "Log Commercial ATM Density",
+        "category": "Infrastructure",
+        "provenance_type": "SPATIAL_DERIVED",
+        "unit": "log(ATMs)",
+        "honest_description": "Logarithm of commercial ATM kiosks in candidate cluster zone."
+    },
+    "cluster_risk_x_count": {
+        "label": "Cluster Risk-Volume Composite Prior",
+        "category": "Syndicate History",
+        "provenance_type": "SYNTHETIC_HISTORICAL_BASELINE",
+        "unit": "composite index",
+        "honest_description": "Composite index of baseline historical cluster risk prior multiplied by log historical incident frequency."
+    },
+    "dist_to_second_account_zone_km": {
+        "label": "Distance to Intermediary Account Zone Centroid",
+        "category": "Spatial Corridor",
+        "provenance_type": "SPATIAL_DERIVED",
+        "unit": "km",
+        "honest_description": "Continuous Haversine distance from candidate cluster centroid to the second-most-active intermediary transfer account jurisdiction."
+    },
     "v4_candidate_score": {
         "label": "V4 Foundation Model Score Prior",
         "category": "Model Prior",
@@ -391,11 +465,11 @@ def format_feature_value(feature_name: str, value: float) -> str:
         return f"{value:.2f}"
     elif feature_name == "v4_candidate_percentile":
         return f"{value * 100:.1f}%"
-    elif feature_name in ("distance_from_victim", "dist_to_terminal_zone_km", "dist_to_complaint_zone_km"):
+    elif feature_name in ("distance_from_victim", "dist_to_terminal_zone_km", "dist_to_complaint_zone_km", "dist_to_terminal_centroid_km", "dist_to_second_account_zone_km"):
         return f"{value:.1f} km"
     elif feature_name in ("candidate_same_terminal_zone", "candidate_same_complaint_zone", "candidate_same_any_account_zone", "weekend_flag", "night_flag"):
         return "Yes" if value >= 0.5 else "No"
-    elif feature_name == "historical_cluster_risk":
+    elif feature_name in ("historical_cluster_risk", "log_cluster_network_exposure", "cluster_fraud_type_match_score", "cluster_channel_match_score", "cluster_hourly_match_score", "cluster_weekday_match_score", "atm_density_log", "cluster_risk_x_count"):
         return f"{value:.2f}"
     elif feature_name in ("total_transferred", "mean_transfer_amount", "max_transfer_amount", "historical_cluster_cashout_amount"):
         return f"₹{int(round(value)):,}"
@@ -438,85 +512,262 @@ def compute_snapshot_digest(snap_dict: Optional[Dict[str, Any]]) -> str:
 
 class PredictionExplainabilityService:
     """
-    Production LIME Explainability Service for official V7-compat predictions.
+    Production LIME Explainability Service supporting verified official models:
+    - cashout-location-xgb-v8-debiased (49 causal money network features, 0 victim features)
+    - cashout-location-xgb-v7-compat (47 legacy compat features)
+
     Uses tabular candidate-level surrogate linear models grounded strictly
     in immutable prediction snapshots.
     """
 
     def __init__(self, random_state: int = 42):
         self.random_state = random_state
-        self.explainer = None
-        self.background_matrix: Optional[np.ndarray] = None
-        self.background_metadata: Dict[str, Any] = {}
-        self.feature_names: List[str] = []
-        self.explainer_version: str = "lime_tabular_0.2.0.1"
-        self.feature_schema_version: str = "v7_compat"
-        self.is_initialized: bool = False
-        self._init_error: Optional[str] = None
+        self._explainers: Dict[str, Any] = {}
+        self._background_matrices: Dict[str, np.ndarray] = {}
+        self._background_metadatas: Dict[str, Dict[str, Any]] = {}
+        self._feature_schemas: Dict[str, List[str]] = {}
+        self._models: Dict[str, Any] = {}
+        self._calibrators: Dict[str, Any] = {}
+        self._init_errors: Dict[str, str] = {}
 
-    def _ensure_initialized(self) -> bool:
-        """Lazy-loads background data and initializes LimeTabularExplainer using shared artifact resolver."""
-        if self.is_initialized:
+    @property
+    def _init_error(self) -> Optional[str]:
+        return self._init_errors.get("v8_debiased") or self._init_errors.get("v7_compat") or (next(iter(self._init_errors.values())) if self._init_errors else None)
+
+    @property
+    def is_initialized(self) -> bool:
+        return bool(self._explainers)
+
+    @is_initialized.setter
+    def is_initialized(self, val: bool) -> None:
+        if not val:
+            self._explainers.clear()
+
+    @property
+    def explainer(self) -> Any:
+        # Default / active explainer (prefer v8 if loaded, else v7)
+        if "v8_debiased" in self._explainers:
+            return self._explainers["v8_debiased"]
+        return self._explainers.get("v7_compat")
+
+    @property
+    def background_matrix(self) -> Optional[np.ndarray]:
+        if "v8_debiased" in self._background_matrices:
+            return self._background_matrices["v8_debiased"]
+        if "v7_compat" in self._background_matrices:
+            return self._background_matrices["v7_compat"]
+        return None
+
+    @property
+    def background_metadata(self) -> Dict[str, Any]:
+        return self._background_metadatas.get("v8_debiased") or self._background_metadatas.get("v7_compat") or {}
+
+    @property
+    def feature_names(self) -> List[str]:
+        return self._feature_schemas.get("v8_debiased") or self._feature_schemas.get("v7_compat") or []
+
+    @property
+    def explainer_version(self) -> str:
+        if "v8_debiased" in self._explainers:
+            return "lime_tabular_v8_debiased"
+        return "lime_tabular_0.2.0.1"
+
+    @property
+    def feature_schema_version(self) -> str:
+        if "v8_debiased" in self._explainers:
+            return "v8_debiased"
+        return "v7_compat"
+
+    def _normalize_model_key(self, model_version: Optional[str]) -> Optional[str]:
+        if not model_version:
+            return None
+        m_str = str(model_version).lower().strip()
+        if "v8" in m_str or "debiased" in m_str:
+            return "v8_debiased"
+        elif "v7" in m_str or "compat" in m_str:
+            return "v7_compat"
+        return None
+
+    def _ensure_initialized_for_model(self, model_version: str) -> bool:
+        """Lazy-loads model artifacts, background matrix, and LimeTabularExplainer for specified model."""
+        key = self._normalize_model_key(model_version)
+        if not key:
+            self._init_errors[str(model_version)] = f"Unsupported model version '{model_version}' for LIME explainability."
+            return False
+
+        if key in self._explainers and self._explainers[key] is not None:
             return True
 
         try:
             from lime.lime_tabular import LimeTabularExplainer
-
+            import joblib
             artifacts_dir = resolve_artifacts_dir()
-            bg_path = os.path.join(artifacts_dir, "v7_lime_background.npy")
-            bg_meta_path = os.path.join(artifacts_dir, "v7_lime_background_metadata.json")
 
-            if not os.path.exists(bg_path):
-                self._init_error = "Background matrix artifact 'v7_lime_background.npy' not found."
-                logger.error(self._init_error)
-                return False
+            if key == "v8_debiased":
+                from ml.features.feature_pipeline import FEATURE_COLUMNS_LOCATION_V8_DEBIASED
 
-            if os.path.exists(bg_meta_path):
-                try:
-                    with open(bg_meta_path, "r", encoding="utf-8") as f:
-                        self.background_metadata = json.load(f)
-                    expected_bg_hash = self.background_metadata.get("sha256_npy")
-                    if expected_bg_hash:
-                        actual_bg_hash = compute_file_sha256(bg_path)
-                        if actual_bg_hash != expected_bg_hash:
-                            self._init_error = "Background matrix SHA-256 integrity check failed."
-                            logger.error(self._init_error)
-                            return False
-                except Exception as meta_e:
-                    logger.warning("Could not verify background metadata: %s", meta_e)
+                bg_path = os.path.join(artifacts_dir, "v8_lime_background.npy")
+                bg_meta_path = os.path.join(artifacts_dir, "v8_lime_background_metadata.json")
+                ranker_path = os.path.join(artifacts_dir, "location_ranker_v8_debiased.joblib")
+                calibrator_path = os.path.join(artifacts_dir, "location_calibrator_v8_debiased.joblib")
 
-            self.background_matrix = np.load(bg_path)
-            if self.background_matrix.shape[1] != 47:
-                self._init_error = f"Background matrix has {self.background_matrix.shape[1]} columns, expected 47."
-                logger.error(self._init_error)
-                return False
+                if not os.path.exists(bg_path):
+                    err = "V8 background matrix artifact 'v8_lime_background.npy' not found."
+                    self._init_errors[key] = err
+                    logger.error(err)
+                    return False
 
-            # Load official V7 feature schema
-            mlp = getattr(prediction_service, "ml_provider", None)
-            schema_features = (mlp.feature_schema or {}).get("location_features") if mlp else None
-            if not schema_features or len(schema_features) != 47:
+                if not os.path.exists(ranker_path) or not os.path.exists(calibrator_path):
+                    err = "V8 ranker or calibrator artifact not found in artifacts directory."
+                    self._init_errors[key] = err
+                    logger.error(err)
+                    return False
+
+                raw_bg = np.load(bg_path)
+                if raw_bg.shape[1] != 49:
+                    err = f"V8 background matrix has {raw_bg.shape[1]} columns, expected exactly 49."
+                    self._init_errors[key] = err
+                    logger.error(err)
+                    return False
+
+                bg_clean = np.nan_to_num(raw_bg, nan=0.0)
+                feature_names = list(FEATURE_COLUMNS_LOCATION_V8_DEBIASED)
+                assert len(feature_names) == 49, f"Expected 49 V8 features, got {len(feature_names)}"
+
+                # Verify 0 forbidden victim-origin features and 0 V4 stack features
+                for f in feature_names:
+                    if f in V8_FORBIDDEN_FEATURES:
+                        raise ValueError(f"Forbidden feature '{f}' detected in V8 LIME feature schema.")
+
+                # Categorical / binary feature indices in 49-feature schema
+                cat_names = [
+                    "fraud_type_encoded", "payment_channel_encoded", "weekend_flag",
+                    "night_flag", "candidate_same_terminal_zone", "candidate_same_any_account_zone"
+                ]
+                categorical_features = [feature_names.index(c) for c in cat_names if c in feature_names]
+
+                ranker = joblib.load(ranker_path)
+                calibrator = joblib.load(calibrator_path)
+
+                explainer = LimeTabularExplainer(
+                    training_data=bg_clean,
+                    feature_names=feature_names,
+                    categorical_features=categorical_features,
+                    mode="regression",
+                    random_state=self.random_state
+                )
+
+                bg_metadata = {}
+                if os.path.exists(bg_meta_path):
+                    try:
+                        with open(bg_meta_path, "r", encoding="utf-8") as f:
+                            bg_metadata = json.load(f)
+                        expected_hash = bg_metadata.get("sha256_npy")
+                        if expected_hash:
+                            actual_hash = compute_file_sha256(bg_path)
+                            if actual_hash != expected_hash:
+                                err = "Background matrix SHA-256 integrity check failed for v8_debiased."
+                                self._init_errors[key] = err
+                                logger.error(err)
+                                return False
+                    except Exception as meta_e:
+                        if "Background matrix SHA-256 integrity check failed" in str(meta_e):
+                            raise
+                        logger.warning("Could not read v8_lime_background_metadata.json: %s", meta_e)
+                else:
+                    bg_metadata = {
+                        "background_sample_size": len(bg_clean),
+                        "feature_count": 49,
+                        "feature_schema_version": "v8_debiased",
+                        "seed": 56100
+                    }
+
+                self._background_matrices[key] = bg_clean
+                self._background_metadatas[key] = bg_metadata
+                self._feature_schemas[key] = feature_names
+                self._models[key] = ranker
+                self._calibrators[key] = calibrator
+                self._explainers[key] = explainer
+
+                logger.info("Successfully initialized V8 LIME explainer with %d background rows and 49 features", len(bg_clean))
+                return True
+
+            elif key == "v7_compat":
                 from ml.features.feature_pipeline import FEATURE_COLUMNS_LOCATION_V3_1
-                schema_features = FEATURE_COLUMNS_LOCATION_V3_1 + V4_COMPAT_FEATURES
 
-            self.feature_names = list(schema_features)
+                bg_path = os.path.join(artifacts_dir, "v7_lime_background.npy")
+                bg_meta_path = os.path.join(artifacts_dir, "v7_lime_background_metadata.json")
+                ranker_path = os.path.join(artifacts_dir, "location_ranker_v7_compat.joblib")
+                calibrator_path = os.path.join(artifacts_dir, "location_calibrator_v7_compat.joblib")
 
-            # Categorical / binary features indices in 47-feature schema
-            categorical_features = [1, 2, 5, 6, 38, 39, 40]
+                if not os.path.exists(bg_path):
+                    err = "V7 background matrix artifact 'v7_lime_background.npy' not found."
+                    self._init_errors[key] = err
+                    logger.error(err)
+                    return False
 
-            self.explainer = LimeTabularExplainer(
-                training_data=self.background_matrix,
-                feature_names=self.feature_names,
-                categorical_features=categorical_features,
-                mode="regression",
-                random_state=self.random_state
-            )
-            self.is_initialized = True
-            logger.info("Successfully initialized PredictionExplainabilityService with %d background rows and 47 features", len(self.background_matrix))
-            return True
-        except Exception as e:
-            self._init_error = f"Explainer initialization failed: {sanitize_error(str(e))}"
-            logger.exception("Failed to initialize LIME explainer: %s", e)
+                raw_bg = np.load(bg_path)
+                if raw_bg.shape[1] != 47:
+                    err = f"V7 background matrix has {raw_bg.shape[1]} columns, expected 47."
+                    self._init_errors[key] = err
+                    logger.error(err)
+                    return False
+
+                bg_clean = np.nan_to_num(raw_bg, nan=0.0)
+                feature_names = FEATURE_COLUMNS_LOCATION_V3_1 + V4_COMPAT_FEATURES
+                categorical_features = [1, 2, 5, 6, 38, 39, 40]
+
+                ranker = joblib.load(ranker_path) if os.path.exists(ranker_path) else getattr(prediction_service.ml_provider, "location_model", None)
+                calibrator = joblib.load(calibrator_path) if os.path.exists(calibrator_path) else getattr(prediction_service.ml_provider, "calibrator", None)
+
+                explainer = LimeTabularExplainer(
+                    training_data=bg_clean,
+                    feature_names=feature_names,
+                    categorical_features=categorical_features,
+                    mode="regression",
+                    random_state=self.random_state
+                )
+
+                bg_metadata = {}
+                if os.path.exists(bg_meta_path):
+                    try:
+                        with open(bg_meta_path, "r", encoding="utf-8") as f:
+                            bg_metadata = json.load(f)
+                        expected_hash = bg_metadata.get("sha256_npy")
+                        if expected_hash:
+                            actual_hash = compute_file_sha256(bg_path)
+                            if actual_hash != expected_hash:
+                                err = "Background matrix SHA-256 integrity check failed for v7_compat."
+                                self._init_errors[key] = err
+                                logger.error(err)
+                                return False
+                    except Exception as meta_e:
+                        if "Background matrix SHA-256 integrity check failed" in str(meta_e):
+                            raise
+                        logger.warning("Could not read v7_lime_background_metadata.json: %s", meta_e)
+
+                self._background_matrices[key] = bg_clean
+                self._background_metadatas[key] = bg_metadata
+                self._feature_schemas[key] = feature_names
+                self._models[key] = ranker
+                self._calibrators[key] = calibrator
+                self._explainers[key] = explainer
+
+                logger.info("Successfully initialized V7 LIME explainer with %d background rows and 47 features", len(bg_clean))
+                return True
+
             return False
+        except Exception as e:
+            err = f"Explainer initialization failed for {key}: {sanitize_error(str(e))}"
+            self._init_errors[key] = err
+            logger.exception("Failed to initialize LIME explainer for %s: %s", key, e)
+            return False
+
+    def _ensure_initialized(self) -> bool:
+        """Backward-compatible initializer: ensures active runtime model explainer is loaded."""
+        mlp = getattr(prediction_service, "ml_provider", None)
+        active_ver = getattr(mlp, "model_version", "cashout-location-xgb-v8-debiased") if mlp else "cashout-location-xgb-v8-debiased"
+        return self._ensure_initialized_for_model(active_ver) or self._ensure_initialized_for_model("v7_compat")
 
     @staticmethod
     def classify_fidelity(r2_score: float, abs_error: float) -> str:
@@ -586,34 +837,43 @@ class PredictionExplainabilityService:
         cluster_id: int,
         location_name: str,
         official_score: float,
+        model_version: Optional[str] = None,
         num_features: int = 8,
         num_samples: int = 1000
     ) -> Dict[str, Any]:
         """
         Explains an individual candidate location prediction using tabular LIME.
         Deterministic through local per-call RNG without mutating global np.random.
+        Applies version-aware model dispatch and exact runtime feature schemas.
         """
-        if not self.is_initialized or self.explainer is None:
-            if not self._ensure_initialized():
-                raise RuntimeError(self._init_error or "Explainer initialization failed")
+        if model_version is None:
+            if len(candidate_vector) == 47:
+                model_version = "cashout-location-xgb-v7-compat"
+            else:
+                model_version = "cashout-location-xgb-v8-debiased"
 
-        mlp = prediction_service.ml_provider
-        v7_model = mlp.location_model
-        v7_calibrator = mlp.calibrator
+        key = self._normalize_model_key(model_version)
+        if not key or not self._ensure_initialized_for_model(model_version):
+            raise RuntimeError(self._init_errors.get(key or str(model_version), f"Explainer initialization failed for {model_version}"))
+
+        explainer = self._explainers[key]
+        feature_names = self._feature_schemas[key]
+        ranker = self._models[key]
+        calibrator = self._calibrators[key]
 
         def predict_fn(X: np.ndarray) -> np.ndarray:
             clean_X = np.nan_to_num(X, nan=0.0)
-            raw = v7_model.predict(clean_X)
-            return v7_calibrator.predict_proba(raw.reshape(-1, 1))[:, 1]
+            raw = ranker.predict(clean_X)
+            return calibrator.predict_proba(raw.reshape(-1, 1))[:, 1]
 
         # Use independent seeded RNG per rank call for thread-safe determinism
         local_rng = np.random.RandomState(self.random_state + rank)
-        self.explainer.random_state = local_rng
-        if hasattr(self.explainer, "discretizer") and self.explainer.discretizer:
-            self.explainer.discretizer.random_state = local_rng
+        explainer.random_state = local_rng
+        if hasattr(explainer, "discretizer") and explainer.discretizer:
+            explainer.discretizer.random_state = local_rng
 
         clean_row = np.nan_to_num(candidate_vector, nan=0.0)
-        exp = self.explainer.explain_instance(
+        exp = explainer.explain_instance(
             data_row=clean_row,
             predict_fn=predict_fn,
             num_features=num_features,
@@ -634,9 +894,9 @@ class PredictionExplainabilityService:
 
         for feat_idx, weight in map_items:
             f_idx = int(feat_idx)
-            if f_idx < 0 or f_idx >= len(self.feature_names):
+            if f_idx < 0 or f_idx >= len(feature_names):
                 continue
-            fname = self.feature_names[f_idx]
+            fname = feature_names[f_idx]
             fval = float(clean_row[f_idx])
             w = float(weight)
 
@@ -677,7 +937,7 @@ class PredictionExplainabilityService:
                 contrib_payload["direction"] = "SUPPORTING"
                 contrib_payload["contribution_share"] = share
                 contrib_payload["description"] = (
-                    f"Factors that contributed to this candidate ranking include {friendly} "
+                    f"Factors that locally increased this candidate's ranking priority include {friendly} "
                     f"({val_formatted}; local rule: {rule_str})."
                 )
                 pos_contribs.append(contrib_payload)
@@ -685,7 +945,7 @@ class PredictionExplainabilityService:
                 contrib_payload["direction"] = "OPPOSING"
                 contrib_payload["contribution_share"] = -share
                 contrib_payload["description"] = (
-                    f"Factors reducing candidate ranking priority include {friendly} "
+                    f"Factors that locally decreased this candidate's ranking priority include {friendly} "
                     f"({val_formatted}; local rule: {rule_str})."
                 )
                 neg_contribs.append(contrib_payload)
@@ -699,11 +959,11 @@ class PredictionExplainabilityService:
         ]
         if top_pos:
             summary_parts.append(
-                f"Primary supporting signal: {top_pos['friendly_label']} ({top_pos['formatted_value']}, attribution weight {top_pos['weight']:+.4f})."
+                f"Primary supporting local factor: {top_pos['friendly_label']} ({top_pos['formatted_value']}, attribution weight {top_pos['weight']:+.4f})."
             )
         if top_neg:
             summary_parts.append(
-                f"Primary down-weighting signal: {top_neg['friendly_label']} ({top_neg['formatted_value']}, attribution weight {top_neg['weight']:+.4f})."
+                f"Primary down-weighting local factor: {top_neg['friendly_label']} ({top_neg['formatted_value']}, attribution weight {top_neg['weight']:+.4f})."
             )
         summary_parts.append(
             f"Local surrogate fit achieved R² = {r2_score:.4f} ({fidelity_status.replace('_', ' ')})."
@@ -730,7 +990,7 @@ class PredictionExplainabilityService:
         prediction_id: int
     ) -> Dict[str, Any]:
         """
-        Retrieves or generates LIME explainability for official V7 prediction using
+        Retrieves or generates LIME explainability for official V8 or V7 predictions using
         faithful inference snapshot provenance.
 
         Guaranteed:
@@ -738,6 +998,7 @@ class PredictionExplainabilityService:
         - Never modifies PredictionLocation or Alert rows.
         - Never reconstructs features from live database for historical complaints.
         - Returns appropriate status: AVAILABLE, LOW_FIDELITY, UNAVAILABLE, or NOT_FOUND.
+        - Supports version-aware dispatch for V8 debiased (49 features) and V7 compat (47 features).
         """
         prediction = db.query(Prediction).filter(Prediction.id == prediction_id).first()
         if not prediction:
@@ -854,9 +1115,11 @@ class PredictionExplainabilityService:
                 "disclaimer": "LIME explainability requires an immutable snapshot captured at prediction time."
             }
 
-        # 4. Snapshot Model and Schema Verification
-        snapshot_model = snapshot.get("model_version")
-        if snapshot_model != "cashout-location-xgb-v7-compat":
+        # 4. Model Version Dispatch & Feature Schema Validation
+        snapshot_model = snapshot.get("model_version") or prediction.model_version
+        model_key = self._normalize_model_key(snapshot_model)
+
+        if not model_key:
             return {
                 "explanation_status": "UNAVAILABLE",
                 "prediction_id": prediction.id,
@@ -867,14 +1130,30 @@ class PredictionExplainabilityService:
                 "snapshot_digest": snapshot_digest,
                 "snapshot_source": snapshot_source,
                 "message": (
-                    f"LIME tabular explanation is only calibrated for official cashout-location-xgb-v7-compat. "
-                    f"Snapshot model version is '{snapshot_model}'. Historical or unsupported model version is refused."
+                    f"LIME tabular explanation is only calibrated for official verified models "
+                    f"(cashout-location-xgb-v8-debiased, cashout-location-xgb-v7-compat). "
+                    f"Snapshot model version is '{snapshot_model}'. Unsupported model version is refused."
                 ),
-                "actionable_next_step": "Model version is not supported by the V7-compat LIME tabular explainer."
+                "actionable_next_step": "Model version is not supported by the LIME tabular explainer."
             }
 
+        if not self._ensure_initialized_for_model(snapshot_model):
+            return {
+                "explanation_status": "UNAVAILABLE",
+                "prediction_id": prediction.id,
+                "complaint_number": c_num,
+                "prediction_mode": prediction.prediction_mode,
+                "model_version": snapshot_model,
+                "location_model_version": snapshot_model,
+                "message": f"LIME explainer engine unavailable for {snapshot_model}: {self._init_errors.get(model_key)}",
+                "actionable_next_step": "Verify that LIME dependencies and background artifacts are present."
+            }
+
+        expected_schema = self._feature_schemas[model_key]
+        expected_count = len(expected_schema)
         snapshot_features = snapshot.get("feature_names", [])
-        if len(snapshot_features) != 47:
+
+        if len(snapshot_features) != expected_count:
             return {
                 "explanation_status": "UNAVAILABLE",
                 "prediction_id": prediction.id,
@@ -884,11 +1163,11 @@ class PredictionExplainabilityService:
                 "location_model_version": snapshot_model,
                 "snapshot_digest": snapshot_digest,
                 "snapshot_source": snapshot_source,
-                "message": f"Snapshot feature schema contains {len(snapshot_features)} features, expected exactly 47.",
-                "actionable_next_step": "Ensure complaint feature schema is compatible with V7-compat."
+                "message": f"Snapshot feature schema contains {len(snapshot_features)} features, expected exactly {expected_count} for {snapshot_model}.",
+                "actionable_next_step": f"Ensure complaint feature schema is compatible with {snapshot_model}."
             }
 
-        if self.is_initialized and self.feature_names and list(snapshot_features) != list(self.feature_names):
+        if list(snapshot_features) != list(expected_schema):
             return {
                 "explanation_status": "UNAVAILABLE",
                 "prediction_id": prediction.id,
@@ -898,35 +1177,46 @@ class PredictionExplainabilityService:
                 "location_model_version": snapshot_model,
                 "snapshot_digest": snapshot_digest,
                 "snapshot_source": snapshot_source,
-                "message": "Snapshot feature schema names do not match official V7-compat feature schema.",
-                "actionable_next_step": "Ensure feature schema matches the 47 official V7-compat feature definitions."
+                "message": f"Snapshot feature schema names do not match official {snapshot_model} feature schema.",
+                "actionable_next_step": f"Ensure feature schema matches the {expected_count} official {snapshot_model} feature definitions."
             }
 
-        # Verify calibrator artifact hash against current runtime provider if loaded
-        mlp = getattr(prediction_service, "ml_provider", None)
-        if mlp and getattr(mlp, "is_loaded", False):
-            snap_cal_hash = snapshot.get("calibrator_hash")
-            if snap_cal_hash and mlp.calibrator_hash and snap_cal_hash != mlp.calibrator_hash:
-                return {
-                    "explanation_status": "UNAVAILABLE",
-                    "prediction_id": prediction.id,
-                    "complaint_number": c_num,
-                    "prediction_mode": prediction.prediction_mode,
-                    "model_version": snapshot_model,
-                    "location_model_version": snapshot_model,
-                    "snapshot_digest": snapshot_digest,
-                    "snapshot_source": snapshot_source,
-                    "message": (
-                        f"Calibrator mismatch: Snapshot was generated with calibrator hash {snap_cal_hash[:12]}..., "
-                        f"but current runtime has calibrator hash {mlp.calibrator_hash[:12]}.... "
-                        f"Refusing explanation to prevent misaligned probability scaling."
-                    ),
-                    "actionable_next_step": "Reload runtime with matching calibrator artifact or re-run prediction."
-                }
+        # Verify calibrator artifact hash against canonical artifact hash
+        snap_cal_hash = snapshot.get("calibrator_hash")
+        if snap_cal_hash:
+            artifacts_dir = resolve_artifacts_dir()
+            cal_file = "location_calibrator_v8_debiased.joblib" if model_key == "v8_debiased" else "location_calibrator_v7_compat.joblib"
+            cal_path = os.path.join(artifacts_dir, cal_file)
+            if os.path.exists(cal_path):
+                expected_cal_hash = compute_file_sha256(cal_path)
+                if snap_cal_hash != expected_cal_hash:
+                    return {
+                        "explanation_status": "UNAVAILABLE",
+                        "prediction_id": prediction.id,
+                        "complaint_number": c_num,
+                        "prediction_mode": prediction.prediction_mode,
+                        "model_version": snapshot_model,
+                        "location_model_version": snapshot_model,
+                        "snapshot_digest": snapshot_digest,
+                        "snapshot_source": snapshot_source,
+                        "reason": "CALIBRATOR_HASH_MISMATCH",
+                        "snapshot_calibrator_hash_prefix": snap_cal_hash[:16] + "...",
+                        "runtime_calibrator_hash_prefix": expected_cal_hash[:16] + "...",
+                        "message": (
+                            f"Calibrator mismatch: This prediction was generated with a different calibrator artifact than the one currently "
+                            f"loaded in the runtime. CyberShield does not generate explanations using mismatched "
+                            f"artifacts — historical predictions remain tied to the exact model artifacts used at "
+                            f"prediction time."
+                        ),
+                        "actionable_next_step": "Run a new V8 analysis for this complaint to generate a fresh prediction with full LIME explainability under the current runtime."
+                    }
 
-        # 5. Check Cache Identity (Snapshot Digest + Explainer Configuration + Official Outputs)
+        # 5. Check Cache Identity (Snapshot Digest + Model Version + Explainer Configuration + Official Outputs)
+        explainer_version_label = f"lime_tabular_{model_key}"
+        schema_version_label = model_key
+
         cache_identity = hashlib.sha256(
-            f"{prediction.id}:{snapshot_digest}:{self.explainer_version}:{self.random_state}".encode("utf-8")
+            f"{prediction.id}:{snapshot_digest}:{snapshot_model}:{explainer_version_label}:{self.random_state}".encode("utf-8")
         ).hexdigest()
 
         cached_exp = (prediction.result_metadata or {}).get("explainability") if prediction.result_metadata else None
@@ -935,6 +1225,7 @@ class PredictionExplainabilityService:
             and cached_exp.get("cache_identity") == cache_identity
             and cached_exp.get("snapshot_digest") == snapshot_digest
             and cached_exp.get("snapshot_provenance") is True
+            and cached_exp.get("model_version") == snapshot_model
             and cached_exp.get("explanation_status") in ("AVAILABLE", "LOW_FIDELITY")
         ):
             # Validate candidate and official output correspondence in cache against persisted PredictionLocations
@@ -955,20 +1246,7 @@ class PredictionExplainabilityService:
             ):
                 return cached_exp
 
-        # 6. Ensure LIME engine is loaded
-        if not self._ensure_initialized():
-            return {
-                "explanation_status": "UNAVAILABLE",
-                "prediction_id": prediction.id,
-                "complaint_number": c_num,
-                "prediction_mode": prediction.prediction_mode,
-                "model_version": prediction.model_version,
-                "location_model_version": prediction.model_version,
-                "message": f"LIME explainer engine unavailable: {self._init_error}",
-                "actionable_next_step": "Verify that LIME dependencies and background artifacts are present."
-            }
-
-        # 7. Query persisted Top-3 PredictionLocations
+        # 6. Query persisted Top-3 PredictionLocations
         locations = (
             db.query(PredictionLocation)
             .filter(PredictionLocation.prediction_id == prediction.id)
@@ -1016,12 +1294,13 @@ class PredictionExplainabilityService:
                     cluster_id=int(loc.cluster_id),
                     location_name=str(loc.location_name),
                     official_score=float(loc.probability),
+                    model_version=snapshot_model,
                     num_features=8,
                     num_samples=1000
                 )
                 top3_exps.append(cand_exp)
 
-            # Backward-compatible factor list from Rank 1 (without artificial minimum floor)
+            # Backward-compatible factor list from Rank 1
             rank1_exp = top3_exps[0]
             compat_factors = []
             all_contribs = rank1_exp.get("positive_contributions", []) + rank1_exp.get("negative_contributions", [])
@@ -1037,21 +1316,23 @@ class PredictionExplainabilityService:
                     "description": c["description"]
                 })
 
+            bg_meta = self._background_metadatas.get(model_key, {})
+
             response_payload = {
                 "explanation_status": "AVAILABLE",
                 "prediction_id": prediction.id,
                 "complaint_number": c_num,
                 "prediction_mode": prediction.prediction_mode,
-                "model_version": prediction.model_version,
-                "location_model_version": prediction.model_version,
+                "model_version": snapshot_model,
+                "location_model_version": snapshot_model,
                 "explanation_method": "LIME",
-                "explainer_version": self.explainer_version,
-                "feature_schema_version": self.feature_schema_version,
+                "explainer_version": explainer_version_label,
+                "feature_schema_version": schema_version_label,
                 "generated_at": datetime.now(timezone.utc).isoformat(),
                 "overall_fidelity_status": "LOW_FIDELITY",
                 "mean_local_fidelity_r2": 0.0,
-                "background_sample_size": int(self.background_metadata.get("background_sample_size", 500)),
-                "background_seed": int(self.background_metadata.get("seed", 56100)),
+                "background_sample_size": int(bg_meta.get("background_sample_size", len(self._background_matrices.get(model_key, [])))),
+                "background_seed": int(bg_meta.get("seed", 56100)),
                 "top3_explanations": top3_exps,
                 "factors": compat_factors,
                 "narrative": "",
@@ -1061,7 +1342,7 @@ class PredictionExplainabilityService:
                 "snapshot_provenance": True,
                 "disclaimer": (
                     "LIME provides local surrogate linear explanations of model decisions for risk prioritization. "
-                    "This is an algorithmic approximation, not proof or causal evidence of criminal activity."
+                    "This is an algorithmic approximation of local feature influence, not proof or causal evidence of criminal activity."
                 )
             }
 
@@ -1070,7 +1351,7 @@ class PredictionExplainabilityService:
             mean_r2 = response_payload["mean_local_fidelity_r2"]
             overall_status = response_payload["overall_fidelity_status"]
             response_payload["narrative"] = (
-                f"Prediction #{prediction.id} explained via {self.explainer_version} (LIME tabular) grounded in immutable snapshot. "
+                f"Prediction #{prediction.id} explained via {explainer_version_label} (LIME tabular) grounded in immutable snapshot. "
                 f"Local surrogate fit achieved mean R² = {mean_r2:.4f} ({overall_status.replace('_', ' ')})."
             )
 
@@ -1102,3 +1383,4 @@ class PredictionExplainabilityService:
 
 # Global singleton instance
 prediction_explainability_service = PredictionExplainabilityService(random_state=42)
+

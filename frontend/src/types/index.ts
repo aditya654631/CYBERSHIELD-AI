@@ -264,6 +264,12 @@ export interface Explanation {
   message?: string;
   actionable_next_step?: string;
   is_legacy_prediction?: boolean;
+  /** Discriminator for calibrator hash mismatch — set to "CALIBRATOR_HASH_MISMATCH" */
+  reason?: string;
+  /** Safe display prefix of the snapshot calibrator hash (first 16 chars + "...") */
+  snapshot_calibrator_hash_prefix?: string;
+  /** Safe display prefix of the current runtime calibrator hash (first 16 chars + "...") */
+  runtime_calibrator_hash_prefix?: string;
   cache_identity?: string;
   snapshot_provenance?: boolean;
 }
