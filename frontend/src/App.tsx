@@ -5,6 +5,7 @@ import { DashboardLayout } from './layouts/DashboardLayout';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Route-level code splitting via React.lazy
+const LandingPage = React.lazy(() => import('./pages/LandingPage').then(m => ({ default: m.LandingPage })));
 const Login = React.lazy(() => import('./pages/Login').then(m => ({ default: m.Login })));
 const Dashboard = React.lazy(() => import('./pages/Dashboard').then(m => ({ default: m.Dashboard })));
 const RiskMap = React.lazy(() => import('./pages/RiskMap').then(m => ({ default: m.RiskMap })));
@@ -33,8 +34,13 @@ export const App: React.FC = () => {
       <BrowserRouter>
         <Suspense fallback={<PageLoading />}>
           <Routes>
+            {/* Public Landing Page */}
+            <Route path="/" element={<LandingPage />} />
+
+            {/* Public Login Route */}
             <Route path="/login" element={<Login />} />
 
+            {/* Authenticated Workspace Routes */}
             <Route
               path="/"
               element={
@@ -43,7 +49,6 @@ export const App: React.FC = () => {
                 </ProtectedRoute>
               }
             >
-              <Route index element={<Navigate to="/dashboard" replace />} />
               <Route path="dashboard" element={<Dashboard />} />
               <Route
                 path="risk-map"
@@ -99,6 +104,7 @@ export const App: React.FC = () => {
               />
             </Route>
 
+            {/* Catch-all fallback */}
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </Suspense>

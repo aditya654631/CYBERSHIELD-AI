@@ -10,6 +10,8 @@ import {
   CheckCircle2,
   ChevronDown,
   ChevronUp,
+  ArrowLeft,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth, DEMO_CREDENTIALS } from '../store/authContext';
 import { UserRole } from '../types';
@@ -69,11 +71,35 @@ export const Login: React.FC = () => {
     setSessionExpiredNotice(null);
   };
 
+  const handleUsePilotCredentials = () => {
+    const cred = DEMO_CREDENTIALS.I4C_ADMIN;
+    setEmail(cred.email);
+    setPassword(cred.pass);
+    setError(null);
+    setSessionExpiredNotice(null);
+  };
+
   return (
-    <div className="min-h-screen bg-[#F6F8FC] flex items-center justify-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-4xl bg-white rounded-xl shadow-md border border-[#DCE5F0] overflow-hidden grid grid-cols-1 md:grid-cols-12">
+    <div className="min-h-screen bg-[#0A1628] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
+      {/* Top Navigation Bar */}
+      <div className="w-full max-w-4xl mb-4 flex items-center justify-between">
+        <button
+          type="button"
+          onClick={() => navigate('/')}
+          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors bg-slate-800/80 hover:bg-slate-700/80 px-3 py-1.5 rounded-md border border-slate-700"
+        >
+          <ArrowLeft className="w-3.5 h-3.5 text-blue-400" />
+          <span>← Back to Home</span>
+        </button>
+
+        <div className="text-[11px] text-slate-400 font-mono hidden sm:block">
+          CyberShield AI • Delhi Pilot v1.0.0
+        </div>
+      </div>
+
+      <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl border border-[#DCE5F0] overflow-hidden grid grid-cols-1 md:grid-cols-12">
         {/* LEFT / INSTITUTIONAL BRAND PANEL */}
-        <div className="md:col-span-5 bg-[#173A63] text-white p-5 sm:p-8 flex flex-col justify-between relative">
+        <div className="md:col-span-5 bg-[#122A4E] text-white p-5 sm:p-8 flex flex-col justify-between relative">
           <div>
             {/* Government Context */}
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/10 text-blue-100 text-[11px] font-medium border border-white/20 mb-6">
@@ -120,11 +146,35 @@ export const Login: React.FC = () => {
         {/* RIGHT / LOGIN FORM PANEL */}
         <div className="md:col-span-7 p-4 sm:p-8 md:p-10 flex flex-col justify-between bg-white">
           <div>
-            <div className="mb-6">
-              <h2 className="text-lg font-bold text-[#173A63]">Secure Officer Sign In</h2>
+            <div className="mb-5">
+              <h2 className="text-lg font-bold text-[#173A63]">Secure Investigator Access</h2>
               <p className="text-xs text-slate-500 mt-1">
                 Enter your official law enforcement or banking credentials to access the intelligence console.
               </p>
+            </div>
+
+            {/* Dedicated Controlled Pilot Quick Card */}
+            <div className="mb-5 p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50/60 rounded-lg border border-blue-200/80">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center space-x-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
+                  <span className="text-xs font-bold text-[#173A63]">I4C National Command Pilot</span>
+                </div>
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-600 text-white uppercase tracking-wider">
+                  CONTROLLED PILOT • SYNTHETIC DATA
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-600 mb-2.5 flex items-center justify-between font-mono">
+                <span>admin@cybershield.gov.in</span>
+                <span className="text-slate-400">••••••••••••</span>
+              </div>
+              <button
+                type="button"
+                onClick={handleUsePilotCredentials}
+                className="w-full py-1.5 px-3 bg-white hover:bg-blue-50 border border-blue-300 text-blue-700 font-semibold text-xs rounded transition-colors text-center shadow-2xs"
+              >
+                Use Pilot Credentials
+              </button>
             </div>
 
             {/* Session Expired Notice */}
@@ -196,8 +246,8 @@ export const Login: React.FC = () => {
               </button>
             </form>
 
-            {/* Controlled Seed / Prototype Quick Login */}
-            <div className="mt-6 pt-5 border-t border-[#DCE5F0]">
+            {/* Other Prototype Roles Quick Select */}
+            <div className="mt-5 pt-4 border-t border-[#DCE5F0]">
               <button
                 type="button"
                 onClick={() => setShowDemoAccounts(!showDemoAccounts)}
@@ -205,7 +255,7 @@ export const Login: React.FC = () => {
               >
                 <span className="flex items-center space-x-1.5">
                   <KeyRound className="w-3.5 h-3.5 text-blue-600" />
-                  <span>Controlled Pilot Credentials (Evaluation)</span>
+                  <span>Other Prototype Role Accounts</span>
                 </span>
                 {showDemoAccounts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
               </button>
