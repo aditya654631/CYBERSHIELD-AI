@@ -28,11 +28,8 @@ import { useAuth, DEMO_CREDENTIALS } from '../store/authContext';
 import { InfoPopover } from '../components/common/InfoPopover';
 
 export const LandingPage: React.FC = () => {
-  const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [pilotLoading, setPilotLoading] = useState(false);
-  const [pilotError, setPilotError] = useState<string | null>(null);
   const [scrolled, setScrolled] = useState(false);
 
   useEffect(() => {
@@ -43,18 +40,8 @@ export const LandingPage: React.FC = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const handleControlledPilotLogin = async () => {
-    setPilotLoading(true);
-    setPilotError(null);
-    try {
-      const cred = DEMO_CREDENTIALS.I4C_ADMIN;
-      await login(cred.email, cred.pass);
-      navigate('/dashboard');
-    } catch (err: any) {
-      setPilotError(err.response?.data?.detail || 'Failed to authenticate pilot account. Proceed via standard login.');
-    } finally {
-      setPilotLoading(false);
-    }
+  const handleControlledPilotLogin = () => {
+    navigate('/login', { state: { prefillPilot: true } });
   };
 
   const scrollToSection = (id: string) => {
@@ -115,25 +102,15 @@ export const LandingPage: React.FC = () => {
             </button>
           </nav>
 
-          {/* RIGHT: Login / Dashboard CTA */}
+          {/* RIGHT: Login CTA */}
           <div className="hidden sm:flex items-center space-x-3">
-            {isAuthenticated ? (
-              <button
-                onClick={() => navigate('/dashboard')}
-                className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center space-x-1.5"
-              >
-                <span>Open Dashboard</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
-            ) : (
-              <button
-                onClick={() => navigate('/login')}
-                className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center space-x-1.5"
-              >
-                <Lock className="w-3.5 h-3.5" />
-                <span>Officer Login</span>
-              </button>
-            )}
+            <button
+              onClick={() => navigate('/login')}
+              className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center space-x-1.5"
+            >
+              <Lock className="w-3.5 h-3.5" />
+              <span>Officer Login</span>
+            </button>
           </div>
 
           {/* Mobile Hamburger Button */}
@@ -182,22 +159,13 @@ export const LandingPage: React.FC = () => {
               Security
             </button>
             <div className="pt-2 border-t border-slate-800">
-              {isAuthenticated ? (
-                <button
-                  onClick={() => navigate('/dashboard')}
-                  className="w-full py-2.5 px-4 rounded-md bg-blue-600 text-white text-xs font-semibold text-center"
-                >
-                  Open Dashboard
-                </button>
-              ) : (
-                <button
-                  onClick={() => navigate('/login')}
-                  className="w-full py-2.5 px-4 rounded-md bg-blue-600 text-white text-xs font-semibold text-center flex items-center justify-center space-x-1.5"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Officer Login</span>
-                </button>
-              )}
+              <button
+                onClick={() => navigate('/login')}
+                className="w-full py-2.5 px-4 rounded-md bg-blue-600 text-white text-xs font-semibold text-center flex items-center justify-center space-x-1.5"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                <span>Officer Login</span>
+              </button>
             </div>
           </div>
         )}
@@ -239,23 +207,13 @@ export const LandingPage: React.FC = () => {
 
                 {/* Primary Actions */}
                 <div className="flex flex-wrap items-center gap-3 pt-2">
-                  {isAuthenticated ? (
-                    <button
-                      onClick={() => navigate('/dashboard')}
-                      className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2"
-                    >
-                      <span>Open Dashboard</span>
-                      <ArrowRight className="w-4 h-4" />
-                    </button>
-                  ) : (
-                    <button
-                      onClick={() => navigate('/login')}
-                      className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2"
-                    >
-                      <Lock className="w-4 h-4" />
-                      <span>Officer Login</span>
-                    </button>
-                  )}
+                  <button
+                    onClick={() => navigate('/login')}
+                    className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2"
+                  >
+                    <Lock className="w-4 h-4" />
+                    <span>Officer Login</span>
+                  </button>
 
                   <button
                     onClick={() => scrollToSection('how-it-works')}
@@ -955,28 +913,15 @@ export const LandingPage: React.FC = () => {
                 </div>
               </div>
 
-              {pilotError && (
-                <div className="mb-4 p-3 rounded bg-red-900/40 border border-red-500/50 text-red-200 text-xs">
-                  {pilotError}
-                </div>
-              )}
-
               {/* Login Actions */}
               <div className="flex flex-wrap items-center gap-3">
                 <button
                   type="button"
                   onClick={handleControlledPilotLogin}
-                  disabled={pilotLoading}
-                  className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition-colors flex items-center space-x-2 disabled:opacity-60"
+                  className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-xs shadow-md transition-colors flex items-center space-x-2"
                 >
-                  {pilotLoading ? (
-                    <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  ) : (
-                    <>
-                      <Zap className="w-3.5 h-3.5" />
-                      <span>Sign in to Controlled Pilot</span>
-                    </>
-                  )}
+                  <Zap className="w-3.5 h-3.5" />
+                  <span>Sign in to Controlled Pilot</span>
                 </button>
 
                 <button
