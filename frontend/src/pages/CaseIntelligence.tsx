@@ -39,6 +39,8 @@ import {
   XCircle,
   PlayCircle,
   Clock4,
+  CheckCircle,
+  ClipboardList,
 } from 'lucide-react';
 import { api } from '../services/api';
 import {
@@ -53,6 +55,8 @@ import {
   EvidenceIntegrityResult,
   CaseHandoffItem,
   CreateHandoffPayload,
+  InterventionPlanItem,
+  InterventionPlanActionItem,
 } from '../types';
 import { CashOutRiskMap } from '../maps/CashOutRiskMap';
 import { Card } from '../components/common/Card';
@@ -128,6 +132,60 @@ export const CaseIntelligence: React.FC = () => {
   const [createHandoffLoading, setCreateHandoffLoading] = useState(false);
   const [createHandoffError, setCreateHandoffError] = useState<string | null>(null);
 
+  // Phase 3: Intervention Orchestrator state
+  const [interventionPlan, setInterventionPlan] = useState<InterventionPlanItem | null>(null);
+  const [loadingInterventionPlan, setLoadingInterventionPlan] = useState(false);
+  const [generatingPlan, setGeneratingPlan] = useState(false);
+  const [interventionError, setInterventionError] = useState<string | null>(null);
+  const [updatingActionId, setUpdatingActionId] = useState<number | null>(null);
+
+  const handleGenerateInterventionPlan = async () => {
+    if (!caseId) return;
+    setGeneratingPlan(true);
+    setInterventionError(null);
+    try {
+      const plan = await api.generateInterventionPlan(caseId);
+      setInterventionPlan(plan);
+    } catch (err: any) {
+      setInterventionError(apiErrorMessage(err, 'Failed to generate intervention plan.'));
+    } finally {
+      setGeneratingPlan(false);
+    }
+  };
+
+  const handleRefreshInterventionPlan = async () => {
+    if (!interventionPlan) return;
+    setGeneratingPlan(true);
+    setInterventionError(null);
+    try {
+      const plan = await api.refreshInterventionPlan(interventionPlan.id);
+      setInterventionPlan(plan);
+    } catch (err: any) {
+      setInterventionError(apiErrorMessage(err, 'Failed to refresh intervention plan.'));
+    } finally {
+      setGeneratingPlan(false);
+    }
+  };
+
+  const handleUpdateActionStatus = async (actionId: number, newStatus: string) => {
+    if (!interventionPlan) return;
+    setUpdatingActionId(actionId);
+    try {
+      const updatedAction = await api.updateInterventionActionStatus(interventionPlan.id, actionId, newStatus);
+      setInterventionPlan(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          actions: prev.actions.map(a => a.id === actionId ? updatedAction : a)
+        };
+      });
+    } catch (err: any) {
+      setInterventionError(apiErrorMessage(err, 'Failed to update action status.'));
+    } finally {
+      setUpdatingActionId(null);
+    }
+  };
+
   const fetchCaseDetails = async () => {
     const version = ++loadVersion.current;
     setLoading(true);
@@ -140,8 +198,10 @@ export const CaseIntelligence: React.FC = () => {
     setGraphData(null);
     setExistingAlert(null);
     setSelectedVersionId(null);
+    setInterventionPlan(null);
+    setInterventionError(null);
     try {
-      const [compResult, predResult, mapResult, alertsResult, graphResult, versionsResult, evidenceResult, handoffsResult] = await Promise.allSettled([
+      const [compResult, predResult, mapResult, alertsResult, graphResult, versionsResult, evidenceResult, handoffsResult, planResult] = await Promise.allSettled([
         api.getComplaint(caseId),
         api.getPrediction(caseId),
         api.getRiskMap(),
@@ -150,6 +210,7 @@ export const CaseIntelligence: React.FC = () => {
         api.getPredictionVersions(caseId),
         api.getComplaintEvidence(caseId),
         api.getComplaintHandoffs(caseId),
+        api.getInterventionPlan(caseId),
       ]);
       if (version !== loadVersion.current) return;
       if (compResult.status === 'rejected') throw compResult.reason;
@@ -157,31 +218,26 @@ export const CaseIntelligence: React.FC = () => {
       const predData = predResult.status === 'fulfilled' ? predResult.value : null;
       if (predResult.status === 'rejected') setPredictionError(apiErrorMessage(predResult.reason, 'Could not load analysis. Retry below.'));
       setComplaint(compData);
-      sessionStorage.setItem('cybershield_last_case_id', compData.complaint_number);
       setPrediction(predData);
-      setClusters(mapResult.status === 'fulfilled' ? mapResult.value.hotspots || [] : []);
-      setGraphData(graphResult.status === 'fulfilled' ? graphResult.value : null);
+      if (alertsResult.status === 'fulfilled') {
+        const found = (alertsResult.value || []).find((a: any) => a.complaint_id === caseId);
+        setExistingAlert(found || null);
+      }
+      if (graphResult.status === 'fulfilled') setGraphData(graphResult.value);
       if (versionsResult.status === 'fulfilled') {
-        const vList = Array.isArray(versionsResult.value)
-          ? versionsResult.value
-          : (versionsResult.value as any)?.versions || [];
+        const vList = Array.isArray(versionsResult.value) ? versionsResult.value : (versionsResult.value as any)?.versions || [];
         setPredictionVersions(vList);
+        if (vList.length > 0) {
+          setSelectedVersionId(vList[0].prediction_id);
+        }
       }
-      if (evidenceResult.status === 'fulfilled') {
-        setEvidenceList(evidenceResult.value);
-      }
-      if (handoffsResult.status === 'fulfilled') {
-        setHandoffsList(handoffsResult.value);
-      }
-
-      const matchedAlert = (alertsResult.status === 'fulfilled' ? alertsResult.value : []).find(
-        (a) => a.complaint_number === caseId || a.complaint_id === compData.id
-      );
-      setExistingAlert(matchedAlert || null);
-
+      if (evidenceResult.status === 'fulfilled') setEvidenceList(evidenceResult.value);
+      if (handoffsResult.status === 'fulfilled') setHandoffsList(handoffsResult.value);
+      if (planResult.status === 'fulfilled') setInterventionPlan(planResult.value);
     } catch (err: any) {
-      console.error('Failed to load case intelligence', err);
-      if (version === loadVersion.current) setCaseError(apiErrorMessage(err, 'Could not load this complaint. Check the case number and retry.'));
+      if (version === loadVersion.current) {
+        setCaseError(apiErrorMessage(err, `Case ${caseId} not found.`));
+      }
     } finally {
       if (version === loadVersion.current) setLoading(false);
     }

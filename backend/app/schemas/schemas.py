@@ -1468,6 +1468,201 @@ class CatalogValidationResponse(BaseModel):
     catalog_version: str
     errors: List[str] = []
     warnings: List[str] = []
+    bank_response_latency_minutes: Optional[float] = None
+    is_synthetic: bool
+    is_excluded: bool
+    exclusion_reason: Optional[str] = None
+    verification_status: str
+    source: str
+    verifier_user_id: Optional[int] = None
+    verifier_name: Optional[str] = None
+    verifier_role: Optional[str] = None
+    ingested_by_user_id: Optional[int] = None
+    ingested_by_role: str
+    received_at: datetime
+    version: int
+    corrects_outcome_id: Optional[int] = None
+    record_status: str
+    correction_reason: Optional[str] = None
+    notes: Optional[str] = None
+    created_at: datetime
+    updated_at: Optional[datetime] = None
+
+    @field_validator("observed_event_time", "recovery_verified_at", "received_at",
+                     "created_at", "updated_at", mode="after", check_fields=False)
+    @classmethod
+    def ensure_utc(cls, v: Optional[datetime]) -> Optional[datetime]:
+        return to_utc_datetime(v)
+
+    class Config:
+        from_attributes = True
+
+
+class OutcomeMetricsResponse(BaseModel):
+    """Honest operational dashboard metrics with explicit denominators."""
+    # Denominators — always shown so unknown/excluded cohorts are visible
+    denominator_measured: int
+    denominator_unknown: int
+    denominator_excluded: int
+    denominator_synthetic: int
+    denominator_total_active: int
+    denominator_cashout: int
+
+    # Location accuracy (cashout outcomes only)
+    rank1_count: int
+    topk_count: int
+    rank1_accuracy_rate: Optional[float] = None   # NULL when denominator_cashout=0
+    topk_accuracy_rate: Optional[float] = None
+    mean_distance_error_km: Optional[float] = None
+
+    # Timing metrics
+    mean_prediction_lead_time_minutes: Optional[float] = None
+    mean_alert_lead_time_minutes: Optional[float] = None
+    mean_alert_acknowledgement_latency_minutes: Optional[float] = None
+    mean_bank_response_latency_minutes: Optional[float] = None
+
+    # Financial figures (reported separately)
+    total_verified_held_inr: float
+    total_verified_released_inr: float
+    total_actual_recovered_inr: float
+    financial_note: str
+
+    # Alert workload
+    false_alert_count: int
+
+    # Policy metadata
+    prediction_selection_policy: str
+    policy_description: str
+
+
+# ── PHASE 10: MODEL EVALUATION & DATA READINESS SCHEMAS ───────────────────────
+
+class RealDataImportMetadata(BaseModel):
+    source_system: str
+    batch_id: str
+    authorized_officer_id: Optional[int] = None
+    export_date: str
+    jurisdiction_state: Optional[str] = "Delhi"
+    pii_attestation: bool
+
+
+class RealDataImportValidationRequest(BaseModel):
+    metadata: RealDataImportMetadata
+    records: List[Dict[str, Any]]
+
+
+class RealDataImportValidationResponse(BaseModel):
+    validation_status: str
+    is_valid: bool
+    metadata_submitted: Dict[str, Any]
+    total_records_evaluated: int
+    valid_records_count: int
+    errors_count: int
+    warnings_count: int
+    errors: List[str]
+    warnings: List[str]
+    pii_compliance_status: str
+
+
+class RealDataValidationStatusResponse(BaseModel):
+    status: str
+    evaluation_readiness: str
+    message: str
+    external_acceptance_gates: List[Dict[str, Any]]
+    methodology_disclosures: Dict[str, Any]
+
+
+# ── PHASE 12: GEOGRAPHY CATALOG & MULTI-REGION SCHEMAS ───────────────────────
+
+class RegionCoordinates(BaseModel):
+    lat: float
+    lon: float
+
+class RegionBounds(BaseModel):
+    min_lat: float
+    max_lat: float
+    min_lon: float
+    max_lon: float
+
+class RegionSummaryItem(BaseModel):
+    id: str
+    name: str
+    state: str
+    catalog_version: str
+    source: str
+    license: str
+    verification_time: Optional[str] = None
+    center: RegionCoordinates
+    bounds: RegionBounds
+    cluster_radius_km: float
+    districts: List[str] = []
+    total_clusters: int = 0
+    total_atms: int = 0
+    data_completeness_status: str
+    model_support_status: str
+    supported_model_version: Optional[str] = None
+    is_synthetic: bool = False
+    is_active: bool = True
+
+    class Config:
+        from_attributes = True
+
+class RegionDetailResponse(BaseModel):
+    id: str
+    name: str
+    state: str
+    catalog_version: str
+    source: str
+    license: str
+    verification_time: Optional[str] = None
+    center: RegionCoordinates
+    bounds: RegionBounds
+    cluster_radius_km: float
+    districts: List[str] = []
+    total_clusters: int = 0
+    total_atms: int = 0
+    data_completeness_status: str
+    model_support_status: str
+    supported_model_version: Optional[str] = None
+    is_synthetic: bool = False
+    is_active: bool = True
+    region: Optional[RegionSummaryItem] = None
+    clusters_sample: List[Dict[str, Any]] = []
+    operational_limitations: List[str] = []
+
+    class Config:
+        from_attributes = True
+
+class GeographyCatalogResponseItem(BaseModel):
+    id: int
+    catalog_id: str
+    region_id: str
+    catalog_version: str
+    source: str
+    license: str
+    provenance_notes: Optional[str] = None
+    verification_time: Optional[str] = None
+    status: str
+    data_completeness_status: str
+    model_support_status: str
+    supported_model_version: Optional[str] = None
+    total_clusters: int = 0
+    total_atms: int = 0
+    cluster_radius_km: float = 2.5
+    imported_at: Optional[str] = None
+
+    class Config:
+        from_attributes = True
+
+class CatalogValidationRequest(BaseModel):
+    catalog: Dict[str, Any]
+
+class CatalogValidationResponse(BaseModel):
+    is_valid: bool
+    region_id: str
+    catalog_version: str
+    errors: List[str] = []
+    warnings: List[str] = []
     summary: Dict[str, Any] = {}
 
 class CatalogImportRequest(BaseModel):
@@ -1481,3 +1676,55 @@ class CatalogImportResponse(BaseModel):
     total_clusters_imported: int
     total_atms_imported: int
     model_support_status: str
+
+
+# Phase 3: Intervention Orchestrator Schemas
+class InterventionPlanActionResponse(BaseModel):
+    id: int
+    plan_id: int
+    category: str
+    action_type: str
+    title: str
+    description: Optional[str] = None
+    priority: str = "MEDIUM"
+    status: str = "RECOMMENDED"
+    recommended_reason: Optional[str] = None
+    linked_alert_id: Optional[int] = None
+    linked_bank_action_id: Optional[int] = None
+    linked_handoff_id: Optional[int] = None
+    assigned_role: Optional[str] = None
+    assigned_organization_id: Optional[int] = None
+    started_at: Optional[datetime] = None
+    completed_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InterventionPlanResponse(BaseModel):
+    id: int
+    plan_uuid: str
+    complaint_id: int
+    prediction_id: int
+    prediction_version: int = 1
+    generated_by_user_id: Optional[int] = None
+    generated_at: datetime
+    status: str = "ACTIVE"
+    plan_version: int = 1
+    primary_candidate_cluster_id: Optional[int] = None
+    operational_window_start: Optional[datetime] = None
+    operational_window_end: Optional[datetime] = None
+    summary_json: Optional[Dict[str, Any]] = None
+    actions: List[InterventionPlanActionResponse] = []
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class InterventionActionTransitionRequest(BaseModel):
+    status: str  # RECOMMENDED, AVAILABLE, STARTED, COMPLETED, NOT_APPLICABLE, CANCELLED
+    notes: Optional[str] = None

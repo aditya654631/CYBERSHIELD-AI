@@ -34,6 +34,8 @@ import {
   OutcomeMetrics,
   RegionItem,
   GeographyCatalogItem,
+  InterventionPlanItem,
+  InterventionPlanActionItem,
 } from '../types';
 
 const API_BASE_URL =
@@ -470,6 +472,27 @@ export const api = {
   },
   getOutcomeMetrics: async () => {
     const res = await apiClient.get<OutcomeMetrics>('/outcomes/metrics');
+    return res.data;
+  },
+
+  // ─── Phase 3: Intervention Orchestrator ─────────────────────────────────────
+  getInterventionPlan: async (complaintId: number | string) => {
+    const res = await apiClient.get<InterventionPlanItem>(`/complaints/${complaintId}/intervention-plan`);
+    return res.data;
+  },
+  generateInterventionPlan: async (complaintId: number | string) => {
+    const res = await apiClient.post<InterventionPlanItem>(`/complaints/${complaintId}/intervention-plan`);
+    return res.data;
+  },
+  updateInterventionActionStatus: async (planId: number, actionId: number, status: string, notes?: string) => {
+    const res = await apiClient.patch<InterventionPlanActionItem>(`/intervention-plans/${planId}/actions/${actionId}`, {
+      status,
+      notes,
+    });
+    return res.data;
+  },
+  refreshInterventionPlan: async (planId: number) => {
+    const res = await apiClient.post<InterventionPlanItem>(`/intervention-plans/${planId}/refresh`);
     return res.data;
   },
 };

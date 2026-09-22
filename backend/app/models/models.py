@@ -1,5 +1,5 @@
 import datetime
-import datetime
+import uuid
 from sqlalchemy import (
     Column, Integer, String, Float, Boolean, DateTime, ForeignKey, Text, Numeric, UniqueConstraint, JSON, Index, event
 )
@@ -836,3 +836,88 @@ def _outcome_before_update(mapper, connection, target):
                     f"OutcomeObservation.{attr_name} is immutable after creation. "
                     f"To correct, create a new record with corrects_outcome_id pointing to this record."
                 )
+
+
+class InterventionPlan(Base):
+    """
+    Phase 3: Decision-Support Intervention Plan entity.
+    Converts a persisted prediction and case context into a structured, reviewable action plan.
+    Zero autonomous real-world enforcement.
+    """
+    __tablename__ = "intervention_plans"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plan_uuid = Column(String(36), unique=True, index=True, nullable=False, default=lambda: str(uuid.uuid4()))
+    complaint_id = Column(Integer, ForeignKey("complaints.id"), nullable=False, index=True)
+    prediction_id = Column(Integer, ForeignKey("predictions.id"), nullable=False, index=True)
+    prediction_version = Column(Integer, nullable=False, default=1)
+
+    generated_by_user_id = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
+    generated_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+
+    status = Column(String(50), default="ACTIVE", nullable=False, index=True)  # DRAFT, ACTIVE, COMPLETED, CANCELLED, SUPERSEDED
+    plan_version = Column(Integer, default=1, nullable=False)
+
+    primary_candidate_cluster_id = Column(Integer, ForeignKey("location_clusters.id", ondelete="SET NULL"), nullable=True)
+    operational_window_start = Column(DateTime, nullable=True)
+    operational_window_end = Column(DateTime, nullable=True)
+
+    summary_json = Column(JSON, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_intervention_plans_comp_status", "complaint_id", "status"),
+    )
+
+    complaint = relationship("Complaint", foreign_keys=[complaint_id])
+    prediction = relationship("Prediction", foreign_keys=[prediction_id])
+    generated_by_user = relationship("User", foreign_keys=[generated_by_user_id])
+    primary_candidate_cluster = relationship("LocationCluster", foreign_keys=[primary_candidate_cluster_id])
+    actions = relationship("InterventionPlanAction", back_populates="plan", cascade="all, delete-orphan", order_by="InterventionPlanAction.id")
+
+
+class InterventionPlanAction(Base):
+    """
+    Phase 3: Individual decision-support action card within an Intervention Plan.
+    Explicit lifecycle: RECOMMENDED, AVAILABLE, STARTED, COMPLETED, NOT_APPLICABLE, CANCELLED.
+    """
+    __tablename__ = "intervention_plan_actions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    plan_id = Column(Integer, ForeignKey("intervention_plans.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    category = Column(String(50), nullable=False, index=True)  # LEA, BANK, JURISDICTION, GIS, ALERT, EVIDENCE
+    action_type = Column(String(100), nullable=False)
+    title = Column(String(255), nullable=False)
+    description = Column(Text, nullable=True)
+
+    priority = Column(String(20), default="MEDIUM", nullable=False)  # CRITICAL, HIGH, MEDIUM, LOW
+    status = Column(String(50), default="RECOMMENDED", nullable=False, index=True)  # RECOMMENDED, AVAILABLE, STARTED, COMPLETED, NOT_APPLICABLE, CANCELLED
+
+    recommended_reason = Column(Text, nullable=True)
+
+    linked_alert_id = Column(Integer, ForeignKey("alerts.id", ondelete="SET NULL"), nullable=True, index=True)
+    linked_bank_action_id = Column(Integer, ForeignKey("bank_actions.id", ondelete="SET NULL"), nullable=True, index=True)
+    linked_handoff_id = Column(Integer, ForeignKey("case_handoffs.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    assigned_role = Column(String(50), nullable=True)
+    assigned_organization_id = Column(Integer, ForeignKey("organizations.id", ondelete="SET NULL"), nullable=True)
+
+    started_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)
+
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow, onupdate=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_intervention_actions_plan_category", "plan_id", "category"),
+    )
+
+    plan = relationship("InterventionPlan", back_populates="actions", foreign_keys=[plan_id])
+    linked_alert = relationship("Alert", foreign_keys=[linked_alert_id])
+    linked_bank_action = relationship("BankAction", foreign_keys=[linked_bank_action_id])
+    linked_handoff = relationship("CaseHandoff", foreign_keys=[linked_handoff_id])
+    assigned_organization = relationship("Organization", foreign_keys=[assigned_organization_id])
+

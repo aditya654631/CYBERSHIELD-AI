@@ -31,6 +31,7 @@ from backend.app.api.report_routes import router as report_router
 from backend.app.api.handoff_routes import router as handoff_router
 from backend.app.api.outcome_routes import router as outcome_router
 from backend.app.api.geography_routes import router as geography_router
+from backend.app.api.intervention_routes import router as intervention_router
 from backend.app.websocket.manager import ws_manager
 
 @asynccontextmanager
@@ -184,6 +185,7 @@ app.include_router(report_router, prefix=api_prefix)
 app.include_router(handoff_router, prefix=api_prefix)
 app.include_router(outcome_router, prefix=api_prefix)
 app.include_router(geography_router, prefix=api_prefix)
+app.include_router(intervention_router, prefix=api_prefix)
 
 # Authenticated WebSocket for real-time alerts
 @app.websocket("/ws/alerts")

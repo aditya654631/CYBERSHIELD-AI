@@ -1246,3 +1246,45 @@ export interface OutcomeMetrics {
   prediction_selection_policy: string;
   policy_description: string;
 }
+
+// ─── Phase 3: Intervention Orchestrator ──────────────────────────────────────
+export interface InterventionPlanActionItem {
+  id: number;
+  plan_id: number;
+  category: 'LEA' | 'BANK' | 'JURISDICTION' | 'GIS' | 'ALERT' | 'EVIDENCE' | string;
+  action_type: string;
+  title: string;
+  description?: string | null;
+  priority: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  status: 'RECOMMENDED' | 'AVAILABLE' | 'STARTED' | 'COMPLETED' | 'NOT_APPLICABLE' | 'CANCELLED' | string;
+  recommended_reason?: string | null;
+  linked_alert_id?: number | null;
+  linked_bank_action_id?: number | null;
+  linked_handoff_id?: number | null;
+  assigned_role?: string | null;
+  assigned_organization_id?: number | null;
+  started_at?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterventionPlanItem {
+  id: number;
+  plan_uuid: string;
+  complaint_id: number;
+  prediction_id: number;
+  prediction_version: number;
+  generated_by_user_id?: number | null;
+  generated_at: string;
+  status: 'DRAFT' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED' | 'SUPERSEDED' | string;
+  plan_version: number;
+  primary_candidate_cluster_id?: number | null;
+  operational_window_start?: string | null;
+  operational_window_end?: string | null;
+  summary_json?: Record<string, any> | null;
+  actions: InterventionPlanActionItem[];
+  created_at: string;
+  updated_at: string;
+}
+
