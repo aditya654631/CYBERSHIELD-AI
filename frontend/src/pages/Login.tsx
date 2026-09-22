@@ -27,13 +27,31 @@ export const Login: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [showDemoAccounts, setShowDemoAccounts] = useState(false);
 
-  // Check for session expiration notice on mount
+  // Check for session expiration notice and sanitize legacy stored demo identities on mount
   useEffect(() => {
     const notice = sessionStorage.getItem('cybershield_session_expired');
     if (notice) {
       setSessionExpiredNotice(notice);
       sessionStorage.removeItem('cybershield_session_expired');
     }
+
+    // Clean up any stale legacy MP/Indore keys if stored in browser
+    const legacyKeys = [
+      'lastLoginEmail',
+      'selectedDemoRole',
+      'lastUser',
+      'lastAccount',
+      'rememberedEmail',
+      'cybershield_last_email',
+      'email'
+    ];
+    legacyKeys.forEach((k) => {
+      const val = localStorage.getItem(k) || sessionStorage.getItem(k);
+      if (val && (val.includes('indore') || val.includes('mp.police') || val.includes('mp_police'))) {
+        localStorage.removeItem(k);
+        sessionStorage.removeItem(k);
+      }
+    });
   }, []);
 
   // If already authenticated, redirect
@@ -133,7 +151,7 @@ export const Login: React.FC = () => {
               </div>
               <div className="flex items-start space-x-2.5">
                 <CheckCircle2 className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
-                <span>Immutable regulatory chain-of-custody audit</span>
+                <span>Tamper-Evident Prediction Audit</span>
               </div>
             </div>
           </div>
@@ -202,7 +220,9 @@ export const Login: React.FC = () => {
                   <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     id="login-email"
+                    name="username"
                     type="email"
+                    autoComplete="username"
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
@@ -220,7 +240,9 @@ export const Login: React.FC = () => {
                   <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
                   <input
                     id="login-password"
+                    name="password"
                     type="password"
+                    autoComplete="current-password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
@@ -284,7 +306,7 @@ export const Login: React.FC = () => {
           {/* Compliance & Security Notice */}
           <div className="mt-6 pt-4 border-t border-slate-100">
             <p className="text-[11px] text-slate-400 leading-tight">
-              Authorized personnel only. Access and operational actions are logged to an immutable regulatory audit ledger in compliance with MHA/I4C standards.
+              Authorized personnel only. Access and operational actions are logged to a tamper-evident audit ledger in compliance with MHA/I4C standards.
             </p>
           </div>
         </div>

@@ -63,11 +63,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const storedToken = localStorage.getItem('cybershield_token');
       const storedUser = localStorage.getItem('cybershield_user');
       if (storedToken && storedUser) {
-        setToken(storedToken);
         try {
-          setUser(JSON.parse(storedUser));
+          const parsed = JSON.parse(storedUser);
+          // Auto-migrate any legacy stored MP/Indore demo credentials to Delhi pilot equivalents
+          if (parsed?.email === 'district.lea@indore.police.gov.in') {
+            parsed.email = 'district.lea@southdelhi.cyber.gov.in';
+            if (parsed.organization_name) parsed.organization_name = 'District Cyber Cell (South Delhi)';
+            if (parsed.organization?.name) parsed.organization.name = 'District Cyber Cell (South Delhi)';
+            localStorage.setItem('cybershield_user', JSON.stringify(parsed));
+          } else if (parsed?.email === 'state.lea@mp.police.gov.in') {
+            parsed.email = 'state.lea@delhi.cyber.gov.in';
+            if (parsed.organization_name) parsed.organization_name = 'Delhi Cyber Crime Unit (NCT)';
+            if (parsed.organization?.name) parsed.organization.name = 'Delhi Cyber Crime Unit (NCT)';
+            localStorage.setItem('cybershield_user', JSON.stringify(parsed));
+          }
+          setToken(storedToken);
+          setUser(parsed);
         } catch {
           localStorage.removeItem('cybershield_user');
+          localStorage.removeItem('cybershield_token');
         }
       }
       setLoading(false);

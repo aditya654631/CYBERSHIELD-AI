@@ -22,6 +22,7 @@ import {
 import { api } from '../services/api';
 import { Complaint, HotspotCluster, RegionItem } from '../types';
 import { apiErrorMessage, formatIST, toLocalDateTimeInput } from '../utils/predictionDisplay';
+import { InfoPopover } from '../components/common/InfoPopover';
 
 export const Complaints: React.FC = () => {
   const navigate = useNavigate();
@@ -87,7 +88,6 @@ export const Complaints: React.FC = () => {
   const [newBeneficiaryUpi, setNewBeneficiaryUpi] = useState('');
   const [newPhoneOrMerchant, setNewPhoneOrMerchant] = useState('');
   const [newAdditionalRefs, setNewAdditionalRefs] = useState('');
-  const [newDemoMode, setNewDemoMode] = useState(false);
 
   useEffect(() => {
     api.getClusters({ region_id: newRegionId }).then(setLocationCatalog).catch(() => setLocationCatalog([]));
@@ -213,7 +213,7 @@ export const Complaints: React.FC = () => {
         beneficiary_upi: newBeneficiaryUpi.trim() || undefined,
         phone_or_merchant: newPhoneOrMerchant.trim() || undefined,
         additional_refs: newAdditionalRefs.trim() || undefined,
-        demo_mode: newDemoMode,
+        demo_mode: true,
       });
 
       // Auto-Prediction Orchestration: Complaint persistence must remain successful even if prediction fails
@@ -1322,21 +1322,54 @@ export const Complaints: React.FC = () => {
                 </div>
               </div>
 
-              {/* SECTION D: SIMULATION / DEMO MODE */}
-              <div className="p-3.5 bg-blue-50/60 border border-blue-200 rounded-lg flex items-start space-x-3">
-                <input
-                  type="checkbox"
-                  id="demo-mode-checkbox"
-                  checked={newDemoMode}
-                  onChange={(e) => setNewDemoMode(e.target.checked)}
-                  className="mt-1 h-4 w-4 text-blue-600 rounded border-slate-300 focus:ring-blue-500 cursor-pointer"
-                />
-                <label htmlFor="demo-mode-checkbox" className="text-xs text-slate-700 cursor-pointer select-none">
-                  <span className="font-bold text-[#173A63] block">Controlled Demo Simulation (demo_mode: true)</span>
-                  <span className="text-slate-500 block mt-0.5 leading-normal">
-                    Persists a deterministic, conserved 3-hop transaction layering trail in PostgreSQL with 6 account entities, 5 transaction edges, and 2 terminal ATM cash-out endpoints. Leave unchecked for genuine officer evidence input.
-                  </span>
-                </label>
+              {/* SECTION D: CONTROLLED SYNTHETIC DEMO MODE (PERMANENT) */}
+              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50/60 border border-blue-200 rounded-lg space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+                      Controlled Synthetic Demo Mode
+                    </span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white uppercase tracking-wider">
+                      Always On
+                    </span>
+                    <InfoPopover
+                      title="Controlled Synthetic Demo Mode"
+                      content="This controlled pilot uses synthetic complaint and transaction data for demonstration and model evaluation. It does not represent live NCRP or banking records."
+                    />
+                  </div>
+                  <div className="flex items-center space-x-1.5 text-[10px] font-semibold text-blue-700">
+                    <span className="px-2 py-0.5 rounded bg-white border border-blue-200">SYNTHETIC DATA</span>
+                    <span className="px-2 py-0.5 rounded bg-white border border-blue-200">DELHI PILOT</span>
+                  </div>
+                </div>
+
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  This Delhi Pilot operates using controlled synthetic complaint and transaction data.
+                  A deterministic demonstration transaction trail will be generated after registration to support:
+                </p>
+
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 text-[11px] font-medium text-slate-700 pt-1">
+                  <div className="flex items-center space-x-1 bg-white p-1.5 rounded border border-blue-100">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span className="truncate">Transaction Network</span>
+                  </div>
+                  <div className="flex items-center space-x-1 bg-white p-1.5 rounded border border-blue-100">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span className="truncate">V8 Prediction</span>
+                  </div>
+                  <div className="flex items-center space-x-1 bg-white p-1.5 rounded border border-blue-100">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span className="truncate">Risk Map</span>
+                  </div>
+                  <div className="flex items-center space-x-1 bg-white p-1.5 rounded border border-blue-100">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span className="truncate">LIME Explainability</span>
+                  </div>
+                  <div className="flex items-center space-x-1 bg-white p-1.5 rounded border border-blue-100 col-span-2 sm:col-span-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                    <span className="truncate">Alert Workflow</span>
+                  </div>
+                </div>
               </div>
 
               {/* Action Buttons */}

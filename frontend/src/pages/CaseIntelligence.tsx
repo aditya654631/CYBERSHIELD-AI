@@ -509,13 +509,15 @@ export const CaseIntelligence: React.FC = () => {
 
   // Context provenance mapping
   const provenanceLabel =
-    complaint.provenance_mode === 'DIRECT_OFFICER_INPUT'
-      ? 'Direct Officer-Reported Transaction'
+    complaint.provenance_mode === 'CONTROLLED_SYNTHETIC_DEMO'
+      ? 'Controlled Synthetic Transaction Trail'
       : complaint.provenance_mode === 'LINKED_SYNTHETIC_SCENARIO'
       ? 'Linked Investigation Scenario'
       : complaint.provenance_mode === 'HYBRID_CONTEXT'
       ? 'Hybrid Context'
-      : 'Direct Officer-Reported Transaction';
+      : complaint.provenance_mode === 'DIRECT_OFFICER_INPUT'
+      ? 'Direct Officer-Reported Transaction'
+      : 'Controlled Synthetic Transaction Trail';
 
   const nodeCount = graphData?.metrics?.node_count ?? (complaint.linked_account_count || 2);
   const transferCount = graphData?.metrics?.edge_count ?? (complaint.available_transaction_count || 1);
