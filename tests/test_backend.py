@@ -33,8 +33,8 @@ def test_health_check():
 def test_auth_login_all_roles():
     roles_creds = [
         ("admin@cybershield.gov.in", "CyberAdmin@2026", "I4C_ADMIN"),
-        ("state.lea@mp.police.gov.in", "StateLea@2026", "STATE_LEA"),
-        ("district.lea@indore.police.gov.in", "IndoreLea@2026", "DISTRICT_LEA"),
+        ("state.lea@delhi.cyber.gov.in", "StateLea@2026", "STATE_LEA"),
+        ("district.lea@southdelhi.cyber.gov.in", "DistrictLea@2026", "DISTRICT_LEA"),
         ("officer@sbi.co.in", "BankOfficer@2026", "BANK_OFFICER"),
         ("analyst@cybershield.gov.in", "Analyst@2026", "ANALYST"),
         ("auditor@mha.gov.in", "Auditor@2026", "AUDITOR"),
@@ -45,6 +45,11 @@ def test_auth_login_all_roles():
         data = resp.json()
         assert "access_token" in data
         assert data["user"]["role"] == expected_role
+
+    # Legacy retired MP and Indore logins must be blocked
+    for legacy_email in ["state.lea@mp.police.gov.in", "district.lea@indore.police.gov.in"]:
+        legacy_resp = client.post("/api/v1/auth/login", json={"email": legacy_email, "password": "AnyPassword@2026"})
+        assert legacy_resp.status_code == 401
 
 def test_cmp_1042_case_retrieval():
     resp = client.get("/api/v1/complaints/CMP-1042")

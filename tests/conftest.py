@@ -113,7 +113,9 @@ def guardrail_and_isolate_test_db():
             sbi_bank = models.Organization(id=4, name="State Bank of India - Fraud Risk Management Unit", org_type="BANK", state="Maharashtra", district="Mumbai")
             mha_audit = models.Organization(id=5, name="Ministry of Home Affairs Oversight & Compliance", org_type="I4C", state="Delhi", district="CENTRAL_NEW_DELHI")
             delhi_lea = models.Organization(id=6, name="Delhi Central Cyber Cell", org_type="LEA", state="Delhi", district="CENTRAL_NEW_DELHI")
-            db.add_all([i4c_org, mp_state_lea, indore_lea, sbi_bank, mha_audit, delhi_lea])
+            delhi_nct = models.Organization(id=10, name="Delhi Cyber Crime Unit (NCT)", org_type="LEA", state="Delhi", district="ALL", region_id="delhi")
+            south_delhi = models.Organization(id=11, name="District Cyber Cell (South Delhi)", org_type="LEA", state="Delhi", district="SOUTH", region_id="delhi")
+            db.add_all([i4c_org, mp_state_lea, indore_lea, sbi_bank, mha_audit, delhi_lea, delhi_nct, south_delhi])
             db.flush()
 
         # Users
@@ -123,6 +125,8 @@ def guardrail_and_isolate_test_db():
             org_3 = db.query(models.Organization).filter_by(id=3).first()
             org_4 = db.query(models.Organization).filter_by(id=4).first()
             org_5 = db.query(models.Organization).filter_by(id=5).first()
+            org_10 = db.query(models.Organization).filter_by(id=10).first()
+            org_11 = db.query(models.Organization).filter_by(id=11).first()
             users = [
                 models.User(
                     id=1, email="admin@cybershield.gov.in", hashed_password=get_password_hash("CyberAdmin@2026"),
@@ -130,11 +134,11 @@ def guardrail_and_isolate_test_db():
                 ),
                 models.User(
                     id=2, email="state.lea@mp.police.gov.in", hashed_password=get_password_hash("StateLea@2026"),
-                    full_name="SP Anand Shekhawat, IPS", role="STATE_LEA", badge_number="MP-CYBER-09", organization_id=org_2.id if org_2 else None, is_active=True
+                    full_name="SP Anand Shekhawat, IPS", role="STATE_LEA", badge_number="MP-CYBER-09", organization_id=org_2.id if org_2 else None, is_active=False
                 ),
                 models.User(
                     id=3, email="district.lea@indore.police.gov.in", hashed_password=get_password_hash("IndoreLea@2026"),
-                    full_name="Inspector Rajesh Verma", role="DISTRICT_LEA", badge_number="IND-CY-441", organization_id=org_3.id if org_3 else None, is_active=True
+                    full_name="Inspector Rajesh Verma", role="DISTRICT_LEA", badge_number="IND-CY-441", organization_id=org_3.id if org_3 else None, is_active=False
                 ),
                 models.User(
                     id=4, email="officer@sbi.co.in", hashed_password=get_password_hash("BankOfficer@2026"),
@@ -155,6 +159,14 @@ def guardrail_and_isolate_test_db():
                 models.User(
                     id=8, email="inactive.officer@cybershield.gov.in", hashed_password=get_password_hash("Password@2026"),
                     full_name="Suspended Officer", role="DISTRICT_LEA", badge_number="SUSP-01", organization_id=6, is_active=False
+                ),
+                models.User(
+                    id=12, email="state.lea@delhi.cyber.gov.in", hashed_password=get_password_hash("StateLea@2026"),
+                    full_name="DCP Rajesh Kumar, IPS", role="STATE_LEA", badge_number="DL-CY-NCT01", organization_id=org_10.id if org_10 else None, is_active=True
+                ),
+                models.User(
+                    id=13, email="district.lea@southdelhi.cyber.gov.in", hashed_password=get_password_hash("DistrictLea@2026"),
+                    full_name="Inspector Amit Sharma", role="DISTRICT_LEA", badge_number="DL-CY-SD01", organization_id=org_11.id if org_11 else None, is_active=True
                 ),
             ]
             db.add_all(users)

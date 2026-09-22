@@ -62,10 +62,32 @@ export const Login: React.FC = () => {
     });
   }, [location.state]);
 
+  const sanitizeAndValidateEmail = (inputVal: string): boolean => {
+    const val = inputVal.trim().toLowerCase();
+    if (val === 'district.lea@indore.police.gov.in') {
+      setEmail('');
+      setPassword('');
+      setError('This legacy pilot identity has been retired. Please select the South Delhi demo account.');
+      return false;
+    }
+    if (val === 'state.lea@mp.police.gov.in') {
+      setEmail('');
+      setPassword('');
+      setError('This legacy pilot identity has been retired. Please select the Delhi State demo account.');
+      return false;
+    }
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSessionExpiredNotice(null);
+
+    if (!sanitizeAndValidateEmail(email)) {
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -244,7 +266,16 @@ export const Login: React.FC = () => {
                     autoComplete="username"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!sanitizeAndValidateEmail(val)) {
+                        return;
+                      }
+                      setEmail(val);
+                      if (error && error.includes('legacy pilot identity')) {
+                        setError(null);
+                      }
+                    }}
                     placeholder="officer@police.gov.in"
                     className="w-full pl-9 pr-3 py-2 bg-white border border-[#DCE5F0] rounded-md text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#468189] focus:border-[#468189] transition-colors"
                   />

@@ -24,19 +24,19 @@ from database.seed.seed_config import (
 from database.seed.delhi_geography import DELHI_CLUSTERS_DATA, generate_delhi_atms
 from database.seed.synthetic_generator import DelhiSyntheticDataGenerator
 
-def seed_auth_and_organizations(db: Session) -> None:
+def seed_auth_and_organizations(db: Session) -> None:
     """Seeds baseline organizations and administrative users if not already present."""
     if db.query(Organization).first() and db.query(User).first():
         return
 
     print("[Seed] Seeding baseline organizations and administrative users...")
     i4c_org = Organization(name="National Cybercrime Coordination Centre (I4C)", org_type="I4C", state="New Delhi", district="Central")
-    mp_state_lea = Organization(name="Madhya Pradesh State Cyber Police Headquarters", org_type="LEA", state="Madhya Pradesh", district="Bhopal")
-    indore_lea = Organization(name="Indore District Cyber Cell", org_type="LEA", state="Madhya Pradesh", district="Indore")
+    delhi_state_lea = Organization(name="Delhi Cyber Crime Unit (NCT)", org_type="LEA", state="Delhi", district="ALL", region_id="delhi")
+    south_delhi_lea = Organization(name="District Cyber Cell (South Delhi)", org_type="LEA", state="Delhi", district="SOUTH", region_id="delhi")
     sbi_bank = Organization(name="State Bank of India - Fraud Risk Management Unit", org_type="BANK", state="Maharashtra", district="Mumbai")
     mha_audit = Organization(name="Ministry of Home Affairs Oversight & Compliance", org_type="I4C", state="New Delhi", district="Central")
 
-    db.add_all([i4c_org, mp_state_lea, indore_lea, sbi_bank, mha_audit])
+    db.add_all([i4c_org, delhi_state_lea, south_delhi_lea, sbi_bank, mha_audit])
     db.flush()
 
     users = [
@@ -49,20 +49,20 @@ def seed_auth_and_organizations(db: Session) -> None:
             organization_id=i4c_org.id
         ),
         User(
-            email="state.lea@mp.police.gov.in",
+            email="state.lea@delhi.cyber.gov.in",
             hashed_password=get_password_hash("StateLea@2026"),
-            full_name="SP Anand Shekhawat, IPS",
+            full_name="DCP Rajesh Kumar, IPS",
             role="STATE_LEA",
-            badge_number="MP-CYBER-09",
-            organization_id=mp_state_lea.id
+            badge_number="DL-CY-NCT01",
+            organization_id=delhi_state_lea.id
         ),
         User(
-            email="district.lea@indore.police.gov.in",
-            hashed_password=get_password_hash("IndoreLea@2026"),
-            full_name="Inspector Rajesh Verma",
+            email="district.lea@southdelhi.cyber.gov.in",
+            hashed_password=get_password_hash("DistrictLea@2026"),
+            full_name="Inspector Amit Sharma",
             role="DISTRICT_LEA",
-            badge_number="IND-CY-441",
-            organization_id=indore_lea.id
+            badge_number="DL-CY-SD01",
+            organization_id=south_delhi_lea.id
         ),
         User(
             email="officer@sbi.co.in",
@@ -400,14 +400,18 @@ def seed_database(db: Session) -> None:
     """
     Main seed orchestrator for Delhi NCT operational pilot.
     Idempotently executes core seeding phases:
-    1. Authentication and Organizations
-    2. Delhi Geography (60 clusters, 240 ATMs)
-    3. Delhi Operational Dataset (3,000 complaints, 6,000 accounts, ~50,000 transactions, ~2,100 withdrawals)
+    1. Default Geography Regions and Catalogs
+    2. Authentication and Organizations
+    3. Delhi Geography (60 clusters, 240 ATMs)
+    4. Delhi Operational Dataset (3,000 complaints, 6,000 accounts, ~50,000 transactions, ~2,100 withdrawals)
     """
     t_start = time.time()
     print("[Seed] CyberShield AI idempotent database seeding starting...")
 
+    from backend.app.services.geography_catalog_service import ensure_default_regions_and_catalogs
+    ensure_default_regions_and_catalogs(db)
     seed_auth_and_organizations(db)
+    seed_demo_case_cmp1042(db)
     clusters, atms = seed_delhi_geography(db)
     seed_delhi_operational_dataset(db, clusters, atms)
 

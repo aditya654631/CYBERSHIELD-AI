@@ -26,19 +26,6 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
         .filter(User.email == input_email)
         .first()
     )
-    if not user:
-        DEMO_EMAIL_ALIASES = {
-            "state.lea@delhi.cyber.gov.in": "state.lea@mp.police.gov.in",
-            "district.lea@southdelhi.cyber.gov.in": "district.lea@indore.police.gov.in",
-        }
-        lookup_email = DEMO_EMAIL_ALIASES.get(input_email)
-        if lookup_email:
-            user = (
-                db.query(User)
-                .options(joinedload(User.organization))
-                .filter(User.email == lookup_email)
-                .first()
-            )
     if not user or not verify_password(request.password, user.hashed_password):
         login_rate_limiter.record_failure(req, request.email)
         raise HTTPException(

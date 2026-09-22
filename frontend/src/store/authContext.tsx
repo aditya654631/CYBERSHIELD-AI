@@ -29,7 +29,7 @@ export const DEMO_CREDENTIALS: Record<UserRole, { email: string; pass: string; t
   },
   DISTRICT_LEA: {
     email: 'district.lea@southdelhi.cyber.gov.in',
-    pass: 'IndoreLea@2026',
+    pass: 'DistrictLea@2026',
     title: 'District Cyber Cell (South Delhi)',
     desc: 'Field interception & ATM rapid response unit'
   },
@@ -65,23 +65,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (storedToken && storedUser) {
         try {
           const parsed = JSON.parse(storedUser);
-          // Auto-migrate any legacy stored MP/Indore demo credentials to Delhi pilot equivalents
-          if (parsed?.email === 'district.lea@indore.police.gov.in') {
-            parsed.email = 'district.lea@southdelhi.cyber.gov.in';
-            if (parsed.organization_name) parsed.organization_name = 'District Cyber Cell (South Delhi)';
-            if (parsed.organization?.name) parsed.organization.name = 'District Cyber Cell (South Delhi)';
-            localStorage.setItem('cybershield_user', JSON.stringify(parsed));
-          } else if (parsed?.email === 'state.lea@mp.police.gov.in') {
-            parsed.email = 'state.lea@delhi.cyber.gov.in';
-            if (parsed.organization_name) parsed.organization_name = 'Delhi Cyber Crime Unit (NCT)';
-            if (parsed.organization?.name) parsed.organization.name = 'Delhi Cyber Crime Unit (NCT)';
-            localStorage.setItem('cybershield_user', JSON.stringify(parsed));
+          const legacyEmails = ['district.lea@indore.police.gov.in', 'state.lea@mp.police.gov.in'];
+          if (legacyEmails.includes(parsed?.email)) {
+            // Retire legacy stored MP/Indore session cleanly and require fresh authentication
+            localStorage.removeItem('cybershield_token');
+            localStorage.removeItem('cybershield_user');
+            sessionStorage.setItem('cybershield_session_expired', 'Your pilot account configuration was updated. Please sign in again.');
+            setToken(null);
+            setUser(null);
+          } else {
+            setToken(storedToken);
+            setUser(parsed);
           }
-          setToken(storedToken);
-          setUser(parsed);
         } catch {
           localStorage.removeItem('cybershield_user');
           localStorage.removeItem('cybershield_token');
+          setToken(null);
+          setUser(null);
         }
       }
       setLoading(false);
