@@ -1728,3 +1728,46 @@ class InterventionPlanResponse(BaseModel):
 class InterventionActionTransitionRequest(BaseModel):
     status: str  # RECOMMENDED, AVAILABLE, STARTED, COMPLETED, NOT_APPLICABLE, CANCELLED
     notes: Optional[str] = None
+
+
+# ============================================================================
+# Phase 4: ATM / CSP Contextual Operational Prioritization Schemas
+# ============================================================================
+
+class ATMContextItem(BaseModel):
+    id: int
+    atm_code: Optional[str] = None
+    name: str
+    type: str = "ATM"  # ATM, CSP, BANK_BRANCH, OTHER_CASHOUT_POINT
+    bank_name: str
+    bank_code: Optional[str] = None
+    address: Optional[str] = None
+    city: Optional[str] = None
+    district: Optional[str] = None
+    state: Optional[str] = None
+    latitude: float
+    longitude: float
+    distance_km: float
+    context_priority_score: int  # 0 - 100
+    priority_band: str  # HIGH, MEDIUM, LOW
+    bank_match: bool = False
+    reasons: List[str] = []
+    source: str = "INTERNAL_CONTROLLED_DATA"
+    source_reference: Optional[str] = None
+    cash_available: Optional[bool] = True
+    risk_rating: Optional[str] = "MEDIUM"
+
+
+class ATMContextResponse(BaseModel):
+    prediction_id: int
+    complaint_number: str
+    model_version: str = "cashout-location-xgb-v8-debiased"
+    candidate_rank: int
+    candidate_zone: str
+    candidate_probability: float
+    context_method: str = "deterministic_context_v1"
+    disclaimer: str = (
+        "ATM/CSP prioritization is an operational context layer inside the model-predicted zone. "
+        "It does not represent a confirmed withdrawal location."
+    )
+    items: List[ATMContextItem] = []

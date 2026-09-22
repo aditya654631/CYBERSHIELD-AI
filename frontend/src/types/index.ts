@@ -460,6 +460,15 @@ export interface ATMLocationItem {
   cash_available: boolean;
   risk_rating: string;
   cluster_name?: string;
+  location_type?: string;
+  bank_code?: string;
+  context_priority_score?: number;
+  priority_band?: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  bank_match?: boolean;
+  reasons?: string[];
+  source?: string;
+  distance_km?: number;
+  name?: string;
 }
 
 export interface NotificationOutboxItem {
@@ -1286,5 +1295,42 @@ export interface InterventionPlanItem {
   actions: InterventionPlanActionItem[];
   created_at: string;
   updated_at: string;
+}
+
+// ─── Phase 4: ATM / CSP Contextual Operational Prioritization ────────────────
+export interface ATMContextItem {
+  id: number;
+  atm_code?: string | null;
+  name: string;
+  type: 'ATM' | 'CSP' | 'BANK_BRANCH' | 'OTHER_CASHOUT_POINT' | string;
+  bank_name: string;
+  bank_code?: string | null;
+  address?: string | null;
+  city?: string | null;
+  district?: string | null;
+  state?: string | null;
+  latitude: number;
+  longitude: number;
+  distance_km: number;
+  context_priority_score: number;
+  priority_band: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  bank_match: boolean;
+  reasons: string[];
+  source: string;
+  source_reference?: string | null;
+  cash_available?: boolean;
+  risk_rating?: string;
+}
+
+export interface ATMContextResponse {
+  prediction_id: number;
+  complaint_number: string;
+  model_version: string;
+  candidate_rank: number;
+  candidate_zone: string;
+  candidate_probability: number;
+  context_method: string;
+  disclaimer: string;
+  items: ATMContextItem[];
 }
 

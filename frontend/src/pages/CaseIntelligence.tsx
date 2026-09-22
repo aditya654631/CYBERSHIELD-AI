@@ -57,6 +57,8 @@ import {
   CreateHandoffPayload,
   InterventionPlanItem,
   InterventionPlanActionItem,
+  ATMContextResponse,
+  ATMContextItem,
 } from '../types';
 import { CashOutRiskMap } from '../maps/CashOutRiskMap';
 import { Card } from '../components/common/Card';
@@ -138,6 +140,37 @@ export const CaseIntelligence: React.FC = () => {
   const [generatingPlan, setGeneratingPlan] = useState(false);
   const [interventionError, setInterventionError] = useState<string | null>(null);
   const [updatingActionId, setUpdatingActionId] = useState<number | null>(null);
+
+  // Phase 4: ATM / CSP Context state
+  const [atmContext, setAtmContext] = useState<ATMContextResponse | null>(null);
+  const [selectedAtmRank, setSelectedAtmRank] = useState<number>(1);
+  const [loadingAtmContext, setLoadingAtmContext] = useState(false);
+  const [atmContextError, setAtmContextError] = useState<string | null>(null);
+  const [expandedAtmItemId, setExpandedAtmItemId] = useState<number | null>(null);
+
+  const fetchATMContext = async (predId: number, rank: number) => {
+    setLoadingAtmContext(true);
+    setAtmContextError(null);
+    try {
+      const res = await api.getATMContext(predId, rank);
+      setAtmContext(res);
+    } catch (err: any) {
+      console.error('Failed to load ATM/CSP context', err);
+      setAtmContextError(apiErrorMessage(err, 'ATM/CSP context unavailable'));
+      setAtmContext(null);
+    } finally {
+      setLoadingAtmContext(false);
+    }
+  };
+
+  useEffect(() => {
+    const predId = prediction?.prediction_id || (prediction as any)?.id;
+    if (predId) {
+      fetchATMContext(predId, selectedAtmRank);
+    } else {
+      setAtmContext(null);
+    }
+  }, [prediction?.prediction_id, (prediction as any)?.id, selectedAtmRank]);
 
   const handleGenerateInterventionPlan = async () => {
     if (!caseId) return;
@@ -1395,6 +1428,205 @@ export const CaseIntelligence: React.FC = () => {
                       </div>
                     ))}
                   </div>
+                </div>
+
+                {/* ==================================================================== */}
+                {/* PHASE 4: ATM / CSP CONTEXTUAL OPERATIONAL PRIORITIZATION */}
+                {/* ==================================================================== */}
+                <div className="p-4 bg-white rounded-lg border border-[#DCE5F0] space-y-3.5 shadow-xs">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2.5 border-b border-[#DCE5F0]">
+                    <div className="flex items-center space-x-2">
+                      <Building2 className="w-4 h-4 text-[#468189] shrink-0" />
+                      <div>
+                        <div className="flex items-center space-x-1.5">
+                          <h4 className="text-xs font-bold text-[#031926] uppercase">
+                            ATM / CSP CONTEXT
+                          </h4>
+                          <div className="relative" onClick={(e) => e.stopPropagation()}>
+                            <button
+                              id="info-btn-atm-context"
+                              onClick={() => toggleInfoPopover('atm_context')}
+                              className="text-slate-400 hover:text-blue-600 transition-colors"
+                            >
+                              <Info className="w-3.5 h-3.5" />
+                            </button>
+                            {activeInfoPopover === 'atm_context' && (
+                              <div className="absolute left-0 top-5 z-30 w-72 p-3 bg-white border border-slate-200 rounded-lg shadow-lg text-[11px] text-slate-600 leading-relaxed">
+                                <p className="font-semibold text-slate-800 mb-1">ATM/CSP Operational Context</p>
+                                <p>ATM/CSP prioritization is an operational context layer inside the model-predicted zone. It does not represent a confirmed withdrawal location.</p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <p className="text-[11px] text-slate-500">
+                          Secondary contextual operational shortlist for predicted candidate cash-out zone.
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Candidate Zone Rank Selector (#1, #2, #3) */}
+                    {topLocations.length > 0 && (
+                      <div className="flex items-center space-x-1 bg-slate-100 p-1 rounded-lg border border-slate-200">
+                        <span className="text-[10px] font-bold text-slate-500 uppercase px-1.5">Candidate Rank:</span>
+                        {topLocations.map((loc) => {
+                          const isSelected = selectedAtmRank === loc.rank;
+                          return (
+                            <button
+                              key={`atm-rank-btn-${loc.rank}`}
+                              type="button"
+                              onClick={() => setSelectedAtmRank(loc.rank)}
+                              className={`px-2.5 py-1 rounded-md text-xs font-bold transition-all ${
+                                isSelected
+                                  ? 'bg-blue-600 text-white shadow-xs'
+                                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/70'
+                              }`}
+                            >
+                              #{loc.rank} {loc.cluster_name || loc.location_name}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Active Candidate Zone Summary Header */}
+                  {atmContext && (
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-200 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                      <div>
+                        <div className="flex items-center space-x-2">
+                          <span className="font-bold text-slate-900">
+                            Candidate: #{atmContext.candidate_rank} {atmContext.candidate_zone}
+                          </span>
+                          <span className="px-2 py-0.5 rounded text-[10px] font-mono font-semibold bg-blue-100 text-blue-800 border border-blue-200">
+                            Model Prob: {(atmContext.candidate_probability * 100).toFixed(2)}%
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {atmContext.items.length} contextual cash-out points evaluated via {atmContext.context_method}
+                        </p>
+                      </div>
+                      <Button
+                        onClick={() => navigate(`/risk-map?case=${caseId}&rank=${selectedAtmRank}`)}
+                        variant="outline"
+                        size="sm"
+                        icon={<MapIcon className="w-3.5 h-3.5 text-blue-600" />}
+                      >
+                        View on Risk Map
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* Disclaimer Banner */}
+                  <div className="p-2.5 bg-amber-50/70 rounded-md border border-amber-200 text-[11px] text-amber-900 flex items-start space-x-2">
+                    <Info className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                    <span className="leading-relaxed">
+                      ATM/CSP prioritization is an operational context layer inside the model-predicted zone. It does not represent a confirmed withdrawal location.
+                    </span>
+                  </div>
+
+                  {/* Content / Loading / Error States */}
+                  {loadingAtmContext ? (
+                    <div className="py-6 text-center text-xs text-slate-500">
+                      <RefreshCw className="w-4 h-4 animate-spin mx-auto mb-1 text-slate-400" />
+                      Loading contextual cash-out points...
+                    </div>
+                  ) : atmContextError ? (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-600 text-center">
+                      {atmContextError}
+                    </div>
+                  ) : atmContext && atmContext.items.length > 0 ? (
+                    <div className="space-y-2">
+                      {atmContext.items.map((item) => {
+                        const isExpanded = expandedAtmItemId === item.id;
+                        const isHigh = item.priority_band === 'HIGH';
+                        const isMedium = item.priority_band === 'MEDIUM';
+
+                        return (
+                          <div
+                            key={item.id}
+                            className="p-3 bg-white rounded-lg border border-slate-200 hover:border-slate-300 transition-all text-xs space-y-2"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                              <div className="space-y-0.5">
+                                <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                                  <span className="font-bold text-slate-900 text-sm">{item.name}</span>
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-slate-100 text-slate-700 border border-slate-200 font-mono">
+                                    {item.type}
+                                  </span>
+                                  <span
+                                    className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                                      isHigh
+                                        ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                        : isMedium
+                                        ? 'bg-amber-100 text-amber-800 border border-amber-300'
+                                        : 'bg-slate-100 text-slate-700 border border-slate-300'
+                                    }`}
+                                  >
+                                    {item.priority_band} PRIORITY
+                                  </span>
+                                  {item.bank_match && (
+                                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-100 text-indigo-800 border border-indigo-200">
+                                      Bank Context Match
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="text-slate-500 text-[11px] flex items-center space-x-2 flex-wrap">
+                                  <span>Bank: <strong className="text-slate-700">{item.bank_name}</strong></span>
+                                  <span>•</span>
+                                  <span>Distance: <strong className="text-slate-700 font-mono">{item.distance_km} km</strong></span>
+                                  <span>•</span>
+                                  <span>Score: <strong className="text-blue-700 font-mono">{item.context_priority_score} / 100</strong></span>
+                                </div>
+                              </div>
+
+                              <div className="flex items-center space-x-2 self-start sm:self-auto">
+                                <span className="text-[10px] font-mono text-slate-400 bg-slate-50 px-1.5 py-0.5 rounded border border-slate-200">
+                                  {item.source}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setExpandedAtmItemId(isExpanded ? null : item.id)}
+                                  className="text-xs text-blue-600 hover:text-blue-800 font-semibold flex items-center space-x-1"
+                                >
+                                  <span>{isExpanded ? 'Hide Details' : 'Why Prioritized?'}</span>
+                                </button>
+                              </div>
+                            </div>
+
+                            {/* Expandable Reasoning & Breakdown */}
+                            {isExpanded && (
+                              <div className="pt-2 border-t border-slate-100 space-y-1.5 text-[11px] text-slate-600 bg-slate-50/70 p-2.5 rounded-md">
+                                <div className="font-bold text-slate-700 text-[10px] uppercase tracking-wider">
+                                  Operational Context Justification:
+                                </div>
+                                {item.reasons && item.reasons.length > 0 ? (
+                                  <ul className="space-y-1 pl-1">
+                                    {item.reasons.map((r, ri) => (
+                                      <li key={ri} className="flex items-start space-x-1.5">
+                                        <span className="text-blue-500 font-bold">•</span>
+                                        <span>{r}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                ) : (
+                                  <p className="italic text-slate-500">Located within candidate zone operational perimeter.</p>
+                                )}
+                                {item.address && (
+                                  <div className="pt-1 text-[10px] text-slate-500 font-mono border-t border-slate-200/60">
+                                    Address: {item.address}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="p-3 bg-slate-50 border border-slate-200 rounded text-xs text-slate-500 italic text-center">
+                      ATM/CSP context unavailable for this candidate zone.
+                    </div>
+                  )}
                 </div>
 
                 {/* On-Demand LIME Explainability Card */}

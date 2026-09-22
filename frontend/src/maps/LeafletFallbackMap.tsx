@@ -71,14 +71,17 @@ const createOriginIcon = () => {
   });
 };
 
-const createAtmIcon = () => {
+const createAtmIcon = (priorityBand?: string) => {
+  const color = priorityBand === 'HIGH' ? '#10b981' : priorityBand === 'MEDIUM' ? '#f59e0b' : '#38bdf8';
+  const size = priorityBand ? 14 : 8;
+  const half = Math.round(size / 2);
   return L.divIcon({
     className: 'custom-atm-icon',
     html: `
-      <div style="width:8px; height:8px; border-radius:2px; background:#38bdf8; border:1px solid #ffffff; box-shadow:0 0 3px #38bdf8;"></div>
+      <div style="width:${size}px; height:${size}px; border-radius:3px; background:${color}; border:1.5px solid #ffffff; box-shadow:0 0 4px ${color}; display:flex; align-items:center; justify-content:center; color:#ffffff; font-size:8px; font-weight:bold; font-family:sans-serif;">${priorityBand ? priorityBand[0] : ''}</div>
     `,
-    iconSize: [8, 8],
-    iconAnchor: [4, 4],
+    iconSize: [size, size],
+    iconAnchor: [half, half],
   });
 };
 
@@ -521,20 +524,68 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
           );
         })}
 
-        {/* Render ATMs: Prototype Context Only (Requirement 11) */}
+        {/* Render ATMs: Contextual Operational Prioritization */}
         {showAtms && atms.filter((atm) => hasCoordinates(atm.latitude, atm.longitude)).map((atm) => (
           <Marker
             key={atm.id}
             position={[atm.latitude, atm.longitude]}
-            icon={createAtmIcon()}
+            icon={createAtmIcon(atm.priority_band)}
           >
             <Popup>
-              <div className="bg-[#0b1326] text-slate-100 p-2 text-xs font-mono">
-                <div className="font-bold text-cyan-300">PROTOTYPE ATM CONTEXT</div>
-                <div className="text-slate-200 text-[11px] font-semibold mt-0.5">{atm.bank_name}</div>
-                <div className="text-slate-400 text-[10px]">{atm.address}</div>
-                <div className="text-[10px] text-slate-500 mt-1">Code: {atm.atm_code} | Cash: {atm.cash_available ? 'Available' : 'Unavailable'}</div>
-                <div className="text-[9px] text-slate-600 mt-1 italic">Reference ATM context from synthetic baseline. Prediction is cluster-level; not an ATM-specific dispatch.</div>
+              <div className="bg-[#0b1326] text-slate-100 p-3 text-xs font-sans w-64 rounded-lg border border-[#1b2b4d]">
+                <div className="flex items-center justify-between pb-1.5 border-b border-[#1b2b4d] mb-1.5">
+                  <span className="font-bold text-cyan-300 text-[11px] font-mono">{atm.location_type || 'ATM'} CONTEXT</span>
+                  {atm.priority_band && (
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                      atm.priority_band === 'HIGH'
+                        ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                        : atm.priority_band === 'MEDIUM'
+                        ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                        : 'bg-slate-700 text-slate-300'
+                    }`}>
+                      {atm.priority_band} PRIORITY
+                    </span>
+                  )}
+                </div>
+                <div className="text-slate-100 font-bold text-xs">{atm.name || atm.bank_name}</div>
+                {atm.bank_name && <div className="text-slate-300 text-[11px] font-medium">{atm.bank_name}</div>}
+                {atm.address && <div className="text-slate-400 text-[10px] mt-0.5">{atm.address}</div>}
+
+                {atm.context_priority_score !== undefined && (
+                  <div className="mt-2 pt-1.5 border-t border-[#1b2b4d] space-y-1 font-mono text-[10px]">
+                    <div className="flex justify-between">
+                      <span className="text-slate-400">Context Score:</span>
+                      <span className="text-emerald-400 font-bold">{atm.context_priority_score} / 100</span>
+                    </div>
+                    {atm.distance_km !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Distance to Centroid:</span>
+                        <span className="text-slate-200">{atm.distance_km} km</span>
+                      </div>
+                    )}
+                    {atm.bank_match !== undefined && (
+                      <div className="flex justify-between">
+                        <span className="text-slate-400">Bank Match:</span>
+                        <span className={atm.bank_match ? 'text-emerald-400 font-bold' : 'text-slate-400'}>
+                          {atm.bank_match ? 'MATCHED' : 'NO MATCH'}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {atm.reasons && atm.reasons.length > 0 && (
+                  <div className="mt-1.5 p-1.5 bg-slate-900/80 rounded border border-slate-800 text-[9px] text-slate-300 space-y-0.5">
+                    <div className="font-semibold text-slate-400 uppercase text-[8px]">Why prioritized?</div>
+                    {atm.reasons.map((r, ri) => (
+                      <div key={ri} className="truncate">• {r}</div>
+                    ))}
+                  </div>
+                )}
+
+                <div className="text-[9px] text-slate-500 mt-2 pt-1 border-t border-[#1b2b4d]/40 italic leading-snug">
+                  ATM/CSP prioritization is an operational context layer inside the model-predicted zone. It does not represent a confirmed withdrawal location.
+                </div>
               </div>
             </Popup>
           </Marker>

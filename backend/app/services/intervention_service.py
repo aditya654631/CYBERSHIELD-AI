@@ -178,6 +178,31 @@ class InterventionOrchestratorService:
             )
         }
 
+        # Try capturing ATM/CSP Context snapshot for primary candidate cluster
+        try:
+            from backend.app.services.atm_context_service import ATMContextService
+            atm_svc = ATMContextService()
+            ctx_res = atm_svc.get_atm_context_for_prediction(db, prediction.id, rank=1, user=user)
+            summary_json["atm_context_snapshot"] = {
+                "candidate_zone": ctx_res.get("candidate_zone"),
+                "items_count": len(ctx_res.get("items", [])),
+                "high_priority_count": sum(1 for item in ctx_res.get("items", []) if item.get("priority_band") == "HIGH"),
+                "context_method": ctx_res.get("context_method"),
+                "items_sample": [
+                    {
+                        "name": item.get("name"),
+                        "type": item.get("type"),
+                        "score": item.get("context_priority_score"),
+                        "priority_band": item.get("priority_band"),
+                        "distance_km": item.get("distance_km"),
+                        "bank_match": item.get("bank_match")
+                    }
+                    for item in ctx_res.get("items", [])[:5]
+                ]
+            }
+        except Exception as e:
+            logger.warning(f"[InterventionService] Could not capture ATM context snapshot: {e}")
+
         # 7. Create Plan
         new_plan = InterventionPlan(
             plan_uuid=str(uuid.uuid4()),
@@ -301,6 +326,21 @@ class InterventionOrchestratorService:
                 status="RECOMMENDED",
                 recommended_reason="Spatial intelligence mapping available for primary candidate cluster.",
                 assigned_role="ANALYST",
+                created_at=datetime.utcnow()
+            )
+        )
+
+        actions_to_add.append(
+            InterventionPlanAction(
+                plan_id=new_plan.id,
+                category="GIS",
+                action_type="REVIEW_ATM_CSP_CONTEXT",
+                title=f"Review High-Priority Cash-Out Points Within {primary_cluster_name}",
+                description=f"Inspect high-priority ATM/CSP contextual shortlist within primary candidate zone '{primary_cluster_name}' for operational surveillance.",
+                priority="HIGH",
+                status="RECOMMENDED",
+                recommended_reason="Secondary contextual operational prioritization layer computed for primary candidate zone.",
+                assigned_role="DISTRICT_LEA",
                 created_at=datetime.utcnow()
             )
         )

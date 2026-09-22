@@ -133,7 +133,9 @@ class ATMLocation(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     atm_code = Column(String(50), unique=True, index=True)
+    location_type = Column(String(50), default="ATM", nullable=False)  # ATM, CSP, BANK_BRANCH, OTHER_CASHOUT_POINT
     bank_name = Column(String(100), nullable=False)
+    bank_code = Column(String(50), nullable=True)
     address = Column(String(255), nullable=False)
     city = Column(String(100), nullable=False)
     district = Column(String(100), nullable=False)
@@ -145,6 +147,10 @@ class ATMLocation(Base):
 
     risk_rating = Column(String(20), default="MEDIUM")
     cluster_id = Column(Integer, ForeignKey("location_clusters.id"), nullable=True)
+    source = Column(String(100), default="INTERNAL_CONTROLLED_DATA")
+    source_reference = Column(String(255), nullable=True)
+    source_updated_at = Column(DateTime, nullable=True)
+    is_active = Column(Boolean, default=True)
 
     region = relationship("Region", back_populates="atms")
     cluster = relationship("LocationCluster", back_populates="atms")

@@ -36,6 +36,7 @@ import {
   GeographyCatalogItem,
   InterventionPlanItem,
   InterventionPlanActionItem,
+  ATMContextResponse,
 } from '../types';
 
 const API_BASE_URL =
@@ -493,6 +494,14 @@ export const api = {
   },
   refreshInterventionPlan: async (planId: number) => {
     const res = await apiClient.post<InterventionPlanItem>(`/intervention-plans/${planId}/refresh`);
+    return res.data;
+  },
+
+  // ─── Phase 4: ATM / CSP Contextual Operational Prioritization ──────────────
+  getATMContext: async (predictionId: number | string, rank = 1) => {
+    const res = await apiClient.get<ATMContextResponse>(`/predictions/${predictionId}/atm-context`, {
+      params: { rank },
+    });
     return res.data;
   },
 };
