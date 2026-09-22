@@ -99,65 +99,65 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A1628] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div className="min-h-screen bg-[#031926] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
       {/* Top Navigation Bar */}
       <div className="w-full max-w-4xl mb-4 flex items-center justify-between">
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors bg-slate-800/80 hover:bg-slate-700/80 px-3 py-1.5 rounded-md border border-slate-700"
+          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors bg-[#072130] hover:bg-[#0E2A3A] px-3 py-1.5 rounded-md border border-[#0E2A3A]"
         >
-          <ArrowLeft className="w-3.5 h-3.5 text-blue-400" />
+          <ArrowLeft className="w-3.5 h-3.5 text-[#77ACA2]" />
           <span>← Back to Home</span>
         </button>
 
-        <div className="text-[11px] text-slate-400 font-mono hidden sm:block">
+        <div className="text-[11px] text-[#9DBEBB] font-mono hidden sm:block">
           CyberShield AI • Delhi Pilot v1.0.0
         </div>
       </div>
 
       <div className="w-full max-w-4xl bg-white rounded-xl shadow-2xl border border-[#DCE5F0] overflow-hidden grid grid-cols-1 md:grid-cols-12">
         {/* LEFT / INSTITUTIONAL BRAND PANEL */}
-        <div className="md:col-span-5 bg-[#122A4E] text-white p-5 sm:p-8 flex flex-col justify-between relative">
+        <div className="md:col-span-5 bg-[#031926] text-white p-5 sm:p-8 flex flex-col justify-between relative border-r border-[#0E2A3A]">
           <div>
             {/* Government Context */}
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-white/10 text-blue-100 text-[11px] font-medium border border-white/20 mb-6">
-              <Shield className="w-3.5 h-3.5 text-blue-300" />
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded bg-[#072130] text-[#9DBEBB] text-[11px] font-medium border border-[#0E2A3A] mb-6">
+              <Shield className="w-3.5 h-3.5 text-[#77ACA2]" />
               <span>National Law Enforcement Portal</span>
             </div>
 
             {/* Brand Title */}
             <div className="space-y-2">
               <h1 className="text-2xl font-bold tracking-tight">
-                CyberShield <span className="text-blue-300">AI</span>
+                CyberShield <span className="text-[#77ACA2]">AI</span>
               </h1>
-              <p className="text-xs text-blue-100 font-medium">
+              <p className="text-xs text-slate-300 font-medium">
                 Cybercrime Predictive Intelligence & Intervention Platform
               </p>
             </div>
 
-            <p className="text-xs text-blue-200/80 mt-4 leading-relaxed">
+            <p className="text-xs text-slate-300/80 mt-4 leading-relaxed">
               Decision-support platform for proactive cybercrime intervention, multi-hop financial tracking, and cash-out interception.
             </p>
 
             {/* Operational Focus List */}
-            <div className="mt-8 space-y-3 text-xs text-blue-100">
+            <div className="mt-8 space-y-3 text-xs text-slate-200">
               <div className="flex items-start space-x-2.5">
-                <CheckCircle2 className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-[#77ACA2] shrink-0 mt-0.5" />
                 <span>Calibrated cash-out hotspot prediction</span>
               </div>
               <div className="flex items-start space-x-2.5">
-                <CheckCircle2 className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-[#77ACA2] shrink-0 mt-0.5" />
                 <span>Multi-hop mule network path tracing</span>
               </div>
               <div className="flex items-start space-x-2.5">
-                <CheckCircle2 className="w-4 h-4 text-blue-300 shrink-0 mt-0.5" />
+                <CheckCircle2 className="w-4 h-4 text-[#77ACA2] shrink-0 mt-0.5" />
                 <span>Tamper-Evident Prediction Audit</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-8 pt-6 border-t border-[#1E4A7D] text-[11px] text-blue-200/70">
+          <div className="mt-8 pt-6 border-t border-[#0E2A3A] text-[11px] text-[#9DBEBB]/80">
             Delhi Pilot Prototype • I4C / SIH 2026
           </div>
         </div>
@@ -166,20 +166,20 @@ export const Login: React.FC = () => {
         <div className="md:col-span-7 p-4 sm:p-8 md:p-10 flex flex-col justify-between bg-white">
           <div>
             <div className="mb-5">
-              <h2 className="text-lg font-bold text-[#173A63]">Secure Investigator Access</h2>
+              <h2 className="text-lg font-bold text-[#031926]">Secure Investigator Access</h2>
               <p className="text-xs text-slate-500 mt-1">
                 Enter your official law enforcement or banking credentials to access the intelligence console.
               </p>
             </div>
 
             {/* Dedicated Controlled Pilot Quick Card */}
-            <div className="mb-5 p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50/60 rounded-lg border border-blue-200/80">
+            <div className="mb-5 p-3.5 bg-[#F0F6F6] rounded-lg border border-[#9DBEBB]/60">
               <div className="flex items-center justify-between mb-2">
                 <div className="flex items-center space-x-1.5">
-                  <Sparkles className="w-3.5 h-3.5 text-blue-600" />
-                  <span className="text-xs font-bold text-[#173A63]">I4C National Command Pilot</span>
+                  <Sparkles className="w-3.5 h-3.5 text-[#468189]" />
+                  <span className="text-xs font-bold text-[#031926]">I4C National Command Pilot</span>
                 </div>
-                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-blue-600 text-white uppercase tracking-wider">
+                <span className="px-2 py-0.5 rounded text-[9px] font-bold bg-[#468189] text-white uppercase tracking-wider">
                   CONTROLLED PILOT • SYNTHETIC DATA
                 </span>
               </div>
@@ -190,7 +190,7 @@ export const Login: React.FC = () => {
               <button
                 type="button"
                 onClick={handleUsePilotCredentials}
-                className="w-full py-1.5 px-3 bg-white hover:bg-blue-50 border border-blue-300 text-blue-700 font-semibold text-xs rounded transition-colors text-center shadow-2xs"
+                className="w-full py-1.5 px-3 bg-white hover:bg-[#F0F6F6] border border-[#9DBEBB] text-[#468189] font-semibold text-xs rounded transition-colors text-center shadow-2xs"
               >
                 Use Pilot Credentials
               </button>
@@ -198,15 +198,15 @@ export const Login: React.FC = () => {
 
             {/* Active Session Notice (Secondary) */}
             {isAuthenticated && (
-              <div className="mb-4 p-3 rounded-md bg-blue-50 border border-blue-200 text-blue-900 text-xs flex items-center justify-between">
+              <div className="mb-4 p-3 rounded-md bg-[#F0F6F6] border border-[#9DBEBB] text-[#031926] text-xs flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <CheckCircle2 className="w-4 h-4 text-blue-600 shrink-0" />
+                  <CheckCircle2 className="w-4 h-4 text-[#468189] shrink-0" />
                   <span>An authenticated session is already active.</span>
                 </div>
                 <button
                   type="button"
                   onClick={() => navigate('/dashboard')}
-                  className="px-2.5 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[11px] font-semibold transition-colors flex items-center space-x-1 shadow-2xs"
+                  className="px-2.5 py-1 bg-[#468189] hover:bg-[#386970] text-white rounded text-[11px] font-semibold transition-colors flex items-center space-x-1 shadow-2xs"
                 >
                   <span>Continue to Dashboard</span>
                   <ArrowRight className="w-3 h-3" />
@@ -246,7 +246,7 @@ export const Login: React.FC = () => {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="officer@police.gov.in"
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#DCE5F0] rounded-md text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#DCE5F0] rounded-md text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#468189] focus:border-[#468189] transition-colors"
                   />
                 </div>
               </div>
@@ -266,7 +266,7 @@ export const Login: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#DCE5F0] rounded-md text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                    className="w-full pl-9 pr-3 py-2 bg-white border border-[#DCE5F0] rounded-md text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#468189] focus:border-[#468189] transition-colors"
                   />
                 </div>
               </div>
@@ -274,7 +274,7 @@ export const Login: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 flex items-center justify-center space-x-2 disabled:opacity-60 shadow-sm mt-2"
+                className="w-full py-2.5 px-4 bg-[#468189] hover:bg-[#386970] text-white font-medium text-sm rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-[#468189] focus:ring-offset-2 flex items-center justify-center space-x-2 disabled:opacity-60 shadow-sm mt-2"
               >
                 {loading ? (
                   <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
@@ -292,10 +292,10 @@ export const Login: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowDemoAccounts(!showDemoAccounts)}
-                className="w-full flex items-center justify-between text-xs text-slate-600 hover:text-[#173A63] font-medium py-1"
+                className="w-full flex items-center justify-between text-xs text-slate-600 hover:text-[#031926] font-medium py-1"
               >
                 <span className="flex items-center space-x-1.5">
-                  <KeyRound className="w-3.5 h-3.5 text-blue-600" />
+                  <KeyRound className="w-3.5 h-3.5 text-[#468189]" />
                   <span>Other Prototype Role Accounts</span>
                 </span>
                 {showDemoAccounts ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
@@ -310,7 +310,7 @@ export const Login: React.FC = () => {
                         key={r}
                         type="button"
                         onClick={() => handleSelectDemoAccount(r)}
-                        className="text-left px-2.5 py-1.5 rounded bg-white hover:bg-blue-50 border border-[#DCE5F0] text-xs transition-colors truncate"
+                        className="text-left px-2.5 py-1.5 rounded bg-white hover:bg-[#F0F6F6] hover:border-[#9DBEBB] border border-[#DCE5F0] text-xs transition-colors truncate"
                       >
                         <div className="font-medium text-slate-800 truncate">{cred.title}</div>
                         <div className="text-[10px] text-slate-500 truncate">{cred.email}</div>

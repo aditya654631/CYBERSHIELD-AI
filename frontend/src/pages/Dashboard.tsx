@@ -170,11 +170,11 @@ export const Dashboard: React.FC = () => {
       <div className="bg-white rounded-lg border border-[#DCE5F0] p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2 text-xs text-slate-500 mb-1">
-            <span className="font-semibold text-[#173A63]">Delhi Pilot</span>
+            <span className="font-semibold text-[#031926]">Delhi Pilot</span>
             <span>•</span>
             <span>Synchronized DB Snapshot ({new Date(summary.generated_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })})</span>
           </div>
-          <h1 className="text-xl font-bold tracking-tight text-[#173A63]">
+          <h1 className="text-xl font-bold tracking-tight text-[#031926]">
             Operational Overview
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
@@ -191,7 +191,7 @@ export const Dashboard: React.FC = () => {
           >
             <span>{summary?.recent_complaints?.[0]?.complaint_number ? 'View Case' : 'View Complaints'}</span>
             {summary?.recent_complaints?.[0]?.complaint_number && (
-              <span className="ml-1 text-[11px] px-1.5 py-0.2 rounded bg-blue-700 text-white font-mono">
+              <span className="ml-1 text-[11px] px-1.5 py-0.2 rounded bg-[#031926] text-white font-mono">
                 {summary.recent_complaints[0].complaint_number}
               </span>
             )}
@@ -248,7 +248,7 @@ export const Dashboard: React.FC = () => {
         <div className="lg:col-span-8 bg-white rounded-lg border border-[#DCE5F0] p-4 sm:p-5 shadow-xs flex flex-col">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <div>
-              <h2 className="text-sm font-bold text-[#173A63]">
+              <h2 className="text-sm font-bold text-[#031926]">
                 Live Cash-Out Hotspot Map
               </h2>
               <p className="text-xs text-slate-500">
@@ -266,7 +266,7 @@ export const Dashboard: React.FC = () => {
             </Button>
           </div>
 
-          <div className="h-[320px] sm:h-96 w-full rounded-md overflow-hidden border border-[#DCE5F0] relative">
+          <div className="h-96 w-full rounded-md overflow-hidden border border-[#DCE5F0]">
             <CashOutRiskMap
               hotspots={allHotspots}
               priorityHotspotIds={unexpiredActiveCandidates.slice(0, 3).map(h => h.id)}
@@ -280,12 +280,12 @@ export const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg border border-[#DCE5F0] p-4 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-[#DCE5F0] mb-3">
               <div>
-                <h3 className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-[#031926] uppercase tracking-wider">
                   Active Interception Candidates
                 </h3>
                 <p className="text-[10px] text-slate-500">Live predictions with active time windows</p>
               </div>
-              <span className="text-[11px] text-blue-700 font-bold bg-blue-50 px-2 py-0.5 rounded">
+              <span className="text-[11px] text-[#468189] font-bold bg-[#F0F6F6] px-2 py-0.5 rounded border border-[#9DBEBB]/50">
                 {unexpiredActiveCandidates.length} Active
               </span>
             </div>
@@ -304,11 +304,11 @@ export const Dashboard: React.FC = () => {
                   <div
                     key={hotspot.id}
                     onClick={() => navigate(`/risk-map?cluster=${hotspot.id}`)}
-                    className="p-2.5 rounded border border-[#DCE5F0] hover:border-blue-300 hover:bg-blue-50/40 cursor-pointer transition-colors"
+                    className="p-2.5 rounded border border-[#DCE5F0] hover:border-[#9DBEBB] hover:bg-[#F0F6F6]/50 cursor-pointer transition-colors"
                   >
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
-                        <span className="text-xs font-mono font-bold text-blue-600">#{idx + 1}</span>
+                        <span className="text-xs font-mono font-bold text-[#468189]">#{idx + 1}</span>
                         <span className="text-xs font-semibold text-slate-800">
                           {hotspot.cluster_name}
                         </span>
@@ -351,7 +351,7 @@ export const Dashboard: React.FC = () => {
                             e.stopPropagation();
                             navigate(`/cases/${hotspot.linked_complaint_numbers![0]}`);
                           }}
-                          className="text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1"
+                          className="text-[#468189] hover:text-[#386970] font-medium hover:underline flex items-center gap-1"
                         >
                           View {hotspot.linked_complaint_numbers[0]} →
                         </button>
@@ -362,7 +362,7 @@ export const Dashboard: React.FC = () => {
                             e.stopPropagation();
                             navigate(`/risk-map?cluster=${hotspot.id}`);
                           }}
-                          className="text-blue-600 hover:text-blue-800 font-medium hover:underline flex items-center gap-1"
+                          className="text-[#468189] hover:text-[#386970] font-medium hover:underline flex items-center gap-1"
                         >
                           Focus on Map →
                         </button>
@@ -381,7 +381,7 @@ export const Dashboard: React.FC = () => {
           <div className="bg-white rounded-lg border border-[#DCE5F0] p-4 shadow-xs">
             <div className="flex items-center justify-between pb-2 border-b border-[#DCE5F0] mb-2">
               <div>
-                <h3 className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+                <h3 className="text-xs font-bold text-[#031926] uppercase tracking-wider">
                   Historical Hotspots (Baseline)
                 </h3>
                 <p className="text-[10px] text-slate-500">
@@ -415,12 +415,12 @@ export const Dashboard: React.FC = () => {
           {/* Recent Alerts Feed */}
           <div className="bg-white rounded-lg border border-[#DCE5F0] p-4 shadow-xs">
             <div className="flex items-center justify-between pb-3 border-b border-[#DCE5F0] mb-3">
-              <h3 className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+              <h3 className="text-xs font-bold text-[#031926] uppercase tracking-wider">
                 Recent Alerts Feed
               </h3>
               <button
                 onClick={() => navigate('/alerts')}
-                className="text-xs text-blue-600 hover:text-blue-700 hover:underline font-medium"
+                className="text-xs text-[#468189] hover:text-[#386970] hover:underline font-medium"
               >
                 All Alerts →
               </button>
@@ -436,10 +436,10 @@ export const Dashboard: React.FC = () => {
                   <div
                     key={alert.id}
                     onClick={() => navigate('/alerts')}
-                    className="p-2.5 rounded border border-[#DCE5F0] hover:bg-blue-50/30 cursor-pointer transition-colors"
+                    className="p-2.5 rounded border border-[#DCE5F0] hover:bg-[#F0F6F6]/50 cursor-pointer transition-colors"
                   >
                     <div className="flex items-center justify-between text-xs mb-1">
-                      <span className="font-mono font-semibold text-blue-700">{alert.complaint_number}</span>
+                      <span className="font-mono font-semibold text-[#468189]">{alert.complaint_number}</span>
                       <Badge
                         variant={alert.status === 'ACKNOWLEDGED' ? 'success' : 'critical'}
                         size="sm"
@@ -461,7 +461,7 @@ export const Dashboard: React.FC = () => {
               {/* Provenance note */}
               <div className="pt-2 border-t border-[#DCE5F0] flex items-center justify-between text-[11px] text-slate-500">
                 <span>Provenance Distribution:</span>
-                <span className="font-medium text-[#173A63]">
+                <span className="font-medium text-[#031926]">
                   {mode_distribution.trained_ml} ML / {mode_distribution.deterministic_demo} Demo
                 </span>
               </div>

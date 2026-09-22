@@ -53,29 +53,29 @@ export const LandingPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0E1E38] text-slate-100 font-sans selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-[#031926] text-slate-100 font-sans selection:bg-[#468189] selection:text-white">
       {/* ======================================================================
           1. STICKY NAVBAR
       ====================================================================== */}
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
           scrolled
-            ? 'bg-[#0E1E38]/95 backdrop-blur-md shadow-lg border-b border-[#1E3A60]'
-            : 'bg-[#0E1E38] border-b border-[#1A3356]'
+            ? 'bg-[#031926]/95 backdrop-blur-md shadow-lg border-b border-[#0E2A3A]'
+            : 'bg-[#031926] border-b border-[#0E2A3A]'
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
           {/* LEFT: Project Identity */}
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-            <div className="w-9 h-9 rounded-lg bg-blue-600 flex items-center justify-center shadow-md shadow-blue-500/20 border border-blue-400/30">
+            <div className="w-9 h-9 rounded-lg bg-[#468189] flex items-center justify-center shadow-md shadow-[#468189]/20 border border-[#77ACA2]/30">
               <Shield className="w-5 h-5 text-white" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
                 <span className="text-lg font-bold tracking-tight text-white">
-                  CyberShield <span className="text-blue-400">AI</span>
+                  CyberShield <span className="text-[#77ACA2]">AI</span>
                 </span>
-                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-900/60 text-blue-300 border border-blue-700/50">
+                <span className="px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[#072130] text-[#9DBEBB] border border-[#0E2A3A]">
                   I4C PILOT
                 </span>
               </div>
@@ -106,7 +106,7 @@ export const LandingPage: React.FC = () => {
           <div className="hidden sm:flex items-center space-x-3">
             <button
               onClick={() => navigate('/login')}
-              className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold shadow-sm transition-colors flex items-center space-x-1.5"
+              className="px-4 py-2 rounded-md bg-[#468189] hover:bg-[#386970] text-white text-xs font-semibold shadow-sm transition-colors flex items-center space-x-1.5"
             >
               <Lock className="w-3.5 h-3.5" />
               <span>Officer Login</span>
@@ -117,7 +117,7 @@ export const LandingPage: React.FC = () => {
           <div className="flex sm:hidden">
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 focus:outline-none"
+              className="p-2 rounded-md text-slate-300 hover:text-white hover:bg-[#072130] focus:outline-none"
               aria-label="Toggle menu"
             >
               {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -127,7 +127,7 @@ export const LandingPage: React.FC = () => {
 
         {/* Mobile Dropdown Menu */}
         {mobileMenuOpen && (
-          <div className="sm:hidden bg-[#0E1E38] border-b border-[#1E3A60] px-4 pt-2 pb-4 space-y-3 animate-in slide-in-from-top-2">
+          <div className="sm:hidden bg-[#031926] border-b border-[#0E2A3A] px-4 pt-2 pb-4 space-y-3 animate-in slide-in-from-top-2">
             <button
               onClick={() => scrollToSection('platform')}
               className="block w-full text-left py-2 text-xs font-medium text-slate-300 hover:text-white"
@@ -158,10 +158,10 @@ export const LandingPage: React.FC = () => {
             >
               Security
             </button>
-            <div className="pt-2 border-t border-slate-800">
+            <div className="pt-2 border-t border-[#0E2A3A]">
               <button
                 onClick={() => navigate('/login')}
-                className="w-full py-2.5 px-4 rounded-md bg-blue-600 text-white text-xs font-semibold text-center flex items-center justify-center space-x-1.5"
+                className="w-full py-2.5 px-4 rounded-md bg-[#468189] text-white text-xs font-semibold text-center flex items-center justify-center space-x-1.5"
               >
                 <Lock className="w-3.5 h-3.5" />
                 <span>Officer Login</span>
@@ -176,16 +176,16 @@ export const LandingPage: React.FC = () => {
         {/* ======================================================================
             2. HERO SECTION
         ====================================================================== */}
-        <section className="relative overflow-hidden bg-gradient-to-b from-[#0E1E38] via-[#122544] to-[#0E1E38] py-16 sm:py-20 lg:py-24 border-b border-[#1E3A60]">
+        <section className="relative overflow-hidden bg-gradient-to-b from-[#031926] via-[#072130] to-[#031926] py-16 sm:py-20 lg:py-24 border-b border-[#0E2A3A]">
           {/* Subtle grid background */}
-          <div className="absolute inset-0 bg-[linear-gradient(to_right,#1f3b640a_1px,transparent_1px),linear-gradient(to_bottom,#1f3b640a_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
+          <div className="absolute inset-0 bg-[linear-gradient(to_right,#4681890f_1px,transparent_1px),linear-gradient(to_bottom,#4681890f_1px,transparent_1px)] bg-[size:24px_24px] pointer-events-none" />
 
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               {/* LEFT: Value Proposition */}
               <div className="lg:col-span-6 space-y-6">
-                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-900/40 border border-blue-500/30 text-blue-300 text-xs font-semibold tracking-wide uppercase">
-                  <Activity className="w-3.5 h-3.5 text-blue-400" />
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#072130] border border-[#0E2A3A] text-[#9DBEBB] text-xs font-semibold tracking-wide uppercase">
+                  <Activity className="w-3.5 h-3.5 text-[#77ACA2]" />
                   <span>From Complaints to Actionable Intelligence</span>
                   <InfoPopover
                     title="Actionable Intelligence"
@@ -195,7 +195,7 @@ export const LandingPage: React.FC = () => {
 
                 <h1 className="text-3xl sm:text-4xl lg:text-5xl font-extrabold text-white tracking-tight leading-[1.15]">
                   Predict Cash-Out Risk. <br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-cyan-300 to-blue-200">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9DBEBB] via-[#77ACA2] to-[#F4E9CD]">
                     Act Before the Money Disappears.
                   </span>
                 </h1>
@@ -209,7 +209,7 @@ export const LandingPage: React.FC = () => {
                 <div className="flex flex-wrap items-center gap-3 pt-2">
                   <button
                     onClick={() => navigate('/login')}
-                    className="px-6 py-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white font-semibold text-sm shadow-lg shadow-blue-600/30 transition-all flex items-center space-x-2"
+                    className="px-6 py-3 rounded-lg bg-[#468189] hover:bg-[#386970] text-white font-semibold text-sm shadow-lg shadow-[#468189]/30 transition-all flex items-center space-x-2"
                   >
                     <Lock className="w-4 h-4" />
                     <span>Officer Login</span>
@@ -217,14 +217,14 @@ export const LandingPage: React.FC = () => {
 
                   <button
                     onClick={() => scrollToSection('how-it-works')}
-                    className="px-5 py-3 rounded-lg bg-slate-800/80 hover:bg-slate-700/80 border border-slate-700 text-slate-200 font-semibold text-sm transition-all"
+                    className="px-5 py-3 rounded-lg bg-[#072130] hover:bg-[#0E2A3A] border border-[#0E2A3A] text-slate-200 font-semibold text-sm transition-all"
                   >
                     See How It Works
                   </button>
 
                   <button
                     onClick={() => scrollToSection('pilot-access')}
-                    className="text-xs font-semibold text-blue-400 hover:text-blue-300 flex items-center space-x-1 pl-2"
+                    className="text-xs font-semibold text-[#77ACA2] hover:text-[#9DBEBB] flex items-center space-x-1 pl-2"
                   >
                     <span>Controlled Pilot Access</span>
                     <ChevronRight className="w-3.5 h-3.5" />
@@ -232,21 +232,21 @@ export const LandingPage: React.FC = () => {
                 </div>
 
                 {/* Trust Pills */}
-                <div className="pt-4 border-t border-slate-800/80 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-medium text-slate-400">
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 px-2.5 py-1.5 rounded border border-slate-800">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                <div className="pt-4 border-t border-[#0E2A3A] grid grid-cols-2 sm:grid-cols-4 gap-2 text-[11px] font-medium text-slate-400">
+                  <div className="flex items-center space-x-1.5 bg-[#072130] px-2.5 py-1.5 rounded border border-[#0E2A3A]">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#77ACA2] shrink-0" />
                     <span className="truncate">DELHI PILOT</span>
                   </div>
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 px-2.5 py-1.5 rounded border border-slate-800">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <div className="flex items-center space-x-1.5 bg-[#072130] px-2.5 py-1.5 rounded border border-[#0E2A3A]">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#77ACA2] shrink-0" />
                     <span className="truncate">AI-ASSISTED</span>
                   </div>
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 px-2.5 py-1.5 rounded border border-slate-800">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <div className="flex items-center space-x-1.5 bg-[#072130] px-2.5 py-1.5 rounded border border-[#0E2A3A]">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#77ACA2] shrink-0" />
                     <span className="truncate">CASE-SCOPED</span>
                   </div>
-                  <div className="flex items-center space-x-1.5 bg-slate-900/60 px-2.5 py-1.5 rounded border border-slate-800">
-                    <CheckCircle2 className="w-3.5 h-3.5 text-blue-400 shrink-0" />
+                  <div className="flex items-center space-x-1.5 bg-[#072130] px-2.5 py-1.5 rounded border border-[#0E2A3A]">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-[#77ACA2] shrink-0" />
                     <span className="truncate">SECURE LEA</span>
                   </div>
                 </div>

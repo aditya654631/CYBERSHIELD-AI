@@ -68,7 +68,7 @@ export const Settings: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2">
             <SettingsIcon className="w-5 h-5 text-blue-600 shrink-0" />
-            <h1 className="text-base sm:text-lg font-bold text-[#173A63] font-sans">
+            <h1 className="text-base sm:text-lg font-bold text-[#031926] font-sans">
               Platform Diagnostics & Policy Parameters
             </h1>
           </div>
@@ -91,7 +91,7 @@ export const Settings: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
         {/* ML Engine & Model Verification */}
         <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs space-y-4">
-          <div className="flex items-center space-x-2 text-[#173A63] font-bold border-b border-[#DCE5F0] pb-3">
+          <div className="flex items-center space-x-2 text-[#031926] font-bold border-b border-[#DCE5F0] pb-3">
             <Cpu className="w-4 h-4 text-blue-600" />
             <span>AI ML ENGINE & VERIFIED ARTIFACTS</span>
           </div>
@@ -138,7 +138,7 @@ export const Settings: React.FC = () => {
 
         {/* Database & Infrastructure */}
         <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs space-y-3">
-          <div className="flex items-center space-x-2 text-[#173A63] font-bold border-b border-[#DCE5F0] pb-3">
+          <div className="flex items-center space-x-2 text-[#031926] font-bold border-b border-[#DCE5F0] pb-3">
             <Database className="w-4 h-4 text-blue-600" />
             <span>DATA STORAGE & ENGINE SUBSYSTEM</span>
           </div>
@@ -184,7 +184,7 @@ export const Settings: React.FC = () => {
 
         {/* Operational Integrations & Simulation Notices */}
         <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs space-y-4">
-          <div className="flex items-center space-x-2 text-[#173A63] font-bold border-b border-[#DCE5F0] pb-3">
+          <div className="flex items-center space-x-2 text-[#031926] font-bold border-b border-[#DCE5F0] pb-3">
             <Radio className="w-4 h-4 text-blue-600" />
             <span>EXTERNAL INTEGRATIONS (TRUTHFUL STATUS)</span>
           </div>
@@ -220,7 +220,7 @@ export const Settings: React.FC = () => {
 
         {/* Active Session & Jurisdiction Badge */}
         <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs space-y-3">
-          <div className="flex items-center space-x-2 text-[#173A63] font-bold border-b border-[#DCE5F0] pb-3">
+          <div className="flex items-center space-x-2 text-[#031926] font-bold border-b border-[#DCE5F0] pb-3">
             <Lock className="w-4 h-4 text-blue-600" />
             <span>AUTHENTICATED OPERATOR CONTEXT</span>
           </div>

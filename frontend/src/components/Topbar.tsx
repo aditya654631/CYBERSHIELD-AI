@@ -101,12 +101,12 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
         <div className="flex items-center space-x-1 sm:space-x-1.5 text-xs text-slate-500 font-medium min-w-0">
           <span className="hidden xs:inline">CyberShield</span>
           <ChevronRight className="w-3.5 h-3.5 text-slate-400 shrink-0 hidden xs:inline" />
-          <span className="text-[#1E293B] font-semibold truncate max-w-[130px] sm:max-w-xs md:max-w-none">
+          <span className="text-[#031926] font-semibold truncate max-w-[130px] sm:max-w-xs md:max-w-none">
             {currentTitle}
           </span>
         </div>
 
-        <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-blue-50 text-blue-700 border border-blue-200 shrink-0">
+        <span className="hidden lg:inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] font-medium bg-[#F0F6F6] text-[#468189] border border-[#9DBEBB]/50 shrink-0">
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
           Operational Pilot
         </span>
@@ -123,14 +123,14 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search complaint, account, UTR..."
             aria-label="Search cases and accounts"
-            className="w-full pl-8 pr-3 py-1.5 bg-[#F6F8FC] border border-[#DCE5F0] rounded-md text-xs text-slate-900 placeholder-slate-400 focus:outline-none focus:bg-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors"
+            className="w-full pl-8 pr-3 py-1.5 bg-[#F6F8FC] border border-[#DCE5F0] rounded-md text-xs text-[#031926] placeholder-slate-400 focus:outline-none focus:bg-white focus:border-[#468189] focus:ring-1 focus:ring-[#468189] transition-colors"
           />
         </form>
 
         {/* Active Alerts Bell */}
         <button
           onClick={() => navigate('/alerts')}
-          className="relative p-1.5 rounded-md text-slate-600 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+          className="relative p-1.5 rounded-md text-slate-600 hover:text-[#468189] hover:bg-[#F0F6F6] transition-colors"
           title="Active Alerts"
           aria-label={`Active Alerts: ${newAlertCount} new`}
         >
@@ -144,12 +144,12 @@ export const Topbar: React.FC<TopbarProps> = ({ onToggleMobileSidebar }) => {
 
         {/* Real Authenticated Officer Profile */}
         <div className="flex items-center space-x-3 pl-3 border-l border-[#DCE5F0]">
-          <div className="w-7 h-7 rounded-full bg-[#173A63] text-white flex items-center justify-center text-xs font-semibold shrink-0">
+          <div className="w-7 h-7 rounded-full bg-[#031926] text-white flex items-center justify-center text-xs font-semibold shrink-0">
             {userInitials}
           </div>
 
           <div className="hidden sm:block text-left leading-tight min-w-0">
-            <div className="text-xs font-semibold text-slate-900 truncate">
+            <div className="text-xs font-semibold text-[#031926] truncate">
               {user?.full_name || 'Authenticated Officer'}
             </div>
             <div className="text-[11px] text-slate-500 truncate">

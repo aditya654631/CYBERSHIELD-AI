@@ -8,20 +8,20 @@ export const PredictionTiming: React.FC<{ prediction: Prediction }> = ({ predict
   const expired = windowEnd != null && windowEnd.getTime() <= Date.now();
   return (
     <div className="space-y-2 text-xs">
-      <div className="font-bold text-[#173A63] leading-relaxed">{predictionWindow(prediction)}</div>
+      <div className="font-bold text-[#031926] leading-relaxed">{predictionWindow(prediction)}</div>
       {time?.prediction_reference_time && (
         <div className="text-slate-600">
-          Reference (complaint reported): <strong>{formatIST(time.prediction_reference_time)}</strong>
+          Reference (complaint reported): <strong className="text-[#031926]">{formatIST(time.prediction_reference_time)}</strong>
         </div>
       )}
       {time?.predicted_minutes_to_cashout != null && Number.isFinite(time.predicted_minutes_to_cashout) && (
         <div className="text-slate-600">
-          Central estimate: <strong>~{Math.round(time.predicted_minutes_to_cashout)} minutes after the reference</strong>
+          Central estimate: <strong className="text-[#031926]">~{Math.round(time.predicted_minutes_to_cashout)} minutes after the reference</strong>
           {time.predicted_cashout_at ? ` (${formatIST(time.predicted_cashout_at)})` : ''}.
         </div>
       )}
       {expired && (
-        <div className="p-2 rounded bg-amber-50 border border-amber-300 text-amber-900 font-medium">
+        <div className="p-2 rounded bg-[#FDFBF7] border border-[#F4E9CD] text-[#78350F] font-medium">
           Estimated cash-out window has expired ({formatIST(time?.window_end)}). Review transaction evidence before taking field action.
         </div>
       )}

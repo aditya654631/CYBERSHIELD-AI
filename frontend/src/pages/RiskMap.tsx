@@ -482,7 +482,7 @@ export const RiskMap: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2">
             <Compass className="w-5 h-5 text-blue-600 shrink-0" />
-            <h1 className="text-lg font-bold text-[#173A63] font-sans">
+            <h1 className="text-lg font-bold text-[#031926] font-sans">
               Geospatial Predictive Cash-Out Intelligence (GIS)
             </h1>
           </div>
@@ -625,7 +625,7 @@ export const RiskMap: React.FC = () => {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <SlidersHorizontal className="w-4 h-4 text-blue-600" />
-            <h2 className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+            <h2 className="text-xs font-bold text-[#031926] uppercase tracking-wider">
               Surveillance Filters & Time Basis
             </h2>
             {isFilterActive && (
@@ -830,7 +830,7 @@ export const RiskMap: React.FC = () => {
 
         <div className="p-3 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
           <div className="text-[10px] uppercase font-bold text-slate-500">Total Monitored Hotspots</div>
-          <div className="text-xl font-bold text-[#173A63] mt-0.5">
+          <div className="text-xl font-bold text-[#031926] mt-0.5">
             {gisSummary?.total_hotspots ?? hotspots.length}
           </div>
           <div className="text-[10px] text-slate-400 mt-0.5">
@@ -922,7 +922,7 @@ export const RiskMap: React.FC = () => {
             <div className="flex items-center justify-between pb-3 border-b border-[#DCE5F0] mb-4">
               <div className="flex items-center space-x-2">
                 <Shield className="w-4 h-4 text-blue-600" />
-                <h3 className="text-sm font-bold text-[#173A63] uppercase">
+                <h3 className="text-sm font-bold text-[#031926] uppercase">
                   Prediction Intelligence
                 </h3>
               </div>
@@ -1254,7 +1254,7 @@ export const RiskMap: React.FC = () => {
       <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-3 border-b border-[#DCE5F0]">
           <div>
-            <h3 className="text-sm font-bold text-[#173A63] flex items-center gap-2">
+            <h3 className="text-sm font-bold text-[#031926] flex items-center gap-2">
               <Shield className="w-4 h-4 text-blue-600" />
               <span>Surveillance Clusters ({hotspots.length} Scoped Results)</span>
             </h3>

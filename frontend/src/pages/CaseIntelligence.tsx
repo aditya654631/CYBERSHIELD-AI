@@ -1138,9 +1138,9 @@ export const CaseIntelligence: React.FC = () => {
               <div className="lg:col-span-8 space-y-4">
                 {/* Primary Predicted Zone Banner (B9 & Section 21) */}
                 {rank1Location && (
-                  <div className="p-4 rounded-lg bg-[#EFF6FF]/70 border border-[#DCE5F0]">
+                  <div className="p-4 rounded-lg bg-[#F0F6F6] border border-[#9DBEBB]/60">
                     <div className="flex items-center justify-between text-xs mb-1.5">
-                      <span className="text-[11px] font-semibold uppercase text-blue-700 tracking-wider">
+                      <span className="text-[11px] font-semibold uppercase text-[#468189] tracking-wider">
                         #1 PRIMARY PREDICTED ZONE
                       </span>
                       <span className={`text-[10px] px-2 py-0.5 rounded font-medium border ${
@@ -1148,7 +1148,7 @@ export const CaseIntelligence: React.FC = () => {
                           ? 'bg-red-50 text-red-700 border-red-200'
                           : rank1Location.risk_level === 'HIGH'
                           ? 'bg-amber-50 text-amber-700 border-amber-200'
-                          : 'bg-blue-50 text-blue-700 border-blue-200'
+                          : 'bg-[#F0F6F6] text-[#468189] border-[#9DBEBB]'
                       }`}>
                         {rank1Location.risk_level} Operational Priority
                       </span>
@@ -1156,7 +1156,7 @@ export const CaseIntelligence: React.FC = () => {
 
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div>
-                        <div className="text-base font-bold text-[#173A63]">
+                        <div className="text-base font-bold text-[#031926]">
                           {rank1Location.cluster_name || rank1Location.location_name}
                         </div>
                         <div className="text-xs text-slate-500 mt-0.5">
@@ -1166,7 +1166,7 @@ export const CaseIntelligence: React.FC = () => {
 
                       <div className="text-left sm:text-right">
                         <div className="text-[11px] text-slate-500">Operational Priority</div>
-                        <div className="text-sm font-bold text-slate-900">
+                        <div className="text-sm font-bold text-[#031926]">
                           Rank #1 Candidate Cash-Out Zone
                         </div>
                       </div>
@@ -1177,7 +1177,7 @@ export const CaseIntelligence: React.FC = () => {
                 {/* Top-3 Location Table (Section 21) */}
                 <div>
                   <div className="flex items-center space-x-1.5">
-                    <div className="text-xs font-semibold text-[#173A63] uppercase tracking-wider">
+                    <div className="text-xs font-semibold text-[#031926] uppercase tracking-wider">
                       Ranked Cash-Out Candidate Zones (Delhi Pilot)
                     </div>
                     <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -1345,10 +1345,10 @@ export const CaseIntelligence: React.FC = () => {
                 <div className="p-4 bg-white rounded-lg border border-[#DCE5F0] space-y-3 shadow-xs">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#DCE5F0]">
                     <div className="flex items-center space-x-2">
-                      <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+                      <Sparkles className="w-4 h-4 text-[#468189] shrink-0" />
                       <div>
                         <div className="flex items-center space-x-1.5">
-                          <h4 className="text-xs font-bold text-[#173A63] uppercase">
+                          <h4 className="text-xs font-bold text-[#031926] uppercase">
                             Model Attribution & Local Explainability (LIME)
                           </h4>
                           <div className="relative" onClick={(e) => e.stopPropagation()}>
@@ -1671,13 +1671,13 @@ export const CaseIntelligence: React.FC = () => {
               {/* Right 1/3: Timing + Model Provenance + Action Panel */}
               <div className="lg:col-span-4 space-y-4">
                 {/* Time Prediction Card (B11) */}
-                <div className="p-4 bg-[#F8FAFC] rounded-lg border border-[#DCE5F0] space-y-2">
+                <div className="p-4 bg-[#FDFBF7] rounded-lg border border-[#F4E9CD] space-y-2">
                   <div className="flex items-center justify-between text-xs text-slate-500">
-                    <span className="font-semibold uppercase text-slate-700 flex items-center space-x-1.5">
-                      <Clock className="w-3.5 h-3.5 text-blue-600" />
+                    <span className="font-semibold uppercase text-[#031926] flex items-center space-x-1.5">
+                      <Clock className="w-3.5 h-3.5 text-[#468189]" />
                       <span>Predicted Cash-out Window</span>
                     </span>
-                    <span className="text-[10px] font-medium bg-blue-50 text-blue-700 px-1.5 py-0.2 rounded border border-blue-200">
+                    <span className="text-[10px] font-semibold bg-[#F4E9CD] text-[#031926] px-2 py-0.5 rounded border border-[#E2D5B0]">
                       Operational Estimate
                     </span>
                   </div>
@@ -1693,14 +1693,14 @@ export const CaseIntelligence: React.FC = () => {
                 <div className="p-4 bg-white rounded-lg border border-[#DCE5F0] space-y-2.5 shadow-xs text-xs">
                   <div className="flex items-center justify-between pb-2 border-b border-[#DCE5F0]">
                     <div className="flex items-center space-x-1.5" onClick={(e) => e.stopPropagation()}>
-                      <span className="font-bold text-[#173A63] uppercase text-[11px]">
+                      <span className="font-bold text-[#031926] uppercase text-[11px]">
                         Model & Provenance
                       </span>
                       <div className="relative">
                         <button
                           id="info-btn-provenance"
                           onClick={() => toggleInfoPopover('provenance')}
-                          className="text-slate-400 hover:text-blue-600 transition-colors"
+                          className="text-slate-400 hover:text-[#468189] transition-colors"
                         >
                           <Info className="w-3 h-3" />
                         </button>
@@ -1712,7 +1712,7 @@ export const CaseIntelligence: React.FC = () => {
                         )}
                       </div>
                     </div>
-                    <span className="font-mono text-blue-700 font-semibold">
+                    <span className="font-mono text-[#468189] font-semibold">
                       #{prediction.prediction_id || prediction.id}
                     </span>
                   </div>
@@ -1866,7 +1866,7 @@ export const CaseIntelligence: React.FC = () => {
 
                 {/* Operational Actions Card (B14) */}
                 <div className="p-4 bg-[#F8FAFC] rounded-lg border border-[#DCE5F0] space-y-2.5">
-                  <span className="text-xs font-bold text-[#173A63] uppercase block">
+                  <span className="text-xs font-bold text-[#031926] uppercase block">
                     Operational Actions
                   </span>
 

@@ -14,7 +14,7 @@ import {
 import { api } from '../services/api';
 import { AnalyticsOverview } from '../types';
 
-const COLORS = ['#00d8ff', '#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b'];
+const COLORS = ['#468189', '#77ACA2', '#031926', '#9DBEBB', '#D97706'];
 
 export const Analytics: React.FC = () => {
   const [analytics, setAnalytics] = useState<AnalyticsOverview | null>(null);
@@ -53,7 +53,7 @@ export const Analytics: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2">
             <BarChart3 className="w-5 h-5 text-blue-600 shrink-0" />
-            <h1 className="text-base sm:text-lg font-bold text-[#173A63] font-sans">
+            <h1 className="text-base sm:text-lg font-bold text-[#031926] font-sans">
               Macro Cybercrime Intelligence Analytics
             </h1>
           </div>
@@ -99,7 +99,7 @@ export const Analytics: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Fraud Categories */}
         <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
-          <h3 className="text-sm font-bold text-[#173A63] uppercase mb-4">
+          <h3 className="text-sm font-bold text-[#031926] uppercase mb-4">
             Fraud Modus Operandi Breakdown
           </h3>
           <div className="h-64">
@@ -128,7 +128,7 @@ export const Analytics: React.FC = () => {
 
         {/* Complaints Timeline */}
         <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
-          <h3 className="text-sm font-bold text-[#173A63] uppercase mb-4">
+          <h3 className="text-sm font-bold text-[#031926] uppercase mb-4">
             Complaints & Risk Velocity Over Time
           </h3>
           <div className="h-64">
@@ -147,7 +147,7 @@ export const Analytics: React.FC = () => {
 
         {/* Hourly Cash-Out Risk */}
         <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
-          <h3 className="text-sm font-bold text-[#173A63] uppercase mb-4">
+          <h3 className="text-sm font-bold text-[#031926] uppercase mb-4">
             ATM Cash-Out Risk by Hour of Day
           </h3>
           <div className="h-64">
@@ -166,7 +166,7 @@ export const Analytics: React.FC = () => {
 
         {/* Regional Risk Comparison */}
         <div className="p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs">
-          <h3 className="text-sm font-bold text-[#173A63] uppercase mb-4">
+          <h3 className="text-sm font-bold text-[#031926] uppercase mb-4">
             Regional District Threat Index
           </h3>
           <div className="h-64">

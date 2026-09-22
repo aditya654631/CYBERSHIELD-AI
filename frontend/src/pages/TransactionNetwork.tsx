@@ -75,7 +75,7 @@ export const TransactionNetwork: React.FC = () => {
             </button>
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="text-base font-bold text-[#173A63] font-sans">
+                <h1 className="text-base font-bold text-[#031926] font-sans">
                   Financial Transaction & Mule Network Graph
                 </h1>
                 <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-semibold font-mono">
@@ -112,7 +112,7 @@ export const TransactionNetwork: React.FC = () => {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div className="flex items-center space-x-2">
-              <h1 className="text-base font-bold text-[#173A63] font-sans">
+              <h1 className="text-base font-bold text-[#031926] font-sans">
                 Financial Transaction & Mule Network Graph
               </h1>
               <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-semibold font-mono">
@@ -167,7 +167,7 @@ export const TransactionNetwork: React.FC = () => {
               <ArrowLeft className="w-4 h-4" />
             </button>
             <div className="flex items-center space-x-2">
-              <h1 className="text-base font-bold text-[#173A63] font-sans">
+              <h1 className="text-base font-bold text-[#031926] font-sans">
                 Financial Transaction & Mule Network Graph
               </h1>
               <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-semibold font-mono">
@@ -229,7 +229,7 @@ export const TransactionNetwork: React.FC = () => {
           </button>
           <div className="min-w-0">
             <div className="flex items-center space-x-2 flex-wrap gap-y-1">
-              <h1 className="text-base font-bold text-[#173A63] font-sans truncate">
+              <h1 className="text-base font-bold text-[#031926] font-sans truncate">
                 Financial Transaction & Mule Network Graph
               </h1>
               <span className="text-xs px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-semibold font-mono">
@@ -316,7 +316,7 @@ export const TransactionNetwork: React.FC = () => {
                     <div className="flex items-center justify-between pb-3 border-b border-[#DCE5F0]">
                       <div className="flex items-center space-x-2 min-w-0">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-emerald-500"></span>
-                        <h3 className="text-sm font-bold text-[#173A63] truncate" title={selectedNode.label}>
+                        <h3 className="text-sm font-bold text-[#031926] truncate" title={selectedNode.label}>
                           {selectedNode.label}
                         </h3>
                       </div>
@@ -454,7 +454,7 @@ export const TransactionNetwork: React.FC = () => {
                             : 'bg-emerald-500'
                         }`}
                       ></span>
-                      <h3 className="text-sm font-bold text-[#173A63] truncate" title={safeName}>
+                      <h3 className="text-sm font-bold text-[#031926] truncate" title={safeName}>
                         {safeName}
                       </h3>
                     </div>
@@ -472,7 +472,7 @@ export const TransactionNetwork: React.FC = () => {
                   <div className="space-y-2 text-xs">
                     <div className="p-2.5 bg-[#F6F8FC] rounded-md border border-[#DCE5F0] flex items-center justify-between gap-2">
                       <span className="text-slate-500 shrink-0">Account / Entity:</span>
-                      <span className="text-[#173A63] font-semibold text-right truncate font-sans" title={safeName}>
+                      <span className="text-[#031926] font-semibold text-right truncate font-sans" title={safeName}>
                         {safeName}
                       </span>
                     </div>
@@ -592,7 +592,7 @@ export const TransactionNetwork: React.FC = () => {
         >
           <div className="flex items-center space-x-2">
             <TableIcon className="w-4 h-4 text-blue-600" />
-            <h2 className="text-xs font-bold text-[#173A63] uppercase tracking-wide">
+            <h2 className="text-xs font-bold text-[#031926] uppercase tracking-wide">
               Accessible Entity Directory ({graphData.nodes.length} Accounts & Terminals)
             </h2>
           </div>

@@ -342,16 +342,16 @@ export const UnifiedRiskMap: React.FC<UnifiedRiskMapProps> = ({
         const infoContent = `
           <div style="background:#FFFFFF; color:#1E293B; padding:12px; border-radius:8px; font-family:system-ui, -apple-system, sans-serif; font-size:12px; max-width:270px; line-height:1.4; box-shadow:0 2px 8px rgba(0,0,0,0.12); border:1px solid #DCE5F0;">
             <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #E2E8F0; padding-bottom:6px; margin-bottom:8px;">
-              <span style="font-weight:700; color:#173A63; font-size:12px;">Predicted Cash-Out Zone</span>
-              <span style="background:${isTop1 ? '#EFF6FF' : '#F1F5F9'}; color:${isTop1 ? '#2563EB' : '#475569'}; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:700; border:1px solid ${isTop1 ? '#BFDBFE' : '#CBD5E1'};">
+              <span style="font-weight:700; color:#031926; font-size:12px;">Predicted Cash-Out Zone</span>
+              <span style="background:${isTop1 ? '#F0F6F6' : '#F1F5F9'}; color:${isTop1 ? '#468189' : '#475569'}; font-size:10px; padding:2px 6px; border-radius:4px; font-weight:700; border:1px solid ${isTop1 ? '#9DBEBB' : '#CBD5E1'};">
                 ${isTop1 ? '#1 PRIMARY' : (loc.rank === 2 ? '#2 SECONDARY' : '#3 TERTIARY')}
               </span>
             </div>
-            <div style="color:#0F172A; font-weight:700; font-size:13px; margin-bottom:4px;">${escapeMapText(loc.location_name)}</div>
+            <div style="color:#031926; font-weight:700; font-size:13px; margin-bottom:4px;">${escapeMapText(loc.location_name)}</div>
             ${loc.zone ? `<div style="display:flex; justify-content:space-between; margin-top:2px;"><span style="color:#64748B;">District:</span><span style="font-weight:500; color:#1E293B;">${escapeMapText(loc.zone)}</span></div>` : ''}
             <div style="display:flex; justify-content:space-between; margin-top:2px;">
               <span style="color:#64748B;">Operational Priority:</span>
-              <span style="color:${loc.risk_level === 'CRITICAL' ? '#DC2626' : (loc.risk_level === 'HIGH' ? '#D97706' : '#2563EB')}; font-weight:700;">${loc.risk_level || 'HIGH'}</span>
+              <span style="color:${loc.risk_level === 'CRITICAL' ? '#DC2626' : (loc.risk_level === 'HIGH' ? '#D97706' : '#468189')}; font-weight:700;">${loc.risk_level || 'HIGH'}</span>
             </div>
             <div style="display:flex; justify-content:space-between; margin-top:2px;">
               <span style="color:#64748B;">Distance from Origin:</span>

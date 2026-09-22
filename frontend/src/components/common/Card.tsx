@@ -31,9 +31,9 @@ export const Card: React.FC<CardProps> = ({
       {(title || action || icon) && (
         <div className="px-4 sm:px-5 py-3 sm:py-4 border-b border-[#DCE5F0] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center space-x-2.5 min-w-0">
-            {icon && <span className="text-blue-600 shrink-0">{icon}</span>}
+            {icon && <span className="text-[#468189] shrink-0">{icon}</span>}
             <div className="min-w-0">
-              <h3 className="text-sm font-semibold text-[#173A63] truncate">{title}</h3>
+              <h3 className="text-sm font-semibold text-[#031926] truncate">{title}</h3>
               {subtitle && <p className="text-xs text-slate-500 truncate mt-0.5">{subtitle}</p>}
             </div>
           </div>

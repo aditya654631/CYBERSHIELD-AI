@@ -103,23 +103,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
 
       {/* Sidebar / Mobile Slide-in Drawer */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] h-full transform transition-transform duration-200 ease-in-out bg-[#173A63] border-r border-[#1E4A7D] flex flex-col select-none lg:static lg:w-64 lg:h-screen lg:shrink-0 lg:z-30 lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] h-full transform transition-transform duration-200 ease-in-out bg-[#031926] border-r border-[#0E2A3A] flex flex-col select-none lg:static lg:w-64 lg:h-screen lg:shrink-0 lg:z-30 lg:translate-x-0 ${
           mobileOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
         }`}
       >
         {/* Platform Identity Block */}
-        <div className="px-5 py-5 border-b border-[#1E4A7D] flex items-center justify-between">
+        <div className="px-5 py-5 border-b border-[#0E2A3A] flex items-center justify-between">
           <div className="flex items-center space-x-3 min-w-0">
-            <div className="w-9 h-9 rounded-md bg-white/10 border border-white/20 flex items-center justify-center text-white shrink-0">
+            <div className="w-9 h-9 rounded-md bg-[#468189]/20 border border-[#77ACA2]/40 flex items-center justify-center text-[#77ACA2] shrink-0">
               <ShieldAlert className="w-5 h-5" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center space-x-1.5">
                 <h1 className="text-base font-bold tracking-tight text-white font-sans">
-                  CyberShield <span className="text-blue-300">AI</span>
+                  CyberShield <span className="text-[#77ACA2]">AI</span>
                 </h1>
               </div>
-              <p className="text-[11px] text-blue-200/80 truncate">
+              <p className="text-[11px] text-slate-300/80 truncate">
                 Cybercrime Predictive Intelligence
               </p>
             </div>
@@ -128,7 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
           {mobileOpen && (
             <button
               onClick={onClose}
-              className="lg:hidden p-1.5 rounded-md text-blue-200 hover:text-white hover:bg-white/10 transition-colors ml-2"
+              className="lg:hidden p-1.5 rounded-md text-slate-300 hover:text-white hover:bg-white/10 transition-colors ml-2"
               aria-label="Close menu"
             >
               <X className="w-5 h-5" />
@@ -137,9 +137,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
         </div>
 
         {/* Operational Scope Banner */}
-        <div className="px-5 py-3 border-b border-[#1E4A7D]/60">
-          <div className="px-2.5 py-1.5 rounded bg-[#122E4F] border border-[#1E4A7D] flex items-center justify-between">
-            <span className="text-[11px] font-medium text-blue-100 truncate">
+        <div className="px-5 py-3 border-b border-[#0E2A3A]/80">
+          <div className="px-2.5 py-1.5 rounded bg-[#072130] border border-[#0E2A3A] flex items-center justify-between">
+            <span className="text-[11px] font-medium text-[#9DBEBB] truncate">
               {user?.role === 'STATE_LEA' ? 'State Cyber Police' : user?.role === 'DISTRICT_LEA' ? 'District Cyber Cell' : user?.role === 'BANK_OFFICER' ? 'Bank Fraud Ops' : 'I4C Pilot • Delhi NCT'}
             </span>
             <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400 font-medium shrink-0 ml-1">
@@ -151,7 +151,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
 
       {/* Navigation Links */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1" aria-label="Primary Navigation">
-        <div className="px-3 pb-2 text-[11px] font-semibold text-blue-200/70 uppercase tracking-wider">
+        <div className="px-3 pb-2 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
           Intelligence & Operations
         </div>
         {visibleNavItems.map((item) => {
@@ -174,13 +174,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
               className={({ isActive }) =>
                 `group flex items-center justify-between px-3 py-2 rounded-md text-xs font-medium transition-colors ${
                   isActive
-                    ? 'bg-[#1E4A7D] text-white font-semibold border-l-2 border-blue-400 pl-2.5 shadow-sm'
-                    : 'text-blue-100/80 hover:text-white hover:bg-[#1E4A7D]/50'
+                    ? 'bg-[#468189] text-white font-semibold border-l-2 border-[#77ACA2] pl-2.5 shadow-sm'
+                    : 'text-slate-300 hover:text-white hover:bg-[#0E2A3A]'
                 }`
               }
             >
               <div className="flex items-center space-x-2.5 min-w-0">
-                <Icon className="w-4 h-4 shrink-0" />
+                <Icon className="w-4 h-4 shrink-0 text-[#77ACA2] group-hover:text-white transition-colors" />
                 <span className="truncate">{item.name}</span>
               </div>
               {item.badge && (
@@ -194,17 +194,17 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
       </nav>
 
       {/* Authenticated Officer Identity Footer */}
-      <div className="p-3 border-t border-[#1E4A7D] bg-[#143358]">
-        <div className="p-2.5 rounded-md bg-[#122E4F] border border-[#1E4A7D] flex items-center justify-between">
+      <div className="p-3 border-t border-[#0E2A3A] bg-[#02131D]">
+        <div className="p-2.5 rounded-md bg-[#072130] border border-[#0E2A3A] flex items-center justify-between">
           <div className="flex items-center space-x-2.5 min-w-0">
-            <div className="w-8 h-8 rounded-full bg-[#1E4A7D] border border-blue-300/30 flex items-center justify-center text-white font-semibold text-xs shrink-0">
+            <div className="w-8 h-8 rounded-full bg-[#468189] border border-[#77ACA2]/40 flex items-center justify-center text-white font-semibold text-xs shrink-0">
               {userInitials}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-xs font-semibold text-white truncate">
                 {user ? user.full_name : 'Authenticated Officer'}
               </p>
-              <p className="text-[11px] text-blue-200/80 truncate">
+              <p className="text-[11px] text-[#9DBEBB] truncate">
                 {user ? `${user.role}` : 'Law Enforcement'}
               </p>
             </div>
@@ -214,7 +214,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
             onClick={handleLogout}
             title="Sign Out"
             aria-label="Sign Out"
-            className="p-1.5 rounded text-blue-200 hover:text-white hover:bg-red-500/30 transition-colors ml-1"
+            className="p-1.5 rounded text-slate-400 hover:text-white hover:bg-red-500/30 transition-colors ml-1"
           >
             <LogOut className="w-4 h-4" />
           </button>

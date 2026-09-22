@@ -29,11 +29,11 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const variantClasses: Record<ButtonVariant, string> = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-600 border border-blue-600 shadow-sm',
-    secondary: 'bg-white text-slate-700 hover:bg-slate-50 border border-[#DCE5F0] focus:ring-blue-500 shadow-xs',
+    primary: 'bg-[#468189] text-white hover:bg-[#386970] focus:ring-[#468189] border border-[#468189] shadow-sm',
+    secondary: 'bg-white text-slate-700 hover:bg-[#F0F6F6] hover:text-[#031926] border border-[#DCE5F0] focus:ring-[#468189] shadow-xs',
     danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-600 border border-red-600 shadow-sm',
-    outline: 'bg-transparent text-slate-700 hover:bg-blue-50/50 border border-[#DCE5F0] focus:ring-blue-500',
-    ghost: 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900 focus:ring-blue-400',
+    outline: 'bg-transparent text-slate-700 hover:bg-[#F0F6F6] hover:text-[#031926] border border-[#DCE5F0] focus:ring-[#468189]',
+    ghost: 'bg-transparent text-slate-600 hover:bg-[#F0F6F6] hover:text-[#031926] focus:ring-[#468189]',
   };
 
   return (

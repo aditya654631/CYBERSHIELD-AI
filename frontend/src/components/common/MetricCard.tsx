@@ -23,23 +23,23 @@ export const MetricCard: React.FC<MetricCardProps> = ({
   className = '',
 }) => {
   const variantStyles = {
-    default: 'text-slate-900',
+    default: 'text-[#031926]',
     critical: 'text-red-700',
     warning: 'text-amber-700',
-    success: 'text-green-700',
-    info: 'text-blue-700',
+    success: 'text-emerald-700',
+    info: 'text-[#468189]',
   };
 
   const iconBgStyles = {
-    default: 'bg-blue-50 text-blue-600',
+    default: 'bg-[#F0F6F6] text-[#468189]',
     critical: 'bg-red-50 text-red-600',
     warning: 'bg-amber-50 text-amber-600',
-    success: 'bg-green-50 text-green-600',
-    info: 'bg-blue-50 text-blue-600',
+    success: 'bg-emerald-50 text-emerald-600',
+    info: 'bg-[#F0F6F6] text-[#468189]',
   };
 
   return (
-    <div className={`bg-white border border-[#DCE5F0] rounded-lg p-3 sm:p-4 shadow-xs hover:border-blue-200 transition-colors min-w-0 ${className}`}>
+    <div className={`bg-white border border-[#DCE5F0] rounded-lg p-3 sm:p-4 shadow-xs hover:border-[#9DBEBB] transition-colors min-w-0 ${className}`}>
       <div className="flex items-center justify-between mb-1.5 sm:mb-2 gap-1">
         <span className="text-[11px] sm:text-xs font-medium text-slate-500 uppercase tracking-wider truncate">{label}</span>
         {icon && (

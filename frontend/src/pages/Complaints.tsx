@@ -342,11 +342,11 @@ export const Complaints: React.FC = () => {
       <div className="bg-white border border-[#DCE5F0] rounded-lg p-5 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <div className="flex items-center space-x-2.5">
-            <div className="p-2 rounded-md bg-blue-50 text-blue-600 border border-blue-200">
-              <FileText className="w-5 h-5 text-blue-600" />
+            <div className="p-2 rounded-md bg-[#F0F6F6] text-[#468189] border border-[#9DBEBB]/60">
+              <FileText className="w-5 h-5 text-[#468189]" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-[#173A63] tracking-tight">
+              <h1 className="text-lg font-bold text-[#031926] tracking-tight">
                 Complaints Registry
               </h1>
               <p className="text-xs text-slate-500 mt-0.5">
@@ -361,7 +361,7 @@ export const Complaints: React.FC = () => {
             setFormError(null);
             setIsModalOpen(true);
           }}
-          className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded shadow-xs transition-colors shrink-0 cursor-pointer"
+          className="inline-flex items-center justify-center space-x-2 px-4 py-2 bg-[#468189] hover:bg-[#386970] text-white text-xs font-semibold rounded shadow-xs transition-colors shrink-0 cursor-pointer"
         >
           <Plus className="w-4 h-4" />
           <span>+ REGISTER COMPLAINT</span>
@@ -1323,13 +1323,13 @@ export const Complaints: React.FC = () => {
               </div>
 
               {/* SECTION D: CONTROLLED SYNTHETIC DEMO MODE (PERMANENT) */}
-              <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50/60 border border-blue-200 rounded-lg space-y-2.5">
+              <div className="p-4 bg-[#F0F6F6] border border-[#9DBEBB]/60 rounded-lg space-y-2.5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold text-[#173A63] uppercase tracking-wider">
+                    <span className="text-xs font-bold text-[#031926] uppercase tracking-wider">
                       Controlled Synthetic Demo Mode
                     </span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-blue-600 text-white uppercase tracking-wider">
+                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-[#468189] text-white uppercase tracking-wider">
                       Always On
                     </span>
                     <InfoPopover
@@ -1337,9 +1337,9 @@ export const Complaints: React.FC = () => {
                       content="This controlled pilot uses synthetic complaint and transaction data for demonstration and model evaluation. It does not represent live NCRP or banking records."
                     />
                   </div>
-                  <div className="flex items-center space-x-1.5 text-[10px] font-semibold text-blue-700">
-                    <span className="px-2 py-0.5 rounded bg-white border border-blue-200">SYNTHETIC DATA</span>
-                    <span className="px-2 py-0.5 rounded bg-white border border-blue-200">DELHI PILOT</span>
+                  <div className="flex items-center space-x-1.5 text-[10px] font-semibold text-[#468189]">
+                    <span className="px-2 py-0.5 rounded bg-white border border-[#9DBEBB]">SYNTHETIC DATA</span>
+                    <span className="px-2 py-0.5 rounded bg-white border border-[#9DBEBB]">DELHI PILOT</span>
                   </div>
                 </div>
 

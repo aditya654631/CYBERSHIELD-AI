@@ -42,8 +42,8 @@ export const AuditLog: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-5 bg-white rounded-lg border border-[#DCE5F0] shadow-xs gap-4">
         <div>
           <div className="flex items-center space-x-2">
-            <History className="w-5 h-5 text-blue-600 shrink-0" />
-            <h1 className="text-lg font-bold text-[#173A63] font-sans">
+            <History className="w-5 h-5 text-[#468189] shrink-0" />
+            <h1 className="text-lg font-bold text-[#031926] font-sans">
               Regulatory Audit Ledger & Chain of Custody
             </h1>
           </div>

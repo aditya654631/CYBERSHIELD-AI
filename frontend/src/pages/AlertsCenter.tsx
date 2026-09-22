@@ -185,7 +185,7 @@ export const AlertsCenter: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2">
             <BellRing className="w-5 h-5 text-red-600 shrink-0" />
-            <h1 className="text-lg font-bold text-[#173A63] font-sans">
+            <h1 className="text-lg font-bold text-[#031926] font-sans">
               Tactical Alerts & Rapid Intervention Center
             </h1>
           </div>
@@ -435,8 +435,8 @@ export const AlertsCenter: React.FC = () => {
           <div className="bg-white rounded-lg border border-[#DCE5F0] shadow-xl max-w-2xl w-full max-h-[85vh] flex flex-col">
             <div className="p-4 border-b border-[#DCE5F0] flex items-center justify-between">
               <div>
-                <h2 className="text-sm font-bold text-[#173A63] flex items-center space-x-2">
-                  <Layers className="w-4 h-4 text-purple-600" />
+                <h2 className="text-sm font-bold text-[#031926] flex items-center space-x-2">
+                  <Layers className="w-4 h-4 text-[#468189]" />
                   <span>Durable Outbox Delivery Audit Trail</span>
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">

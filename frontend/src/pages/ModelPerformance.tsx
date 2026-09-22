@@ -92,7 +92,7 @@ export const ModelPerformance: React.FC = () => {
         <div>
           <div className="flex items-center space-x-2.5">
             <Cpu className="w-5 h-5 text-blue-600 shrink-0" />
-            <h1 className="text-lg font-bold text-[#173A63] font-sans">
+            <h1 className="text-lg font-bold text-[#031926] font-sans">
               AI Model Performance & Runtime Governance
             </h1>
           </div>
@@ -112,7 +112,7 @@ export const ModelPerformance: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
         {/* CURRENT RUNTIME CARD */}
         <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-2">
-          <div className="text-[#173A63] font-bold uppercase tracking-wider text-[11px] pb-1 border-b border-[#DCE5F0] flex items-center justify-between">
+          <div className="text-[#031926] font-bold uppercase tracking-wider text-[11px] pb-1 border-b border-[#DCE5F0] flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
               <Activity className="w-3.5 h-3.5 text-blue-600" />
               <span>CURRENT RUNTIME ENGINE</span>
@@ -183,7 +183,7 @@ export const ModelPerformance: React.FC = () => {
 
         {/* SAVED PREDICTIONS PROVENANCE CARD */}
         <div className="p-4 rounded-lg bg-white border border-[#DCE5F0] shadow-xs space-y-2">
-          <div className="text-[#173A63] font-bold uppercase tracking-wider text-[11px] pb-1 border-b border-[#DCE5F0] flex items-center justify-between">
+          <div className="text-[#031926] font-bold uppercase tracking-wider text-[11px] pb-1 border-b border-[#DCE5F0] flex items-center justify-between">
             <div className="flex items-center space-x-1.5">
               <History className="w-3.5 h-3.5 text-blue-600" />
               <span>SAVED PREDICTION PROVENANCE</span>
@@ -225,7 +225,7 @@ export const ModelPerformance: React.FC = () => {
         <div className="flex items-center justify-between pb-1.5 border-b border-[#DCE5F0]">
           <div className="flex items-center space-x-2">
             <Database className="w-4 h-4 text-blue-600" />
-            <span className="text-[#173A63] font-bold uppercase tracking-wider text-[11px]">
+            <span className="text-[#031926] font-bold uppercase tracking-wider text-[11px]">
               EVALUATION EVIDENCE & DATA PROVENANCE
             </span>
           </div>
@@ -286,7 +286,7 @@ export const ModelPerformance: React.FC = () => {
           <div className="flex items-center justify-between pb-1 border-b border-slate-200">
             <div className="flex items-center space-x-2">
               <Layers className="w-4 h-4 text-slate-700" />
-              <span className="text-[#173A63] font-bold uppercase tracking-wider text-[11px]">
+              <span className="text-[#031926] font-bold uppercase tracking-wider text-[11px]">
                 RESEARCH MODELS & PRE-REGISTERED PROMOTION AUDIT
               </span>
             </div>
@@ -477,7 +477,7 @@ export const ModelPerformance: React.FC = () => {
         <div className="bg-white rounded-lg border border-[#DCE5F0] overflow-hidden shadow-xs">
           <div className="p-4 border-b border-[#DCE5F0] bg-[#F8FAFC] flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div>
-              <h3 className="text-sm font-bold text-[#173A63] uppercase">
+              <h3 className="text-sm font-bold text-[#031926] uppercase">
                 Comparative Evaluation Matrix (Validation & Test Split)
               </h3>
               <p className="text-[11px] text-slate-500">
@@ -538,7 +538,7 @@ export const ModelPerformance: React.FC = () => {
         <div className="bg-white rounded-lg border border-[#DCE5F0] p-5 shadow-xs">
           <div className="flex items-center space-x-2 mb-4">
             <Sparkles className="w-4 h-4 text-blue-600" />
-            <h3 className="text-sm font-bold text-[#173A63] uppercase">
+            <h3 className="text-sm font-bold text-[#031926] uppercase">
               Authoritative Feature Importance (XGBoost Split Gain Attributions)
             </h3>
           </div>
