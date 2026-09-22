@@ -203,7 +203,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
 }) => {
   const navigate = useNavigate();
 
-  // Initial center fallback (Delhi Pilot baseline coordinates or MP fallback)
+  // Initial center fallback (Delhi Pilot baseline coordinates)
   let centerLat = 28.6315;
   let centerLon = 77.2167;
   let zoom = 11;
@@ -221,7 +221,7 @@ export const LeafletFallbackMap: React.FC<LeafletFallbackMapProps> = ({
     }
   }
 
-  // Legitimate victim coordinates only (Correction 5: no string matching on "bhopal" or "indore")
+  // Legitimate victim coordinates only
   const hasVictimCoords = hasCoordinates(complaint?.victim_lat, complaint?.victim_lon)
     ? { lat: Number(complaint!.victim_lat), lon: Number(complaint!.victim_lon) } : null;
 

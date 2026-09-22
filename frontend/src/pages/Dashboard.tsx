@@ -120,7 +120,12 @@ export const Dashboard: React.FC = () => {
   });
 
   const handleViewPilotCase = () => {
-    navigate('/cases/CMP-NEW-000002');
+    const targetCase = summary?.recent_complaints?.[0]?.complaint_number;
+    if (targetCase) {
+      navigate(`/cases/${targetCase}`);
+    } else {
+      navigate('/complaints');
+    }
   };
 
   if (loading) {
@@ -184,10 +189,12 @@ export const Dashboard: React.FC = () => {
             size="sm"
             icon={<ChevronRight className="w-4 h-4" />}
           >
-            <span>View Pilot Case</span>
-            <span className="ml-1 text-[11px] px-1.5 py-0.2 rounded bg-blue-700 text-white font-mono">
-              CMP-NEW-000002
-            </span>
+            <span>{summary?.recent_complaints?.[0]?.complaint_number ? 'View Case' : 'View Complaints'}</span>
+            {summary?.recent_complaints?.[0]?.complaint_number && (
+              <span className="ml-1 text-[11px] px-1.5 py-0.2 rounded bg-blue-700 text-white font-mono">
+                {summary.recent_complaints[0].complaint_number}
+              </span>
+            )}
           </Button>
         </div>
       </div>

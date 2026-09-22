@@ -19,12 +19,26 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
     # 1. Check rate limit
     login_rate_limiter.check_rate_limit(req, request.email)
 
+    input_email = request.email.strip().lower()
     user = (
         db.query(User)
         .options(joinedload(User.organization))
-        .filter(User.email == request.email)
+        .filter(User.email == input_email)
         .first()
     )
+    if not user:
+        DEMO_EMAIL_ALIASES = {
+            "state.lea@delhi.cyber.gov.in": "state.lea@mp.police.gov.in",
+            "district.lea@southdelhi.cyber.gov.in": "district.lea@indore.police.gov.in",
+        }
+        lookup_email = DEMO_EMAIL_ALIASES.get(input_email)
+        if lookup_email:
+            user = (
+                db.query(User)
+                .options(joinedload(User.organization))
+                .filter(User.email == lookup_email)
+                .first()
+            )
     if not user or not verify_password(request.password, user.hashed_password):
         login_rate_limiter.record_failure(req, request.email)
         raise HTTPException(
@@ -60,7 +74,7 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
         officer_name=user.full_name,
         role=user.role,
         action="LOGIN",
-        details=f"Successful officer login for {user.email} ({user.role})"
+        details=f"Successful officer login for {request.email} ({user.role})"
     )
 
     return {
@@ -73,8 +87,8 @@ def login(request: LoginRequest, req: Request, db: Session = Depends(get_db)):
             "role": user.role,
             "badge_number": user.badge_number,
             "organization_name": user.organization.name if user.organization else None,
-            "state": user.state,
-            "district": user.district
+            "state": user.organization.state if user.organization else user.state,
+            "district": user.organization.district if user.organization else user.district
         }
     }
 

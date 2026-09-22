@@ -22,15 +22,15 @@ export const DEMO_CREDENTIALS: Record<UserRole, { email: string; pass: string; t
     desc: 'National Cybercrime Coordination Centre oversight'
   },
   STATE_LEA: {
-    email: 'state.lea@mp.police.gov.in',
+    email: 'state.lea@delhi.cyber.gov.in',
     pass: 'StateLea@2026',
-    title: 'State Cyber Cell (MP)',
-    desc: 'State-wide predictive policing and interstate coordination'
+    title: 'Delhi Cyber Crime Unit (NCT)',
+    desc: 'State-level predictive policing and inter-district coordination'
   },
   DISTRICT_LEA: {
-    email: 'district.lea@indore.police.gov.in',
+    email: 'district.lea@southdelhi.cyber.gov.in',
     pass: 'IndoreLea@2026',
-    title: 'District Cyber Cell (Indore)',
+    title: 'District Cyber Cell (South Delhi)',
     desc: 'Field interception & ATM rapid response unit'
   },
   BANK_OFFICER: {

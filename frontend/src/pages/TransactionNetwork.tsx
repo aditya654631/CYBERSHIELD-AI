@@ -23,7 +23,7 @@ import { CytoscapeNetwork, formatSafeDisplayLabel } from '../graphs/CytoscapeNet
 
 export const TransactionNetwork: React.FC = () => {
   const { complaintId } = useParams<{ complaintId: string }>();
-  const activeId = complaintId || 'CMP-NEW-000002';
+  const activeId = complaintId || sessionStorage.getItem('cybershield_last_case_id') || 'CMP-NEW-000154';
   const navigate = useNavigate();
 
   const [graphData, setGraphData] = useState<GraphData | null>(null);
@@ -128,12 +128,26 @@ export const TransactionNetwork: React.FC = () => {
           <p className="text-xs text-slate-500 max-w-md mx-auto">
             {error || `No transaction layering data registered for complaint ${activeId}.`}
           </p>
-          <button
-            onClick={() => navigate(`/cases/${activeId}`)}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors shadow-xs"
-          >
-            Return to Case Intelligence
-          </button>
+          <div className="flex items-center justify-center gap-2.5 pt-2">
+            <button
+              onClick={() => navigate(`/cases/${activeId}`)}
+              className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md text-xs font-semibold transition-colors shadow-xs"
+            >
+              Return to Case Intelligence
+            </button>
+            <button
+              onClick={() => navigate('/complaints')}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-semibold transition-colors"
+            >
+              Back to Complaints
+            </button>
+            <button
+              onClick={() => navigate('/dashboard')}
+              className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-md text-xs font-semibold transition-colors"
+            >
+              Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );

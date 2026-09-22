@@ -156,10 +156,18 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen = false, onClose })
         </div>
         {visibleNavItems.map((item) => {
           const Icon = item.icon;
+          const lastCase = sessionStorage.getItem('cybershield_last_case_id');
+          const targetPath =
+            item.name === 'Case Intelligence'
+              ? (lastCase ? `/cases/${lastCase}` : '/complaints')
+              : item.name === 'Transaction Network'
+              ? (lastCase ? `/network/${lastCase}` : '/complaints')
+              : item.path;
+
           return (
             <NavLink
-              key={item.path}
-              to={item.path}
+              key={item.name}
+              to={targetPath}
               onClick={() => {
                 if (onClose) onClose();
               }}

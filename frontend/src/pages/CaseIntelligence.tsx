@@ -157,6 +157,7 @@ export const CaseIntelligence: React.FC = () => {
       const predData = predResult.status === 'fulfilled' ? predResult.value : null;
       if (predResult.status === 'rejected') setPredictionError(apiErrorMessage(predResult.reason, 'Could not load analysis. Retry below.'));
       setComplaint(compData);
+      sessionStorage.setItem('cybershield_last_case_id', compData.complaint_number);
       setPrediction(predData);
       setClusters(mapResult.status === 'fulfilled' ? mapResult.value.hotspots || [] : []);
       setGraphData(graphResult.status === 'fulfilled' ? graphResult.value : null);
@@ -471,9 +472,33 @@ export const CaseIntelligence: React.FC = () => {
   }
 
   if (!complaint) return (
-    <div className="p-6 bg-white rounded-lg border border-red-200 space-y-3">
-      <p className="text-sm text-red-700">{caseError || 'Complaint unavailable.'}</p>
-      <Button onClick={fetchCaseDetails}>Retry loading case</Button>
+    <div className="p-8 max-w-xl mx-auto my-12 bg-white rounded-xl border border-slate-200 shadow-sm text-center space-y-4">
+      <div className="w-12 h-12 rounded-full bg-slate-100 flex items-center justify-center mx-auto text-slate-500">
+        <ShieldAlert className="w-6 h-6" />
+      </div>
+      <div>
+        <h3 className="text-base font-bold text-slate-800">Complaint Not Found or Inaccessible</h3>
+        <p className="text-xs text-slate-500 mt-1">
+          {caseError || 'The requested case is unavailable, out of jurisdiction, or does not exist.'}
+        </p>
+      </div>
+      <div className="flex items-center justify-center gap-3 pt-2">
+        <button
+          onClick={() => navigate('/complaints')}
+          className="px-4 py-2 rounded-md bg-blue-600 hover:bg-blue-700 text-white font-medium text-xs shadow-sm transition-colors"
+        >
+          Back to Complaints
+        </button>
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="px-4 py-2 rounded-md bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium text-xs transition-colors"
+        >
+          Dashboard
+        </button>
+        <Button onClick={fetchCaseDetails} variant="secondary" size="sm">
+          Retry
+        </Button>
+      </div>
     </div>
   );
 
