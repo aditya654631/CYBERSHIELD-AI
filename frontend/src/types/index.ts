@@ -473,6 +473,7 @@ export interface NotificationOutboxItem {
   recipient_organization_id?: number;
   recipient_state?: string;
   recipient_district?: string;
+  payload?: Record<string, any>;
   status: string;
   attempt_count: number;
   max_attempts: number;
@@ -494,6 +495,21 @@ export interface AlertSyncResponse {
   synced_at: string;
   cursor: number;
   has_more: boolean;
+}
+
+export interface ChannelStatusInfo {
+  configured: boolean;
+  mode: string;
+  details?: Record<string, any>;
+  [key: string]: any;
+}
+
+export interface AlertChannelsStatusResponse {
+  dashboard_websocket?: ChannelStatusInfo;
+  email?: ChannelStatusInfo;
+  sms?: ChannelStatusInfo;
+  partner_webhook?: ChannelStatusInfo;
+  timestamp?: string;
 }
 
 export interface AlertItem {
@@ -518,6 +534,15 @@ export interface AlertItem {
   attempt_count?: number;
   next_retry_at?: string;
   last_error?: string;
+  channel_delivery_status?: Record<string, {
+    status: string;
+    attempt_count?: number;
+    last_attempt_at?: string;
+    delivered_at?: string;
+    last_error?: string;
+    mode?: string;
+    recipient?: string;
+  }>;
   created_at: string;
 }
 

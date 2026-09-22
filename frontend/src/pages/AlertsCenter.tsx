@@ -17,10 +17,14 @@ import {
   AlertOctagon,
   XCircle,
   Activity,
-  Layers
+  Layers,
+  Mail,
+  MessageSquare,
+  Webhook,
+  Wifi,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { AlertItem, NotificationOutboxItem } from '../types';
+import { AlertItem, NotificationOutboxItem, AlertChannelsStatusResponse } from '../types';
 import { formatINR } from '../utils/formatters';
 import { useAuth } from '../store/authContext';
 
@@ -28,6 +32,8 @@ export const AlertsCenter: React.FC = () => {
   const navigate = useNavigate();
   const { user, token } = useAuth();
   const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [channelsStatus, setChannelsStatus] = useState<AlertChannelsStatusResponse | null>(null);
+  const [wsConnected, setWsConnected] = useState(false);
   const [loading, setLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState('ALL');
   const [actioningId, setActioningId] = useState<number | null>(null);
@@ -39,12 +45,24 @@ export const AlertsCenter: React.FC = () => {
 
   const canAct = user && ['I4C_ADMIN', 'STATE_LEA', 'DISTRICT_LEA', 'BANK_OFFICER'].includes(user.role);
 
+  const fetchChannelsStatus = async () => {
+    try {
+      const data = await api.getAlertChannelsStatus();
+      setChannelsStatus(data);
+    } catch (err) {
+      console.error('Failed to load channels status', err);
+    }
+  };
+
   const fetchAlerts = async () => {
     setLoading(true);
     try {
-      const data = await api.getAlerts({
-        status: statusFilter !== 'ALL' ? statusFilter : undefined,
-      });
+      const [data] = await Promise.all([
+        api.getAlerts({
+          status: statusFilter !== 'ALL' ? statusFilter : undefined,
+        }),
+        fetchChannelsStatus(),
+      ]);
       setAlerts(data);
       if (data.length > 0) {
         const maxId = Math.max(...data.map((a) => a.id));
@@ -95,6 +113,7 @@ export const AlertsCenter: React.FC = () => {
         socket = new WebSocket(wsUrl);
 
         socket.onopen = () => {
+          setWsConnected(true);
           reconnectDelay = 2000;
           // Reconnect replay: fetch any missed alerts that occurred while offline
           handleSyncMissed();
@@ -110,6 +129,7 @@ export const AlertsCenter: React.FC = () => {
         };
 
         socket.onclose = (evt) => {
+          setWsConnected(false);
           if (evt.code === 1008) {
             console.warn('Alerts WebSocket authentication failed (1008). Stopped auto-reconnect.');
             return;
@@ -123,6 +143,7 @@ export const AlertsCenter: React.FC = () => {
         };
 
         socket.onerror = () => {
+          setWsConnected(false);
           if (socket) socket.close();
         };
       } catch (e) {
@@ -223,13 +244,108 @@ export const AlertsCenter: React.FC = () => {
         </div>
       </div>
 
+      {/* Multi-Channel Delivery Status Bar */}
+      {channelsStatus && (
+        <div className="bg-white border border-[#DCE5F0] rounded-lg p-3.5 shadow-xs">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center space-x-1.5">
+              <Activity className="w-3.5 h-3.5 text-blue-600" />
+              <span>Multi-Channel Delivery Grid</span>
+            </span>
+            <span className="text-[10px] text-slate-400">
+              Synced: {new Date(channelsStatus.timestamp || Date.now()).toLocaleTimeString()}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2.5">
+            {/* Dashboard / WS */}
+            <div className="p-2.5 rounded-md bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-700 flex items-center space-x-1">
+                  <Wifi className="w-3.5 h-3.5 text-blue-600" />
+                  <span>WebSocket</span>
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                  channelsStatus.dashboard_websocket?.configured ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-slate-200 text-slate-700'
+                }`}>
+                  {channelsStatus.dashboard_websocket?.mode || 'LIVE'}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Active Connections: <strong className="text-slate-800">{channelsStatus.dashboard_websocket?.details?.active_connections ?? (wsConnected ? 1 : 0)}</strong>
+              </div>
+            </div>
+
+            {/* Email */}
+            <div className="p-2.5 rounded-md bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-700 flex items-center space-x-1">
+                  <Mail className="w-3.5 h-3.5 text-purple-600" />
+                  <span>Email</span>
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                  channelsStatus.email?.mode === 'LIVE'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-purple-50 text-purple-700 border border-purple-200'
+                }`}>
+                  {channelsStatus.email?.mode || 'SIMULATED'}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Gateway: <strong className="text-slate-800">{channelsStatus.email?.details?.smtp_host ? 'Custom SMTP' : 'Sandbox Simulator'}</strong>
+              </div>
+            </div>
+
+            {/* SMS */}
+            <div className="p-2.5 rounded-md bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-700 flex items-center space-x-1">
+                  <MessageSquare className="w-3.5 h-3.5 text-amber-600" />
+                  <span>SMS</span>
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                  channelsStatus.sms?.mode === 'LIVE'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-amber-50 text-amber-700 border border-amber-200'
+                }`}>
+                  {channelsStatus.sms?.mode || 'SIMULATED'}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Gateway: <strong className="text-slate-800">{channelsStatus.sms?.details?.gateway_provider || 'Mock Gateway'}</strong>
+              </div>
+            </div>
+
+            {/* Partner Webhook */}
+            <div className="p-2.5 rounded-md bg-slate-50 border border-slate-200 flex flex-col justify-between">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-xs font-semibold text-slate-700 flex items-center space-x-1">
+                  <Webhook className="w-3.5 h-3.5 text-teal-600" />
+                  <span>Partner Webhook</span>
+                </span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium ${
+                  channelsStatus.partner_webhook?.mode === 'LIVE'
+                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                    : 'bg-teal-50 text-teal-700 border border-teal-200'
+                }`}>
+                  {channelsStatus.partner_webhook?.mode || 'SIMULATED'}
+                </span>
+              </div>
+              <div className="text-[11px] text-slate-500">
+                Signature: <strong className="text-slate-800">{channelsStatus.partner_webhook?.details?.signature_algorithm || 'HMAC-SHA256'}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Truthful Operational Banner */}
       <div className="p-3.5 bg-amber-50 border border-amber-200 rounded-lg flex items-start space-x-3 text-xs text-amber-900 shadow-xs">
         <Info className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" />
         <div>
           <span className="font-bold">Operational Integration Status: </span>
           <span>
-            Alert delivery and outgoing notifications commit atomically in the persistent database outbox. Bank hold transmissions operate in <strong>SIMULATED PROTOTYPE</strong> mode and will not freeze live external accounts.
+            Alert delivery and outgoing notifications commit atomically in the persistent database outbox across Dashboard WebSocket, Email, SMS, and HMAC-signed Partner Webhook channels. Bank hold transmissions operate in <strong>SIMULATED PROTOTYPE</strong> mode and will not freeze live external accounts.
           </span>
         </div>
       </div>
@@ -326,6 +442,36 @@ export const AlertsCenter: React.FC = () => {
                         </span>
                       )}
                     </div>
+
+                    {/* Multi-Channel Delivery Badges */}
+                    {alert.channel_delivery_status && Object.keys(alert.channel_delivery_status).length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+                        <span className="text-[10px] text-slate-400 font-medium">Channels:</span>
+                        {Object.entries(alert.channel_delivery_status).map(([ch, info]) => {
+                          const isDelivered = info.status === 'DELIVERED';
+                          const isFailed = info.status === 'FAILED' || info.status === 'PERMANENT_FAILURE';
+                          return (
+                            <span
+                              key={ch}
+                              title={`${ch}: ${info.status}${info.mode ? ` (${info.mode})` : ''}${info.last_error ? ` — Error: ${info.last_error}` : ''}`}
+                              className={`text-[10px] px-1.5 py-0.5 rounded font-mono font-medium flex items-center space-x-1 ${
+                                isDelivered
+                                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                  : isFailed
+                                  ? 'bg-red-50 text-red-700 border border-red-200'
+                                  : 'bg-slate-100 text-slate-700 border border-slate-200'
+                              }`}
+                            >
+                              <span>
+                                {ch === 'DASHBOARD_WEBSOCKET' ? 'WS' : ch === 'EMAIL' ? 'Email' : ch === 'SMS' ? 'SMS' : 'Webhook'}:
+                              </span>
+                              <strong>{info.status}</strong>
+                              {info.mode && <span className="text-[9px] opacity-75">[{info.mode}]</span>}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
 
                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-slate-600">
                       <div className="flex items-center space-x-1 text-blue-700 font-medium">
@@ -457,44 +603,54 @@ export const AlertsCenter: React.FC = () => {
               ) : outboxEvents.length === 0 ? (
                 <div className="p-6 text-center text-slate-500">No outbox events recorded for this alert.</div>
               ) : (
-                outboxEvents.map((ev) => (
-                  <div key={ev.id} className="p-3 bg-slate-50 rounded-md border border-[#DCE5F0] space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-slate-800">{ev.event_type}</span>
-                      <span
-                        className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
-                          ev.status === 'DELIVERED'
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                            : ev.status === 'PERMANENT_FAILURE'
-                            ? 'bg-red-50 text-red-700 border border-red-200'
-                            : ev.status === 'FAILED'
-                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                            : 'bg-blue-50 text-blue-700 border border-blue-200'
-                        }`}
-                      >
-                        {ev.status}
-                      </span>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600 text-[11px]">
-                      <div>Channel: <strong>{ev.channel}</strong></div>
-                      <div>Attempts: <strong>{ev.attempt_count} / {ev.max_attempts}</strong></div>
-                      <div>Prediction Version: <strong>v{ev.prediction_version || 1}</strong></div>
-                      <div>Idempotency Key: <code className="text-[10px] bg-white px-1 py-0.5 rounded border">{ev.idempotency_key}</code></div>
-                    </div>
-
-                    {ev.last_error && (
-                      <div className="p-2 bg-red-50 text-red-700 rounded text-[11px] border border-red-200">
-                        <strong>Last Error:</strong> {ev.last_error}
+                outboxEvents.map((ev) => {
+                  const deliveryRes = ev.payload?.delivery_result;
+                  return (
+                    <div key={ev.id} className="p-3 bg-slate-50 rounded-md border border-[#DCE5F0] space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-slate-800 flex items-center space-x-1.5">
+                          <span>{ev.event_type}</span>
+                          <span className="text-[10px] text-slate-500 font-mono">({ev.channel})</span>
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 rounded font-semibold text-[10px] ${
+                            ev.status === 'DELIVERED'
+                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                              : ev.status === 'PERMANENT_FAILURE'
+                              ? 'bg-red-50 text-red-700 border border-red-200'
+                              : ev.status === 'FAILED'
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-blue-50 text-blue-700 border border-blue-200'
+                          }`}
+                        >
+                          {ev.status}
+                        </span>
                       </div>
-                    )}
 
-                    <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1">
-                      <span>Created: {new Date(ev.created_at).toLocaleString()}</span>
-                      {ev.delivered_at && <span>Delivered: {new Date(ev.delivered_at).toLocaleString()}</span>}
+                      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-slate-600 text-[11px]">
+                        <div>Channel: <strong>{ev.channel}</strong></div>
+                        <div>Attempts: <strong>{ev.attempt_count} / {ev.max_attempts}</strong></div>
+                        <div>Prediction Version: <strong>v{ev.prediction_version || 1}</strong></div>
+                        <div>Idempotency Key: <code className="text-[10px] bg-white px-1 py-0.5 rounded border">{ev.idempotency_key}</code></div>
+                        {deliveryRes?.mode && <div>Mode: <strong>{deliveryRes.mode}</strong></div>}
+                        {deliveryRes?.recipient && <div>Recipient: <strong>{deliveryRes.recipient}</strong></div>}
+                        {deliveryRes?.signature_algorithm && <div>Signature: <strong>{deliveryRes.signature_algorithm}</strong></div>}
+                        {deliveryRes?.status_code && <div>HTTP Status: <strong>{deliveryRes.status_code}</strong></div>}
+                      </div>
+
+                      {ev.last_error && (
+                        <div className="p-2 bg-red-50 text-red-700 rounded text-[11px] border border-red-200">
+                          <strong>Last Error:</strong> {ev.last_error}
+                        </div>
+                      )}
+
+                      <div className="text-[10px] text-slate-400 flex items-center justify-between pt-1">
+                        <span>Created: {new Date(ev.created_at).toLocaleString()}</span>
+                        {ev.delivered_at && <span>Delivered: {new Date(ev.delivered_at).toLocaleString()}</span>}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

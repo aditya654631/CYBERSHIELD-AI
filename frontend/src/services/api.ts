@@ -12,6 +12,7 @@ import {
   ATMLocationItem,
   AlertItem,
   AlertSyncResponse,
+  AlertChannelsStatusResponse,
   NotificationOutboxItem,
   AnalyticsOverview,
   DashboardSummary,
@@ -241,6 +242,10 @@ export const api = {
   },
   syncAlerts: async (params?: { since_id?: number; since_time?: string; limit?: number }) => {
     const res = await apiClient.get<AlertSyncResponse>('/alerts/sync', { params });
+    return res.data;
+  },
+  getAlertChannelsStatus: async () => {
+    const res = await apiClient.get<AlertChannelsStatusResponse>('/alerts/channels/status');
     return res.data;
   },
   getAlertOutbox: async (alertId: number) => {

@@ -34,7 +34,9 @@ class OutboxService:
         payload_extra: Optional[Dict[str, Any]] = None,
         recipient_role: Optional[str] = None,
         recipient_user_id: Optional[int] = None,
-        recipient_org_id: Optional[int] = None
+        recipient_org_id: Optional[int] = None,
+        recipient_state: Optional[str] = None,
+        recipient_district: Optional[str] = None,
     ) -> NotificationOutbox:
         """
         Atomically enqueues a NotificationOutbox record within the caller's active database transaction.
@@ -71,8 +73,8 @@ class OutboxService:
             "expected_window": alert.expected_window,
             "amount_at_risk": float(alert.amount_at_risk) if alert.amount_at_risk else 0.0,
             "status": alert.status,
-            "state": complaint.state if complaint else None,
-            "district": complaint.district if complaint else None,
+            "state": recipient_state or (complaint.state if complaint else None),
+            "district": recipient_district or (complaint.district if complaint else None),
             "target_organization_ids": bank_org_ids,
             "timestamp": now_utc.isoformat() + "Z",
         }
@@ -88,8 +90,8 @@ class OutboxService:
             recipient_role=recipient_role or "ALL_AUTHORIZED",
             recipient_user_id=recipient_user_id,
             recipient_organization_id=recipient_org_id,
-            recipient_state=complaint.state if complaint else None,
-            recipient_district=complaint.district if complaint else None,
+            recipient_state=recipient_state or (complaint.state if complaint else None),
+            recipient_district=recipient_district or (complaint.district if complaint else None),
             payload=payload,
             status="QUEUED",
             attempt_count=0,
@@ -103,6 +105,45 @@ class OutboxService:
         # We do not commit here: the caller commits atomically with the Alert mutation.
         db.flush()
         return outbox_entry
+
+    def enqueue_multi_channel_alert(
+        self,
+        db: Session,
+        alert: Alert,
+        event_type: str = "ALERT_GENERATED",
+        prediction_version: Optional[int] = None,
+        payload_extra: Optional[Dict[str, Any]] = None,
+        channels: Optional[List[str]] = None,
+        recipient_role: Optional[str] = None,
+        recipient_user_id: Optional[int] = None,
+        recipient_organization_id: Optional[int] = None,
+        recipient_org_id: Optional[int] = None,
+        recipient_state: Optional[str] = None,
+        recipient_district: Optional[str] = None,
+    ) -> List[NotificationOutbox]:
+        """
+        Atomically enqueues durable outbox notification records for multiple delivery channels
+        (Dashboard WebSocket, Email, SMS, Partner Webhook) for an alert event.
+        """
+        target_channels = channels or ["DASHBOARD_WEBSOCKET", "EMAIL", "SMS", "PARTNER_WEBHOOK"]
+        resolved_org_id = recipient_organization_id or recipient_org_id
+        events = []
+        for ch in target_channels:
+            ev = self.enqueue_alert_event(
+                db=db,
+                alert=alert,
+                event_type=event_type,
+                prediction_version=prediction_version,
+                channel=ch,
+                payload_extra=payload_extra,
+                recipient_role=recipient_role,
+                recipient_user_id=recipient_user_id,
+                recipient_org_id=resolved_org_id,
+                recipient_state=recipient_state,
+                recipient_district=recipient_district,
+            )
+            events.append(ev)
+        return events
 
     def claim_pending_events(
         self,
@@ -152,19 +193,28 @@ class OutboxService:
     def process_event(
         self,
         db: Session,
-        event: NotificationOutbox,
+        event: Any,
         simulated_failure: Optional[str] = None,
         custom_error: Optional[str] = None
     ) -> bool:
         """
-        Executes delivery for a claimed outbox event across supported channels.
+        Executes delivery for a claimed outbox event across supported channels via NotificationDispatcher.
         Handles temporary and permanent simulated failures for comprehensive testing.
         """
+        from backend.app.services.notification_dispatcher import notification_dispatcher
+
+        if isinstance(event, int):
+            event_obj = db.query(NotificationOutbox).filter(NotificationOutbox.id == event).first()
+            if not event_obj:
+                logger.error(f"[Outbox] Event ID #{event} not found in database.")
+                return False
+            event = event_obj
+
         now = datetime.utcnow()
         event.attempt_count += 1
         event.last_attempt_at = now
 
-        # 1. Check for simulated test failure
+        # 1. Check for simulated test failure (for legacy test harness support)
         if simulated_failure == "TEMPORARY":
             error_msg = custom_error or f"Temporary provider connection timeout on attempt {event.attempt_count}"
             event.last_error = error_msg
@@ -190,23 +240,48 @@ class OutboxService:
             logger.error(f"[Outbox] Event #{event.id} marked PERMANENT_FAILURE: {error_msg}")
             return False
 
-        # 2. Channel Delivery
+        # 2. Dispatch via channel adapter
         try:
-            # DASHBOARD_WEBSOCKET / API_POLL / SIMULATED channels
-            # All offline/online recipients can consume via websocket or sync API
-            event.status = "DELIVERED"
-            event.delivered_at = now
-            event.last_error = None
-            event.lease_expires_at = None
+            result = notification_dispatcher.dispatch(event)
 
-            # Update associated Alert status if it was NEW
-            alert = db.query(Alert).filter(Alert.id == event.alert_id).first()
-            if alert and alert.status == "NEW":
-                alert.status = "DELIVERED"
+            if result.success:
+                event.status = "DELIVERED"
+                event.delivered_at = now
+                event.last_error = None
+                event.lease_expires_at = None
 
-            db.commit()
-            logger.info(f"[Outbox] Event #{event.id} successfully delivered via {event.channel}.")
-            return True
+                if isinstance(event.payload, dict):
+                    p = dict(event.payload)
+                    p["delivery_result"] = result.to_dict()
+                    event.payload = p
+
+                # Update associated Alert status if it was NEW
+                alert = db.query(Alert).filter(Alert.id == event.alert_id).first()
+                if alert and alert.status == "NEW":
+                    alert.status = "DELIVERED"
+
+                db.commit()
+                logger.info(f"[Outbox] Event #{event.id} successfully delivered via {event.channel} ({result.delivery_status}).")
+                return True
+            else:
+                event.last_error = result.error_message or f"Delivery failed on {event.channel}"
+                if result.delivery_status == "PERMANENT_FAILURE" or event.attempt_count >= event.max_attempts:
+                    event.status = "PERMANENT_FAILURE"
+                    event.next_retry_at = None
+                    logger.error(f"[Outbox] Event #{event.id} reached permanent failure: {event.last_error}")
+                else:
+                    event.status = "FAILED"
+                    event.next_retry_at = now + calculate_backoff(event.attempt_count)
+                    logger.warning(f"[Outbox] Event #{event.id} failed attempt {event.attempt_count}. Next retry at {event.next_retry_at}.")
+                event.lease_expires_at = None
+
+                if isinstance(event.payload, dict):
+                    p = dict(event.payload)
+                    p["delivery_result"] = result.to_dict()
+                    event.payload = p
+
+                db.commit()
+                return False
 
         except Exception as exc:
             db.rollback()

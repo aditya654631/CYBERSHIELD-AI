@@ -758,6 +758,7 @@ class NotificationOutboxItem(BaseModel):
     recipient_organization_id: Optional[int] = None
     recipient_state: Optional[str] = None
     recipient_district: Optional[str] = None
+    payload: Optional[Dict[str, Any]] = None
     status: str
     attempt_count: int
     max_attempts: int
@@ -803,6 +804,7 @@ class AlertResponse(BaseModel):
     attempt_count: Optional[int] = 0
     next_retry_at: Optional[datetime] = None
     last_error: Optional[str] = None
+    channel_delivery_status: Optional[Dict[str, Any]] = None
     created_at: datetime
 
     @field_validator("acknowledged_at", "superseded_at", "expires_at", "next_retry_at", "created_at", mode="after")
@@ -820,6 +822,14 @@ class AlertSyncResponse(BaseModel):
     synced_at: datetime
     cursor: int
     has_more: bool
+
+
+class AlertChannelsStatusResponse(BaseModel):
+    dashboard_websocket: Optional[Dict[str, Any]] = None
+    email: Optional[Dict[str, Any]] = None
+    sms: Optional[Dict[str, Any]] = None
+    partner_webhook: Optional[Dict[str, Any]] = None
+    timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 
 class AlertActionRequest(BaseModel):

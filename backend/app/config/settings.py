@@ -40,6 +40,25 @@ class Settings(BaseSettings):
     BACKEND_HOST: str = "0.0.0.0"
     BACKEND_PORT: int = 8000
 
+    # Notification Subsystem Configuration (Phase 2)
+    NOTIFICATION_EMAIL_MODE: str = "SIMULATED"  # SIMULATED, SANDBOX, LIVE, DISABLED
+    SMTP_HOST: Optional[str] = None
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: Optional[str] = None
+    SMTP_PASSWORD: Optional[str] = None
+    SMTP_FROM: str = "alerts@cybershield.gov.in"
+    SMTP_USE_TLS: bool = True
+
+    NOTIFICATION_SMS_MODE: str = "SIMULATED"  # SIMULATED, SANDBOX, LIVE, DISABLED
+    SMS_PROVIDER: str = "generic"
+    SMS_PROVIDER_API_KEY: Optional[str] = None
+    SMS_SENDER_ID: str = "CYBSHD"
+
+    NOTIFICATION_WEBHOOK_MODE: str = "SANDBOX"  # SIMULATED, SANDBOX, LIVE, DISABLED
+    NOTIFICATION_WEBHOOK_URL: Optional[str] = None
+    NOTIFICATION_WEBHOOK_SECRET: Optional[str] = None
+    NOTIFICATION_WEBHOOK_TIMEOUT_SECONDS: int = 10
+
     @model_validator(mode="after")
     def validate_jwt_secret(self) -> "Settings":
         is_prod = str(self.ENVIRONMENT).lower() in ("production", "prod")

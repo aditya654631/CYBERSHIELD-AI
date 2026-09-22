@@ -187,8 +187,8 @@ def create_alert_for_prediction(
         db.add(alert)
         db.flush()
 
-        # Atomically enqueue durable outbox notification event in same transaction
-        outbox_service.enqueue_alert_event(
+        # Atomically enqueue durable outbox notification events across all active channels in same transaction
+        outbox_service.enqueue_multi_channel_alert(
             db=db,
             alert=alert,
             event_type="ALERT_CREATED",

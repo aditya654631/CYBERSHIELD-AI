@@ -8,7 +8,7 @@ from sqlalchemy import desc
 logger = logging.getLogger(__name__)
 from backend.app.models.db import get_db
 from backend.app.models.models import Alert, Complaint, NotificationOutbox, User
-from backend.app.schemas.schemas import AlertResponse, AlertActionRequest, AlertSyncResponse, NotificationOutboxItem
+from backend.app.schemas.schemas import AlertResponse, AlertActionRequest, AlertSyncResponse, NotificationOutboxItem, AlertChannelsStatusResponse
 from backend.app.auth.security import get_current_user
 from backend.app.auth.rbac import (
     require_roles,
@@ -20,6 +20,7 @@ from backend.app.auth.rbac import (
 from backend.app.auth.rbac import complaint_bank_organization_ids
 from backend.app.services.alert_service import create_alert_for_prediction
 from backend.app.services.outbox_service import outbox_service
+from backend.app.services.notification_dispatcher import notification_dispatcher
 from backend.app.services.prediction_persistence_service import prediction_persistence_service
 from backend.app.services.audit_service import log_audit
 from backend.app.services.bank_action_service import bank_action_service
@@ -28,8 +29,39 @@ from backend.app.websocket.manager import ws_manager
 router = APIRouter(prefix="/alerts", tags=["Alerts Center"])
 
 
-def _format_alert_dict(a: Alert, comp: Optional[Complaint] = None, latest_outbox: Optional[NotificationOutbox] = None) -> dict:
-    """Format Alert entity with truthful delivery, outbox, and supersession/expiry fields."""
+def _format_alert_dict(
+    a: Alert,
+    comp: Optional[Complaint] = None,
+    latest_outbox: Optional[NotificationOutbox] = None,
+    outbox_entries: Optional[List[NotificationOutbox]] = None,
+) -> dict:
+    """Format Alert entity with truthful delivery, outbox, multi-channel status, and supersession/expiry fields."""
+    channel_delivery_status: Dict[str, Any] = {}
+    if outbox_entries:
+        for ob in outbox_entries:
+            ch = ob.channel or "DASHBOARD_WEBSOCKET"
+            delivery_res = None
+            if ob.payload and isinstance(ob.payload, dict):
+                delivery_res = ob.payload.get("delivery_result")
+            channel_delivery_status[ch] = {
+                "status": ob.status,
+                "attempt_count": ob.attempt_count,
+                "last_attempt_at": ob.last_attempt_at.isoformat() if ob.last_attempt_at else None,
+                "delivered_at": ob.delivered_at.isoformat() if ob.delivered_at else None,
+                "last_error": ob.last_error,
+                "mode": delivery_res.get("mode") if isinstance(delivery_res, dict) else None,
+                "recipient": delivery_res.get("recipient") if isinstance(delivery_res, dict) else None,
+            }
+    elif latest_outbox:
+        ch = latest_outbox.channel or "DASHBOARD_WEBSOCKET"
+        channel_delivery_status[ch] = {
+            "status": latest_outbox.status,
+            "attempt_count": latest_outbox.attempt_count,
+            "last_attempt_at": latest_outbox.last_attempt_at.isoformat() if latest_outbox.last_attempt_at else None,
+            "delivered_at": latest_outbox.delivered_at.isoformat() if latest_outbox.delivered_at else None,
+            "last_error": latest_outbox.last_error,
+        }
+
     delivery_status = latest_outbox.status if latest_outbox else ("DELIVERED" if a.status in ("DELIVERED", "ACKNOWLEDGED", "ACTION_INITIATED") else "QUEUED")
     attempt_count = latest_outbox.attempt_count if latest_outbox else (1 if a.status in ("DELIVERED", "ACKNOWLEDGED", "ACTION_INITIATED") else 0)
     next_retry = latest_outbox.next_retry_at if latest_outbox else None
@@ -57,6 +89,7 @@ def _format_alert_dict(a: Alert, comp: Optional[Complaint] = None, latest_outbox
         "attempt_count": attempt_count,
         "next_retry_at": next_retry,
         "last_error": last_err,
+        "channel_delivery_status": channel_delivery_status,
         "created_at": a.created_at
     }
 
@@ -94,25 +127,40 @@ def list_alerts(
 
     alert_ids = [a.id for a in alerts]
     outbox_map: Dict[int, NotificationOutbox] = {}
+    outbox_by_alert: Dict[int, List[NotificationOutbox]] = {}
     if alert_ids:
-        # Fetch latest outbox entry for each alert
         outbox_entries = (
             db.query(NotificationOutbox)
             .filter(NotificationOutbox.alert_id.in_(alert_ids))
-            .order_by(NotificationOutbox.id.desc())
+            .order_by(NotificationOutbox.id.asc())
             .all()
         )
         for ob in outbox_entries:
-            if ob.alert_id not in outbox_map:
-                outbox_map[ob.alert_id] = ob
+            outbox_map[ob.alert_id] = ob
+            outbox_by_alert.setdefault(ob.alert_id, []).append(ob)
 
     results = []
     for a in alerts:
         comp = complaints.get(a.complaint_id)
         ob = outbox_map.get(a.id)
-        results.append(_format_alert_dict(a, comp, ob))
+        all_ob = outbox_by_alert.get(a.id, [])
+        results.append(_format_alert_dict(a, comp, ob, all_ob))
 
     return results
+
+
+@router.get("/channels/status", response_model=AlertChannelsStatusResponse)
+def get_channels_status(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(
+        RoleEnum.I4C_ADMIN, RoleEnum.STATE_LEA, RoleEnum.DISTRICT_LEA, RoleEnum.ANALYST, RoleEnum.AUDITOR
+    ))
+):
+    """
+    Returns runtime multi-channel delivery configuration and health status.
+    Protected by RBAC; never leaks secrets or auth tokens.
+    """
+    return notification_dispatcher.get_channels_status()
 
 
 @router.get("/sync", response_model=AlertSyncResponse)
@@ -165,6 +213,7 @@ def sync_missed_alerts(
     alert_ids = [a.id for a in paged_alerts]
     outbox_events: List[NotificationOutbox] = []
     outbox_map: Dict[int, NotificationOutbox] = {}
+    outbox_by_alert: Dict[int, List[NotificationOutbox]] = {}
     if alert_ids:
         outbox_events = (
             db.query(NotificationOutbox)
@@ -174,13 +223,15 @@ def sync_missed_alerts(
         )
         for ob in outbox_events:
             outbox_map[ob.alert_id] = ob
+            outbox_by_alert.setdefault(ob.alert_id, []).append(ob)
 
     items = []
     max_cursor = since_id or 0
     for a in paged_alerts:
         comp = complaints.get(a.complaint_id)
         ob = outbox_map.get(a.id)
-        items.append(_format_alert_dict(a, comp, ob))
+        all_ob = outbox_by_alert.get(a.id, [])
+        items.append(_format_alert_dict(a, comp, ob, all_ob))
         if a.id > max_cursor:
             max_cursor = a.id
 
@@ -208,14 +259,15 @@ def get_alert(
         raise HTTPException(status_code=404, detail="Alert not found")
 
     complaint = db.query(Complaint).filter(Complaint.id == alert.complaint_id).first()
-    latest_outbox = (
+    all_outbox = (
         db.query(NotificationOutbox)
         .filter(NotificationOutbox.alert_id == alert.id)
-        .order_by(NotificationOutbox.id.desc())
-        .first()
+        .order_by(NotificationOutbox.id.asc())
+        .all()
     )
+    latest_outbox = all_outbox[-1] if all_outbox else None
 
-    return _format_alert_dict(alert, complaint, latest_outbox)
+    return _format_alert_dict(alert, complaint, latest_outbox, all_outbox)
 
 
 @router.get("/{id}/outbox", response_model=List[NotificationOutboxItem])
