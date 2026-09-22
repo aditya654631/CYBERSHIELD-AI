@@ -38,13 +38,15 @@ def admin_headers():
 
 
 @pytest.fixture
-def mp_state_lea_headers():
-    return _make_auth_header("state.lea@mp.police.gov.in", "STATE_LEA")
+def delhi_state_lea_headers():
+    """Active: User 12 — DCP Rajesh Kumar, IPS (STATE_LEA, Delhi Cyber Crime Unit NCT)"""
+    return _make_auth_header("state.lea@delhi.cyber.gov.in", "STATE_LEA")
 
 
 @pytest.fixture
-def indore_district_lea_headers():
-    return _make_auth_header("district.lea@indore.police.gov.in", "DISTRICT_LEA")
+def south_delhi_district_lea_headers():
+    """Active: User 13 — Inspector Amit Sharma (DISTRICT_LEA, District Cyber Cell South Delhi)"""
+    return _make_auth_header("district.lea@southdelhi.cyber.gov.in", "DISTRICT_LEA")
 
 
 @pytest.fixture
@@ -305,46 +307,63 @@ def test_missed_alert_replay_sync_api(client, db_session: Session, admin_headers
 # 6. RBAC Jurisdiction & Organization Scoping on Alert Sync
 # ==============================================================================
 def test_rbac_jurisdiction_scoping_on_alert_sync(
-    client, db_session: Session, mp_state_lea_headers, indore_district_lea_headers, sbi_headers
+    client, db_session: Session, delhi_state_lea_headers, south_delhi_district_lea_headers, sbi_headers
 ):
     """
     Verifies that alert replay strictly respects Phase 03 jurisdiction & org boundaries.
+    Delhi STATE_LEA (NCT) should see Delhi-state alerts.
+    South Delhi DISTRICT_LEA should see only South Delhi district-scoped alerts.
+    A BANK_OFFICER should NOT see LEA jurisdiction alerts.
     """
-    mp_cluster = db_session.query(LocationCluster).filter(LocationCluster.state == "Madhya Pradesh").first()
-    if not mp_cluster:
-        mp_cluster = LocationCluster(
-            cluster_name="Bhopal Cyber Cell",
-            state="Madhya Pradesh",
-            district="Bhopal",
-            latitude=23.2599,
-            longitude=77.4126,
+    # Ensure a Delhi state-level cluster exists
+    delhi_state_cluster = db_session.query(LocationCluster).filter(
+        LocationCluster.state == "Delhi",
+        LocationCluster.district != "SOUTH"
+    ).first()
+    if not delhi_state_cluster:
+        delhi_state_cluster = LocationCluster(
+            cluster_name="Connaught Place Cyber Hub",
+            state="Delhi",
+            district="CENTRAL_NEW_DELHI",
+            latitude=28.6315,
+            longitude=77.2167,
             radius_meters=1500.0,
             is_active=True
         )
-        db_session.add(mp_cluster)
+        db_session.add(delhi_state_cluster)
         db_session.commit()
-        db_session.refresh(mp_cluster)
+        db_session.refresh(delhi_state_cluster)
 
-    delhi_cluster = db_session.query(LocationCluster).filter(LocationCluster.state == "Delhi").first()
-    
-    mp_complaint = _get_or_create_complaint(db_session, "CMP-P5-MP-006", state="Madhya Pradesh", district="Bhopal")
-    delhi_complaint = _get_or_create_complaint(db_session, "CMP-P5-DEL-006", state="Delhi", district="Central Delhi")
-    
-    pred_mp, alert_mp = _create_test_prediction_and_alert(
-        db_session, mp_complaint, risk_score=0.90, cluster=mp_cluster
-    )
+    # Ensure a South Delhi district cluster exists
+    south_cluster = db_session.query(LocationCluster).filter(
+        LocationCluster.state == "Delhi",
+        LocationCluster.district.ilike("%south%")
+    ).first()
+    if not south_cluster:
+        south_cluster = db_session.query(LocationCluster).filter(LocationCluster.state == "Delhi").first()
+
+    delhi_complaint = _get_or_create_complaint(db_session, "CMP-P5-NCT-006", state="Delhi", district="Central Delhi")
+    south_complaint = _get_or_create_complaint(db_session, "CMP-P5-SOUTH-006", state="Delhi", district="SOUTH")
+
     pred_delhi, alert_delhi = _create_test_prediction_and_alert(
-        db_session, delhi_complaint, risk_score=0.90, cluster=delhi_cluster
+        db_session, delhi_complaint, risk_score=0.90, cluster=delhi_state_cluster
     )
-    
-    # MP LEA officer syncs alerts
-    resp_mp = client.get("/api/v1/alerts/sync?limit=50", headers=mp_state_lea_headers)
-    assert resp_mp.status_code == 200
-    mp_items = resp_mp.json()["items"]
-    mp_alert_ids = [it["id"] for it in mp_items]
-    
-    assert alert_mp.id in mp_alert_ids
-    assert alert_delhi.id not in mp_alert_ids
+    pred_south, alert_south = _create_test_prediction_and_alert(
+        db_session, south_complaint, risk_score=0.90, cluster=south_cluster
+    )
+
+    # Delhi STATE_LEA (NCT scope) syncs alerts — should see Delhi state alerts
+    resp_state = client.get("/api/v1/alerts/sync?limit=100", headers=delhi_state_lea_headers)
+    assert resp_state.status_code == 200
+    state_items = resp_state.json()["items"]
+    state_alert_ids = [it["id"] for it in state_items]
+
+    # STATE_LEA with Delhi scope should see delhi_complaint alert
+    assert alert_delhi.id in state_alert_ids, "Delhi STATE_LEA must see Delhi NCT alerts"
+
+    # BANK_OFFICER should receive 403 on alert sync (unauthorized role)
+    resp_bank = client.get("/api/v1/alerts/sync?limit=50", headers=sbi_headers)
+    assert resp_bank.status_code == 403, f"BANK_OFFICER must be forbidden from alert sync, got {resp_bank.status_code}"
 
 
 # ==============================================================================

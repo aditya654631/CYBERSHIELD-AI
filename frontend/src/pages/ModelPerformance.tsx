@@ -189,7 +189,7 @@ export const ModelPerformance: React.FC = () => {
               <span>SAVED PREDICTION PROVENANCE</span>
             </div>
             <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-blue-50 text-blue-700 border border-blue-200">
-              Immutable History
+              Versioned Provenance
             </span>
           </div>
           <div className="text-slate-600 text-xs leading-relaxed space-y-2">
@@ -205,8 +205,8 @@ export const ModelPerformance: React.FC = () => {
                 <span className="font-bold text-blue-800">{data.model_version}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500">Demo Case Engine (CMP-1042):</span>
-                <span className="font-mono text-slate-700">demo-provider-v1</span>
+                <span className="text-slate-500">Historical Seed Cases (SIH Demo):</span>
+                <span className="font-mono text-slate-500 text-[10px]">demo-provider-v1 (historical)</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-slate-500">Historical Seed Complaints:</span>
@@ -214,7 +214,7 @@ export const ModelPerformance: React.FC = () => {
               </div>
             </div>
             <p className="text-[11px] text-slate-500 italic">
-              * Upgrading or retraining runtime models does not rewrite previous official saved outputs.
+              * Each saved prediction retains the model version under which it was originally produced. Runtime upgrades do not overwrite previous official outputs.
             </p>
           </div>
         </div>
@@ -247,7 +247,7 @@ export const ModelPerformance: React.FC = () => {
           </div>
           <div>
             <span className="text-slate-500 block text-[11px]">Dataset Specification:</span>
-            <span className="font-medium text-slate-800">{data.dataset_type || 'multi_regime_synthetic_delhi_v7'}</span>
+            <span className="font-medium text-slate-800">{data.dataset_type || 'Controlled Synthetic Delhi Data'}</span>
           </div>
           <div>
             <span className="text-slate-500 block text-[11px]">Validation Split:</span>
@@ -314,7 +314,7 @@ export const ModelPerformance: React.FC = () => {
                   <span className="text-slate-500 block text-[11px]">Promotion Decision:</span>
                   <span className="font-bold text-amber-800 text-xs block">{rm.promotion_status}</span>
                   <span className="block text-[10px] text-emerald-700 font-medium mt-0.5">
-                    Production Unaffected • Retained {rm.official_production_model || 'V7-compat'}
+                    Production Unaffected • Retained {rm.official_production_model || 'cashout-location-xgb-v8-debiased'}
                   </span>
                 </div>
               </div>

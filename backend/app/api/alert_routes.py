@@ -121,7 +121,9 @@ def sync_missed_alerts(
     since_time: Optional[str] = None,
     limit: int = 50,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(require_roles(
+        RoleEnum.I4C_ADMIN, RoleEnum.STATE_LEA, RoleEnum.DISTRICT_LEA, RoleEnum.ANALYST, RoleEnum.AUDITOR
+    ))
 ):
     """
     Phase 5 Missed-Alert Cursor/Replay API.

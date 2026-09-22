@@ -41,7 +41,7 @@ from backend.app.services.prediction_contract import as_utc, build_time_predicti
 logger = logging.getLogger("cybershield.prediction_service")
 
 # Configurable Active Model Version (Challenger architecture)
-ACTIVE_LOCATION_MODEL_VERSION = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v7_compat")
+ACTIVE_LOCATION_MODEL_VERSION = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v8_debiased")
 
 def resolve_artifacts_dir() -> str:
     """
@@ -330,7 +330,7 @@ class MLPredictionProvider:
             return
 
         # 2. Check active version configuration strictly
-        active_version = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v7_compat")
+        active_version = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v8_debiased")
 
         if active_version == "v8_debiased":
             loc_v8_filename = "location_ranker_v8_debiased.joblib"

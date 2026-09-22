@@ -142,7 +142,7 @@ def readiness_check():
     db_connected = db_health.get("status") == "connected"
     
     # Verify active model integrity based on configured environment target
-    active_target = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v7_compat")
+    active_target = os.environ.get("ACTIVE_LOCATION_MODEL_VERSION", "v8_debiased")
     meta_file = "model_metadata_v8_debiased.json" if active_target == "v8_debiased" else "model_metadata_v7_compat.json"
     verification = model_verification_service.verify_model_artifacts(meta_file)
     model_verified = verification.get("is_ready", False)
