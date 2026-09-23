@@ -121,19 +121,26 @@ export const Login: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#031926] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8">
+    <div
+      className="min-h-screen bg-[#F7F1E3] flex flex-col items-center justify-center p-4 sm:p-6 lg:p-8"
+      style={{
+        backgroundImage:
+          'linear-gradient(to right, rgba(3, 25, 38, 0.055) 1px, transparent 1px), linear-gradient(to bottom, rgba(3, 25, 38, 0.055) 1px, transparent 1px)',
+        backgroundSize: '40px 40px',
+      }}
+    >
       {/* Top Navigation Bar */}
       <div className="w-full max-w-4xl mb-4 flex items-center justify-between">
         <button
           type="button"
           onClick={() => navigate('/')}
-          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-slate-300 hover:text-white transition-colors bg-[#072130] hover:bg-[#0E2A3A] px-3 py-1.5 rounded-md border border-[#0E2A3A]"
+          className="inline-flex items-center space-x-1.5 text-xs font-semibold text-[#031926] hover:text-[#468189] transition-colors bg-white hover:bg-slate-50 px-3.5 py-1.5 rounded-full border border-[#031926]/15 shadow-xs"
         >
-          <ArrowLeft className="w-3.5 h-3.5 text-[#77ACA2]" />
+          <ArrowLeft className="w-3.5 h-3.5 text-[#468189]" />
           <span>← Back to Home</span>
         </button>
 
-        <div className="text-[11px] text-[#9DBEBB] font-mono hidden sm:block">
+        <div className="text-[11px] text-[#031926]/80 font-mono font-medium hidden sm:block">
           CyberShield AI • Delhi Pilot v1.0.0
         </div>
       </div>
