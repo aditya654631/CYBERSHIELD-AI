@@ -28,6 +28,7 @@ from backend.app.models.models import (
     Alert, BankAction, AuditLog, User, LocationCluster,
 )
 from backend.app.services.audit_service import log_audit
+from backend.app.auth.rbac import verify_complaint_access
 
 
 VALID_OUTCOME_TYPES = {
@@ -697,4 +698,417 @@ def get_outcome_metrics(db: Session) -> Dict[str, Any]:
             "observed_event_time. No hindsight cherry-picking. If no eligible prediction "
             "exists, linked_prediction_id is NULL and it contributes to the unknown-prediction cohort."
         ),
+    }
+
+
+def evaluate_complaint_outcome(
+    db: Session,
+    complaint_id: int,
+    current_user: User
+) -> Dict[str, Any]:
+    """
+    Phase 6: Comprehensive Prediction vs Observed Outcome Evaluation.
+    Evaluates historical persisted prediction against the active outcome observation.
+    Zero re-inference of V8 or time-model.
+    """
+    complaint = db.query(Complaint).filter(Complaint.id == complaint_id).first()
+    if not complaint or not verify_complaint_access(complaint, current_user, db):
+        raise HTTPException(status_code=404, detail="Complaint not found")
+
+    # Fetch active outcome observation and full lineage
+    active_outcome = (
+        db.query(OutcomeObservation)
+        .filter(
+            OutcomeObservation.complaint_id == complaint.id,
+            OutcomeObservation.record_status == "ACTIVE"
+        )
+        .first()
+    )
+
+    lineage_records = (
+        db.query(OutcomeObservation)
+        .filter(OutcomeObservation.complaint_id == complaint.id)
+        .order_by(OutcomeObservation.version.desc())
+        .all()
+    )
+
+    if not active_outcome:
+        # Check if an operational prediction exists for context
+        pred = (
+            db.query(Prediction)
+            .filter(Prediction.complaint_id == complaint.id)
+            .order_by(desc(Prediction.created_at))
+            .first()
+        )
+        return {
+            "complaint_id": complaint.id,
+            "complaint_number": complaint.complaint_number,
+            "prediction_id": pred.id if pred else None,
+            "outcome_id": None,
+            "cohort": "NONE",
+            "cohort_display": "No Outcome Recorded",
+            "has_active_outcome": False,
+            "evaluation": {
+                "top1_hit": None,
+                "top3_hit": None,
+                "top5_hit": None,
+                "observed_rank": None,
+                "spatial_error_km": None,
+                "lead_time_minutes": None,
+                "lead_time_display": None,
+                "evaluation_status": "PENDING_OUTCOME",
+                "prediction_snapshot_version": pred.version_number if pred else None,
+                "evaluation_basis": "HISTORICAL_PERSISTED_PREDICTION"
+            },
+            "financial": {
+                "attempted_withdrawal_amount_inr": None,
+                "verified_held_amount_inr": None,
+                "verified_released_amount_inr": None,
+                "actual_recovered_amount_inr": None,
+                "recovery_verified_by": None,
+                "recovery_verified_at": None,
+                "financial_note": (
+                    "Verified held amount and actual recovered amount are recorded separately. "
+                    "Their sum is never claimed as independently prevented loss."
+                )
+            },
+            "active_observation": None,
+            "lineage": lineage_records,
+            "disclaimer": (
+                "Outcome evaluation is derived strictly from historical persisted predictions and verified incident reports. "
+                "Causal attribution to the model alone is not claimed; real-world and synthetic cohorts remain separate."
+            )
+        }
+
+    # Determine cohort
+    if active_outcome.is_synthetic:
+        cohort = "CONTROLLED_SYNTHETIC"
+        cohort_display = "Controlled Synthetic Evaluation"
+    elif active_outcome.is_excluded:
+        cohort = "EXCLUDED"
+        cohort_display = "Data Excluded"
+    elif active_outcome.outcome_type == "UNKNOWN":
+        cohort = "UNKNOWN"
+        cohort_display = "Inconclusive / Unknown"
+    else:
+        cohort = "AUTHORIZED_OPERATIONAL"
+        cohort_display = "Authorized Operational Evaluation"
+
+    # Resolve linked historical prediction snapshot
+    pred = None
+    if active_outcome.linked_prediction_id:
+        pred = db.query(Prediction).filter(Prediction.id == active_outcome.linked_prediction_id).first()
+    if not pred:
+        pred = _select_eligible_prediction(db, complaint.id, active_outcome.observed_event_time)
+
+    # Derived hits & ranks
+    observed_rank = active_outcome.prediction_rank_matched
+    is_cashout_event = active_outcome.outcome_type in ("CONFIRMED_CASHOUT", "MULTIPLE_CASHOUT")
+
+    top1_hit = None
+    top3_hit = None
+    top5_hit = None
+    if is_cashout_event and pred is not None:
+        if observed_rank is not None:
+            top1_hit = (observed_rank == 1)
+            top3_hit = (observed_rank in (1, 2, 3))
+            top5_hit = (observed_rank in (1, 2, 3, 4, 5))
+        else:
+            top1_hit = False
+            top3_hit = False
+            top5_hit = False
+
+    # Spatial Error
+    spatial_error_km = active_outcome.distance_error_km
+    if spatial_error_km is None and pred is not None and active_outcome.actual_lat is not None and active_outcome.actual_lon is not None:
+        spatial_error_km = _compute_distance_error(db, pred, active_outcome.actual_lat, active_outcome.actual_lon)
+
+    # Lead time
+    lead_time_min = active_outcome.prediction_lead_time_minutes
+    if lead_time_min is None and pred is not None and active_outcome.observed_event_time is not None:
+        lead_time_min = _minutes_between(pred.created_at, active_outcome.observed_event_time)
+
+    lead_display = None
+    if lead_time_min is not None:
+        if lead_time_min > 1.0:
+            lead_display = f"{lead_time_min:.0f} min before observed event"
+        elif lead_time_min < -1.0:
+            lead_display = f"{abs(lead_time_min):.0f} min after event (late prediction)"
+        else:
+            lead_display = "< 1 min (simultaneous)"
+
+    # Evaluation status
+    if not is_cashout_event:
+        eval_status = "NO_CASHOUT_OBSERVED" if active_outcome.outcome_type == "NO_OBSERVED_CASHOUT" else "INCONCLUSIVE"
+    elif pred is None:
+        eval_status = "NO_PREDICTION_LINKED"
+    elif active_outcome.actual_lat is None or active_outcome.actual_lon is None:
+        eval_status = "INSUFFICIENT_COORDINATES"
+    else:
+        eval_status = "EVALUATED"
+
+    financial_details = {
+        "attempted_withdrawal_amount_inr": float(active_outcome.actual_withdrawal_amount_inr) if active_outcome.actual_withdrawal_amount_inr is not None else None,
+        "verified_held_amount_inr": float(active_outcome.verified_held_amount_inr) if active_outcome.verified_held_amount_inr is not None else None,
+        "verified_released_amount_inr": float(active_outcome.verified_released_amount_inr) if active_outcome.verified_released_amount_inr is not None else None,
+        "actual_recovered_amount_inr": float(active_outcome.actual_recovered_amount_inr) if active_outcome.actual_recovered_amount_inr is not None else None,
+        "recovery_verified_by": active_outcome.recovery_verified_by,
+        "recovery_verified_at": active_outcome.recovery_verified_at,
+        "financial_note": (
+            "Verified held amount and actual recovered amount are recorded separately. "
+            "Their sum is never claimed as independently prevented loss."
+        )
+    }
+
+    return {
+        "complaint_id": complaint.id,
+        "complaint_number": complaint.complaint_number,
+        "prediction_id": pred.id if pred else active_outcome.linked_prediction_id,
+        "outcome_id": active_outcome.id,
+        "cohort": cohort,
+        "cohort_display": cohort_display,
+        "has_active_outcome": True,
+        "evaluation": {
+            "top1_hit": top1_hit,
+            "top3_hit": top3_hit,
+            "top5_hit": top5_hit,
+            "observed_rank": observed_rank,
+            "spatial_error_km": round(spatial_error_km, 2) if spatial_error_km is not None else None,
+            "lead_time_minutes": round(lead_time_min, 1) if lead_time_min is not None else None,
+            "lead_time_display": lead_display,
+            "evaluation_status": eval_status,
+            "prediction_snapshot_version": pred.version_number if pred else active_outcome.linked_prediction_version,
+            "evaluation_basis": "HISTORICAL_PERSISTED_PREDICTION"
+        },
+        "financial": financial_details,
+        "active_observation": active_outcome,
+        "lineage": lineage_records,
+        "disclaimer": (
+            "Outcome evaluation is derived strictly from historical persisted predictions and verified incident reports. "
+            "Causal attribution to the model alone is not claimed; real-world and synthetic cohorts remain separate."
+        )
+    }
+
+
+def get_drift_and_monitoring_metrics(db: Session) -> Dict[str, Any]:
+    """
+    Phase 6: Multi-Cohort Governance and Distribution Drift Monitoring.
+    Evaluates incoming prediction distributions against approved V8 reference metadata.
+    Zero automated retraining or artifact modification.
+    """
+    op_q = db.query(OutcomeObservation).filter(
+        OutcomeObservation.record_status == "ACTIVE",
+        OutcomeObservation.is_synthetic == False,
+        OutcomeObservation.is_excluded == False,
+        OutcomeObservation.outcome_type != "UNKNOWN"
+    )
+    synth_q = db.query(OutcomeObservation).filter(
+        OutcomeObservation.record_status == "ACTIVE",
+        OutcomeObservation.is_synthetic == True
+    )
+    excl_q = db.query(OutcomeObservation).filter(
+        OutcomeObservation.record_status == "ACTIVE",
+        OutcomeObservation.is_excluded == True
+    )
+    unk_q = db.query(OutcomeObservation).filter(
+        OutcomeObservation.record_status == "ACTIVE",
+        OutcomeObservation.is_synthetic == False,
+        OutcomeObservation.is_excluded == False,
+        OutcomeObservation.outcome_type == "UNKNOWN"
+    )
+
+    op_count = op_q.count()
+    synth_count = synth_q.count()
+    excl_count = excl_q.count()
+    unk_count = unk_q.count()
+    total_active = op_count + synth_count + excl_count + unk_count
+
+    cohorts = [
+        {
+            "cohort": "AUTHORIZED_OPERATIONAL",
+            "count": op_count,
+            "label": "Authorized Operational Cohort",
+            "description": "Real verified field outcomes from law enforcement casework and confirmed bank investigations.",
+            "eligible_for_evaluation": True
+        },
+        {
+            "cohort": "CONTROLLED_SYNTHETIC",
+            "count": synth_count,
+            "label": "Controlled Synthetic Cohort",
+            "description": "High-fidelity controlled simulation outcomes reserved for regression testing and pilot calibration.",
+            "eligible_for_evaluation": False
+        },
+        {
+            "cohort": "EXCLUDED",
+            "count": excl_count,
+            "label": "Excluded Outcomes",
+            "description": "Observations with confirmed data quality flaws, jurisdictional disputes, or court sealed status.",
+            "eligible_for_evaluation": False
+        },
+        {
+            "cohort": "UNKNOWN",
+            "count": unk_count,
+            "label": "Inconclusive / Unknown",
+            "description": "Complaints with pending verification, inconclusive monitoring, or insufficient physical evidence.",
+            "eligible_for_evaluation": False
+        }
+    ]
+
+    operational_metrics = get_outcome_metrics(db)
+    empty_state_msg = None
+    if op_count == 0:
+        empty_state_msg = "No authorized real-world evaluation cohort is available yet."
+
+    # Compute controlled synthetic metrics separately
+    synthetic_metrics = None
+    if synth_count > 0:
+        synth_cashouts = synth_q.filter(OutcomeObservation.outcome_type.in_(MEASURED_OUTCOME_TYPES)).count()
+        synth_top3 = synth_q.filter(OutcomeObservation.prediction_rank_matched.in_([1, 2, 3])).count()
+        synth_dist = synth_q.filter(OutcomeObservation.distance_error_km.isnot(None)).with_entities(func.avg(OutcomeObservation.distance_error_km)).scalar()
+        synthetic_metrics = {
+            "cohort_size": synth_count,
+            "cashout_events_count": synth_cashouts,
+            "top3_hit_count": synth_top3,
+            "controlled_synthetic_top3_hit_rate": round(synth_top3 / synth_cashouts, 4) if synth_cashouts > 0 else None,
+            "mean_distance_error_km": round(float(synth_dist), 2) if synth_dist is not None else None,
+            "label": "CONTROLLED SYNTHETIC EVALUATION"
+        }
+
+    # Reference metadata from V8 debiased model
+    ref_source = "cashout-location-xgb-v8-debiased baseline (model_metadata_v8_debiased.json)"
+
+    # Drift Indicators across distributions
+    indicators = []
+
+    # Indicator 1: Top-1 Prediction Score Distribution
+    ref_top1_score = 0.0833
+    recent_top1_scores = (
+        db.query(PredictionLocation.probability)
+        .filter(PredictionLocation.rank == 1)
+        .order_by(PredictionLocation.id.desc())
+        .limit(100)
+        .all()
+    )
+    if recent_top1_scores:
+        curr_mean_score = sum(s[0] for s in recent_top1_scores if s[0] is not None) / len(recent_top1_scores)
+        drift_delta_score = round(abs(curr_mean_score - ref_top1_score), 4)
+        status_score = "STABLE" if drift_delta_score <= 0.03 else ("MONITORING" if drift_delta_score <= 0.06 else "SHIFT_OBSERVED")
+        indicators.append({
+            "dimension": "Confidence Scores",
+            "metric_name": "Mean Top-1 Probability Score",
+            "reference_baseline": ref_top1_score,
+            "current_monitoring": round(curr_mean_score, 4),
+            "drift_delta": drift_delta_score,
+            "status": status_score
+        })
+    else:
+        indicators.append({
+            "dimension": "Confidence Scores",
+            "metric_name": "Mean Top-1 Probability Score",
+            "reference_baseline": ref_top1_score,
+            "current_monitoring": None,
+            "drift_delta": None,
+            "status": "INSUFFICIENT_DATA"
+        })
+
+    # Indicator 2: Spatial Error Distribution (km)
+    ref_spatial_err = 8.98
+    curr_spatial_err = operational_metrics.get("mean_distance_error_km")
+    if curr_spatial_err is not None:
+        drift_delta_spatial = round(abs(curr_spatial_err - ref_spatial_err), 2)
+        status_spatial = "STABLE" if drift_delta_spatial <= 3.0 else ("MONITORING" if drift_delta_spatial <= 6.0 else "SHIFT_OBSERVED")
+        indicators.append({
+            "dimension": "Spatial Accuracy",
+            "metric_name": "Mean Spatial Error (km)",
+            "reference_baseline": ref_spatial_err,
+            "current_monitoring": curr_spatial_err,
+            "drift_delta": drift_delta_spatial,
+            "status": status_spatial
+        })
+    else:
+        indicators.append({
+            "dimension": "Spatial Accuracy",
+            "metric_name": "Mean Spatial Error (km)",
+            "reference_baseline": ref_spatial_err,
+            "current_monitoring": None,
+            "drift_delta": None,
+            "status": "INSUFFICIENT_DATA"
+        })
+
+    # Indicator 3: Top-3 Hit Rate (R@3)
+    ref_r3 = 0.238
+    curr_r3 = operational_metrics.get("topk_accuracy_rate")
+    if curr_r3 is not None and operational_metrics.get("denominator_cashout", 0) >= 5:
+        drift_delta_r3 = round(abs(curr_r3 - ref_r3), 4)
+        status_r3 = "STABLE" if drift_delta_r3 <= 0.08 else ("MONITORING" if drift_delta_r3 <= 0.15 else "SHIFT_OBSERVED")
+        indicators.append({
+            "dimension": "Recall Metrics",
+            "metric_name": "Top-3 Hit Rate (R@3)",
+            "reference_baseline": ref_r3,
+            "current_monitoring": curr_r3,
+            "drift_delta": drift_delta_r3,
+            "status": status_r3
+        })
+    else:
+        indicators.append({
+            "dimension": "Recall Metrics",
+            "metric_name": "Top-3 Hit Rate (R@3)",
+            "reference_baseline": ref_r3,
+            "current_monitoring": curr_r3,
+            "drift_delta": None,
+            "status": "INSUFFICIENT_DATA"
+        })
+
+    # Indicator 4: Incident-to-Prediction Lead Time (minutes)
+    ref_lead = 60.0
+    curr_lead = operational_metrics.get("mean_prediction_lead_time_minutes")
+    if curr_lead is not None:
+        drift_delta_lead = round(abs(curr_lead - ref_lead), 1)
+        status_lead = "STABLE" if drift_delta_lead <= 30.0 else ("MONITORING" if drift_delta_lead <= 60.0 else "SHIFT_OBSERVED")
+        indicators.append({
+            "dimension": "Temporal Response",
+            "metric_name": "Mean Prediction Lead Time (min)",
+            "reference_baseline": ref_lead,
+            "current_monitoring": curr_lead,
+            "drift_delta": drift_delta_lead,
+            "status": status_lead
+        })
+    else:
+        indicators.append({
+            "dimension": "Temporal Response",
+            "metric_name": "Mean Prediction Lead Time (min)",
+            "reference_baseline": ref_lead,
+            "current_monitoring": None,
+            "drift_delta": None,
+            "status": "INSUFFICIENT_DATA"
+        })
+
+    # Overall Drift Status
+    active_statuses = [ind["status"] for ind in indicators if ind["status"] != "INSUFFICIENT_DATA"]
+    if op_count < 5 or not active_statuses:
+        overall_drift_status = "INSUFFICIENT_DATA"
+    elif "SHIFT_OBSERVED" in active_statuses:
+        overall_drift_status = "SHIFT_OBSERVED"
+    elif "MONITORING" in active_statuses:
+        overall_drift_status = "MONITORING"
+    else:
+        overall_drift_status = "STABLE"
+
+    return {
+        "cohorts": cohorts,
+        "total_active_records": total_active,
+        "operational_cohort_size": op_count,
+        "synthetic_cohort_size": synth_count,
+        "excluded_cohort_size": excl_count,
+        "unknown_cohort_size": unk_count,
+        "drift_status": overall_drift_status,
+        "reference_source": ref_source,
+        "indicators": indicators,
+        "operational_metrics": operational_metrics,
+        "synthetic_metrics": synthetic_metrics,
+        "empty_state_message": empty_state_msg,
+        "disclaimer": (
+            "Drift monitoring checks whether incoming case and prediction distributions are changing relative to an approved reference. "
+            "It does not automatically retrain, replace, or promote any model."
+        )
     }

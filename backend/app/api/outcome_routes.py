@@ -33,12 +33,16 @@ from backend.app.schemas.schemas import (
     OutcomeCorrectRequest,
     OutcomeResponse,
     OutcomeMetricsResponse,
+    OutcomeEvaluationResponse,
+    OutcomeMonitoringResponse,
 )
 from backend.app.services.outcome_service import (
     create_outcome,
     correct_outcome,
     get_outcomes_for_complaint,
     get_outcome_metrics,
+    evaluate_complaint_outcome,
+    get_drift_and_monitoring_metrics,
 )
 from backend.app.models.models import User
 
@@ -197,6 +201,40 @@ def outcome_metrics(
     current_user: User = Depends(require_roles(*_METRICS_ROLES)),
 ):
     return get_outcome_metrics(db)
+
+
+@router.get(
+    "/monitoring",
+    response_model=OutcomeMonitoringResponse,
+    summary="Model drift and outcome monitoring metrics",
+    description=(
+        "Returns cohort counts, distribution statistics, and drift metrics against approved reference baseline. "
+        "Strictly transparent; does NOT retrain or alter any model artifacts."
+    ),
+)
+def outcome_monitoring(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_METRICS_ROLES)),
+):
+    return get_drift_and_monitoring_metrics(db)
+
+
+@router.get(
+    "/complaints/{complaint_id}/evaluation",
+    response_model=OutcomeEvaluationResponse,
+    summary="Evaluate complaint prediction against observed outcome",
+    description=(
+        "Compares the historical persisted prediction snapshot with the active outcome observation. "
+        "Calculates Top-K hits, spatial error (km), lead time (min), and separated financial recoveries."
+    ),
+)
+def evaluate_complaint(
+    complaint_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_roles(*_READ_ROLES)),
+):
+    _get_complaint_or_404(complaint_id, db, current_user)
+    return evaluate_complaint_outcome(db, complaint_id, current_user)
 
 
 @router.get(

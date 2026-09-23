@@ -19,19 +19,32 @@ import {
   History,
   HelpCircle
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../services/api';
-import { ModelPerformanceData } from '../types';
+import { ModelPerformanceData, OutcomeMonitoringData } from '../types';
 
 export const ModelPerformance: React.FC = () => {
+  const navigate = useNavigate();
   const [data, setData] = useState<ModelPerformanceData | null>(null);
+  const [monitoring, setMonitoring] = useState<OutcomeMonitoringData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPerf = async () => {
       try {
-        const res = await api.getModelPerformance();
-        setData(res);
+        const [perfRes, monRes] = await Promise.allSettled([
+          api.getModelPerformance(),
+          api.getOutcomeMonitoring(),
+        ]);
+        if (perfRes.status === 'fulfilled') {
+          setData(perfRes.value);
+        } else {
+          throw perfRes.reason;
+        }
+        if (monRes.status === 'fulfilled') {
+          setMonitoring(monRes.value);
+        }
       } catch (err: any) {
         console.error('Failed to load model performance', err);
         setError('Failed to retrieve model performance telemetry from backend.');
@@ -106,6 +119,49 @@ export const ModelPerformance: React.FC = () => {
           <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
           <span>{data.evaluation_label || 'Prototype Evaluation — Synthetic/Anonymized Demo Data'}</span>
         </div>
+      </div>
+
+      {/* Phase 6: Compact Model Drift & Outcome Monitoring Banner */}
+      <div className="p-4 bg-white rounded-lg border border-[#DCE5F0] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 flex-1">
+          <div>
+            <span className="text-slate-500 block text-[11px] font-medium">Operational Evaluation Cohort:</span>
+            <span className="font-bold text-slate-800">
+              {monitoring?.cohorts?.AUTHORIZED_OPERATIONAL?.count
+                ? `${monitoring.cohorts.AUTHORIZED_OPERATIONAL.count} verified real-world outcomes`
+                : '0 verified real-world outcomes'}
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-500 block text-[11px] font-medium">Controlled Synthetic Outcomes:</span>
+            <span className="font-bold text-purple-700">
+              {monitoring?.cohorts?.CONTROLLED_SYNTHETIC?.count
+                ? `${monitoring.cohorts.CONTROLLED_SYNTHETIC.count} synthetic scenarios`
+                : '0 synthetic scenarios'}
+            </span>
+          </div>
+          <div>
+            <span className="text-slate-500 block text-[11px] font-medium">Drift Monitoring:</span>
+            <span
+              className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${
+                monitoring?.overall_drift_status === 'STABLE'
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                  : monitoring?.overall_drift_status === 'SHIFT_OBSERVED'
+                  ? 'bg-red-50 text-red-700 border border-red-200'
+                  : 'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}
+            >
+              {monitoring?.overall_drift_status || 'MONITORING'}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={() => navigate('/outcome-metrics')}
+          className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded font-semibold text-xs transition-colors shrink-0 flex items-center space-x-1.5 self-start md:self-auto"
+        >
+          <span>View Outcome Intelligence</span>
+          <span aria-hidden="true">&rarr;</span>
+        </button>
       </div>
 
       {/* SECTION 1: Current Runtime vs Historical Provenance */}

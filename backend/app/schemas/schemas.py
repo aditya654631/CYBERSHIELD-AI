@@ -1818,3 +1818,91 @@ class GoldenHourResponse(BaseModel):
     )
     source: GoldenHourSource
 
+
+# ─── Phase 6: Outcome Feedback & Model Drift Intelligence Schemas ───────────────
+
+class OutcomeEvaluationDetails(BaseModel):
+    """Derived evaluation comparing persisted prediction candidates vs verified observed outcome."""
+    top1_hit: Optional[bool] = None
+    top3_hit: Optional[bool] = None
+    top5_hit: Optional[bool] = None
+    observed_rank: Optional[int] = None
+    spatial_error_km: Optional[float] = None
+    lead_time_minutes: Optional[float] = None
+    lead_time_display: Optional[str] = None
+    evaluation_status: str = "PENDING_OUTCOME"  # EVALUATED, PENDING_OUTCOME, INSUFFICIENT_COORDINATES, NO_PREDICTION_LINKED
+    prediction_snapshot_version: Optional[int] = None
+    evaluation_basis: str = "HISTORICAL_PERSISTED_PREDICTION"
+
+
+class OutcomeFinancialDetails(BaseModel):
+    """Strictly separated financial tracking without double-counting as 'money saved'."""
+    attempted_withdrawal_amount_inr: Optional[float] = None
+    verified_held_amount_inr: Optional[float] = None
+    verified_released_amount_inr: Optional[float] = None
+    actual_recovered_amount_inr: Optional[float] = None
+    recovery_verified_by: Optional[str] = None
+    recovery_verified_at: Optional[datetime] = None
+    financial_note: str = (
+        "Verified held amount and actual recovered amount are recorded separately. "
+        "Their sum is never claimed as independently prevented loss."
+    )
+
+
+class OutcomeEvaluationResponse(BaseModel):
+    """Comprehensive officer-facing prediction vs outcome evaluation scorecard."""
+    complaint_id: int
+    complaint_number: str
+    prediction_id: Optional[int] = None
+    outcome_id: Optional[int] = None
+    cohort: str = "UNKNOWN"  # CONTROLLED_SYNTHETIC, AUTHORIZED_OPERATIONAL, EXCLUDED, UNKNOWN, NONE
+    cohort_display: str = "No Outcome"
+    has_active_outcome: bool = False
+    evaluation: OutcomeEvaluationDetails
+    financial: OutcomeFinancialDetails
+    active_observation: Optional[OutcomeResponse] = None
+    lineage: List[OutcomeResponse] = []
+    disclaimer: str = (
+        "Outcome evaluation is derived strictly from historical persisted predictions and verified incident reports. "
+        "Causal attribution to the model alone is not claimed; real-world and synthetic cohorts remain separate."
+    )
+
+
+class DistributionDriftItem(BaseModel):
+    """Distribution comparison against approved reference metadata."""
+    dimension: str
+    metric_name: str
+    reference_baseline: Optional[Any] = None
+    current_monitoring: Optional[Any] = None
+    drift_delta: Optional[float] = None
+    status: str = "INSUFFICIENT_DATA"  # INSUFFICIENT_DATA, STABLE, MONITORING, SHIFT_OBSERVED
+
+
+class CohortBreakdownItem(BaseModel):
+    """Categorization of outcomes into isolated evaluation cohorts."""
+    cohort: str
+    count: int
+    label: str
+    description: str
+    eligible_for_evaluation: bool
+
+
+class OutcomeMonitoringResponse(BaseModel):
+    """Operational model drift and multi-cohort governance monitoring response."""
+    cohorts: List[CohortBreakdownItem]
+    total_active_records: int
+    operational_cohort_size: int
+    synthetic_cohort_size: int
+    excluded_cohort_size: int
+    unknown_cohort_size: int
+    drift_status: str  # INSUFFICIENT_DATA, STABLE, MONITORING, SHIFT_OBSERVED
+    reference_source: str
+    indicators: List[DistributionDriftItem] = []
+    operational_metrics: Optional[OutcomeMetricsResponse] = None
+    synthetic_metrics: Optional[Dict[str, Any]] = None
+    empty_state_message: Optional[str] = None
+    disclaimer: str = (
+        "Drift monitoring checks whether incoming case and prediction distributions are changing relative to an approved reference. "
+        "It does not automatically retrain, replace, or promote any model."
+    )
+

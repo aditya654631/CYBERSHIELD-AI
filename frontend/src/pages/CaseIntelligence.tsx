@@ -67,6 +67,7 @@ import { Button } from '../components/common/Button';
 import { LoadingState } from '../components/common/LoadingState';
 import { PredictionTiming } from '../components/PredictionTiming';
 import { GoldenHourCard } from '../components/GoldenHourCard';
+import { ObservedOutcomeCard } from '../components/ObservedOutcomeCard';
 import { apiErrorMessage, formatIST, explainOperationalPriority, modelScore, predictionScoreNote } from '../utils/predictionDisplay';
 
 export const CaseIntelligence: React.FC = () => {
@@ -2217,6 +2218,16 @@ export const CaseIntelligence: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* ==================================================================== */}
+      {/* PHASE 6: OBSERVED OUTCOME & MODEL EVALUATION */}
+      {/* ==================================================================== */}
+      {complaint && (
+        <ObservedOutcomeCard
+          complaintId={complaint.id}
+          predictionId={prediction ? (prediction.prediction_id || (prediction as any).id) : null}
+        />
       )}
 
       {/* ==================================================================== */}

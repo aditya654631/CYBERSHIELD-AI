@@ -1256,6 +1256,92 @@ export interface OutcomeMetrics {
   policy_description: string;
 }
 
+// ─── Phase 6: Outcome Feedback & Model Drift Intelligence ───────────────────
+export type OutcomeCohort =
+  | 'CONTROLLED_SYNTHETIC'
+  | 'AUTHORIZED_OPERATIONAL'
+  | 'EXCLUDED'
+  | 'UNKNOWN';
+
+export interface OutcomeEvaluationDetails {
+  top1_hit: boolean | null;
+  top3_hit: boolean | null;
+  top5_hit: boolean | null;
+  observed_rank: number | null;
+  spatial_error_km: number | null;
+  lead_time_minutes: number | null;
+  lead_time_human: string | null;
+  spatial_error_status: string;
+}
+
+export interface OutcomeFinancialDetails {
+  withdrawal_amount_inr: number | null;
+  verified_hold_amount_inr: number | null;
+  recovered_amount_inr: number | null;
+  verification_status: string | null;
+  financial_warning: string;
+}
+
+export interface OutcomeEvaluation {
+  prediction_id: number | null;
+  prediction_generated_at: string | null;
+  outcome_id: number | null;
+  cohort: OutcomeCohort;
+  evaluation: OutcomeEvaluationDetails;
+  financial: OutcomeFinancialDetails;
+  lineage: OutcomeObservation[];
+  has_outcome: boolean;
+  has_prediction: boolean;
+  message: string;
+}
+
+export interface DistributionDriftItem {
+  feature_name: string;
+  reference_mean: number | null;
+  monitoring_mean: number | null;
+  metric_type: string;
+  shift_metric_value: number | null;
+  status: string;
+  notes: string;
+}
+
+export interface CohortBreakdownItem {
+  cohort: string;
+  count: number;
+  eligible_for_operational_metrics: boolean;
+  description: string;
+}
+
+export interface OutcomeMonitoringData {
+  cohorts: Record<string, CohortBreakdownItem>;
+  reference_baseline_source: string;
+  reference_model_version: string;
+  operational_metrics: {
+    cohort_size: number;
+    top1_hit_rate: number | null;
+    top3_hit_rate: number | null;
+    top5_hit_rate: number | null;
+    median_spatial_error_km: number | null;
+    mean_spatial_error_km: number | null;
+    median_lead_time_min: number | null;
+    verified_hold_amount_inr: number;
+    verified_recovered_amount_inr: number;
+    note: string;
+  };
+  synthetic_metrics: {
+    cohort_size: number;
+    label: string;
+    top1_hit_rate: number | null;
+    top3_hit_rate: number | null;
+    mean_spatial_error_km: number | null;
+    note: string;
+  };
+  drift_indicators: DistributionDriftItem[];
+  overall_drift_status: 'INSUFFICIENT_DATA' | 'STABLE' | 'MONITORING' | 'SHIFT_OBSERVED';
+  auto_retraining_triggered: boolean;
+  evaluation_notes: string;
+}
+
 // ─── Phase 3: Intervention Orchestrator ──────────────────────────────────────
 export interface InterventionPlanActionItem {
   id: number;

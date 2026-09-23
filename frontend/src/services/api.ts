@@ -38,6 +38,8 @@ import {
   InterventionPlanActionItem,
   ATMContextResponse,
   GoldenHourResponse,
+  OutcomeEvaluation,
+  OutcomeMonitoringData,
 } from '../types';
 
 const API_BASE_URL =
@@ -474,6 +476,14 @@ export const api = {
   },
   getOutcomeMetrics: async () => {
     const res = await apiClient.get<OutcomeMetrics>('/outcomes/metrics');
+    return res.data;
+  },
+  getComplaintOutcomeEvaluation: async (complaintId: number | string) => {
+    const res = await apiClient.get<OutcomeEvaluation>(`/outcomes/complaints/${complaintId}/evaluation`);
+    return res.data;
+  },
+  getOutcomeMonitoring: async () => {
+    const res = await apiClient.get<OutcomeMonitoringData>('/outcomes/monitoring');
     return res.data;
   },
 
