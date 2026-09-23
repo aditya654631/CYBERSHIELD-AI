@@ -37,6 +37,7 @@ import {
   InterventionPlanItem,
   InterventionPlanActionItem,
   ATMContextResponse,
+  GoldenHourResponse,
 } from '../types';
 
 const API_BASE_URL =
@@ -502,6 +503,12 @@ export const api = {
     const res = await apiClient.get<ATMContextResponse>(`/predictions/${predictionId}/atm-context`, {
       params: { rank },
     });
+    return res.data;
+  },
+
+  // ─── Phase 5: Golden-Hour Operational Intelligence ──────────────────────────
+  getGoldenHour: async (predictionId: number | string) => {
+    const res = await apiClient.get<GoldenHourResponse>(`/predictions/${predictionId}/golden-hour`);
     return res.data;
   },
 };

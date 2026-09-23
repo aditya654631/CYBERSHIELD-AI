@@ -1771,3 +1771,50 @@ class ATMContextResponse(BaseModel):
         "It does not represent a confirmed withdrawal location."
     )
     items: List[ATMContextItem] = []
+
+
+# ============================================================================
+# Golden-Hour Operational Intelligence Schemas (Phase 5)
+# ============================================================================
+
+class GoldenHourWindow(BaseModel):
+    start: Optional[str] = None
+    end: Optional[str] = None
+    start_ist: Optional[str] = None
+    end_ist: Optional[str] = None
+    start_time_ist: Optional[str] = None
+    end_time_ist: Optional[str] = None
+    start_offset_minutes: Optional[int] = None
+    end_offset_minutes: Optional[int] = None
+
+
+class GoldenHourTimelineItem(BaseModel):
+    step: str
+    timestamp: Optional[str] = None
+    timestamp_ist: Optional[str] = None
+
+
+class GoldenHourSource(BaseModel):
+    model_version: str = "cashout-time-xgb-v3"
+    derived_from_persisted_prediction: bool = True
+
+
+class GoldenHourResponse(BaseModel):
+    prediction_id: int
+    complaint_id: int
+    complaint_number: str
+    generated_at: Optional[str] = None
+    timezone: str = "Asia/Kolkata"
+    reference_time: Optional[str] = None
+    window: GoldenHourWindow
+    status: str  # PLANNING, ELEVATED, HIGH_URGENCY, WINDOW_ACTIVE, WINDOW_PASSED, GOLDEN_HOUR_UNAVAILABLE
+    status_display: str
+    minutes_until_start: Optional[int] = None
+    minutes_until_end: Optional[int] = None
+    timeline: List[GoldenHourTimelineItem] = []
+    disclaimer: str = (
+        "Golden-Hour shows the operational time window derived from the persisted cash-out time prediction. "
+        "Countdown and urgency labels support response planning and are not independent probability estimates."
+    )
+    source: GoldenHourSource
+

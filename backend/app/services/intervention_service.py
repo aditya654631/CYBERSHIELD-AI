@@ -203,6 +203,23 @@ class InterventionOrchestratorService:
         except Exception as e:
             logger.warning(f"[InterventionService] Could not capture ATM context snapshot: {e}")
 
+        # Try capturing Golden-Hour snapshot
+        try:
+            from backend.app.services.golden_hour_service import golden_hour_service
+            gh_res = golden_hour_service.get_golden_hour_for_prediction(db, prediction.id, user=user)
+            summary_json["golden_hour_snapshot"] = {
+                "status": gh_res.get("status"),
+                "status_display": gh_res.get("status_display"),
+                "window_start": gh_res.get("window", {}).get("start"),
+                "window_end": gh_res.get("window", {}).get("end"),
+                "window_start_ist": gh_res.get("window", {}).get("start_ist"),
+                "window_end_ist": gh_res.get("window", {}).get("end_ist"),
+                "minutes_until_start": gh_res.get("minutes_until_start"),
+                "minutes_until_end": gh_res.get("minutes_until_end"),
+            }
+        except Exception as e:
+            logger.warning(f"[InterventionService] Could not capture Golden-Hour snapshot: {e}")
+
         # 7. Create Plan
         new_plan = InterventionPlan(
             plan_uuid=str(uuid.uuid4()),
@@ -340,6 +357,21 @@ class InterventionOrchestratorService:
                 priority="HIGH",
                 status="RECOMMENDED",
                 recommended_reason="Secondary contextual operational prioritization layer computed for primary candidate zone.",
+                assigned_role="DISTRICT_LEA",
+                created_at=datetime.utcnow()
+            )
+        )
+
+        actions_to_add.append(
+            InterventionPlanAction(
+                plan_id=new_plan.id,
+                category="GIS",
+                action_type="REVIEW_GOLDEN_HOUR_WINDOW",
+                title="Prioritize Response for Golden-Hour Operational Window",
+                description="Monitor real-time Golden-Hour countdown and operational urgency window derived from time-decay prediction.",
+                priority="HIGH",
+                status="RECOMMENDED",
+                recommended_reason="Operational time window derived from cashout-time-xgb-v3 prediction model.",
                 assigned_role="DISTRICT_LEA",
                 created_at=datetime.utcnow()
             )

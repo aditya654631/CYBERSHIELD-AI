@@ -1334,3 +1334,44 @@ export interface ATMContextResponse {
   items: ATMContextItem[];
 }
 
+// ─── Phase 5: Golden-Hour Operational Intelligence ──────────────────────────
+export interface GoldenHourWindow {
+  start?: string | null;
+  end?: string | null;
+  start_ist?: string | null;
+  end_ist?: string | null;
+  start_time_ist?: string | null;
+  end_time_ist?: string | null;
+  start_offset_minutes?: number | null;
+  end_offset_minutes?: number | null;
+}
+
+export interface GoldenHourTimelineItem {
+  step: string;
+  timestamp?: string | null;
+  timestamp_ist?: string | null;
+}
+
+export interface GoldenHourSource {
+  model_version: string;
+  derived_from_persisted_prediction: boolean;
+}
+
+export interface GoldenHourResponse {
+  prediction_id: number;
+  complaint_id: number;
+  complaint_number: string;
+  generated_at?: string | null;
+  timezone: string;
+  reference_time?: string | null;
+  window: GoldenHourWindow;
+  status: 'PLANNING' | 'ELEVATED' | 'HIGH_URGENCY' | 'WINDOW_ACTIVE' | 'WINDOW_PASSED' | 'GOLDEN_HOUR_UNAVAILABLE' | string;
+  status_display: string;
+  minutes_until_start?: number | null;
+  minutes_until_end?: number | null;
+  timeline: GoldenHourTimelineItem[];
+  disclaimer: string;
+  source: GoldenHourSource;
+}
+
+

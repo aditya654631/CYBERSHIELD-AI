@@ -66,6 +66,7 @@ import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { LoadingState } from '../components/common/LoadingState';
 import { PredictionTiming } from '../components/PredictionTiming';
+import { GoldenHourCard } from '../components/GoldenHourCard';
 import { apiErrorMessage, formatIST, explainOperationalPriority, modelScore, predictionScoreNote } from '../utils/predictionDisplay';
 
 export const CaseIntelligence: React.FC = () => {
@@ -1225,6 +1226,11 @@ export const CaseIntelligence: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
               {/* Left 2/3: Top Predicted Cash-Out Zones */}
               <div className="lg:col-span-8 space-y-4">
+                {/* Phase 5: Golden-Hour Intervention Window */}
+                {prediction && (prediction.prediction_id || (prediction as any).id) && (
+                  <GoldenHourCard predictionId={prediction.prediction_id || (prediction as any).id} />
+                )}
+
                 {/* Primary Predicted Zone Banner (B9 & Section 21) */}
                 {rank1Location && (
                   <div className="p-4 rounded-lg bg-[#F0F6F6] border border-[#9DBEBB]/60">
