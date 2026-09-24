@@ -40,7 +40,7 @@ def workflow_tokens(db_session: Session):
     Creates authentication headers for all 6 required roles across organizations:
     1. I4C_ADMIN (National Command)
     2. STATE_LEA (MP State HQ)
-    3. DISTRICT_LEA (Delhi Central - Originating Officer)
+    3. STATE_LEA (Delhi NCT - Originating Officer)
     4. DISTRICT_LEA (Indore District - Destination Officer)
     5. BANK_OFFICER (SBI Fraud Risk Management Unit)
     6. ANALYST (I4C Intelligence Analyst)
@@ -56,11 +56,28 @@ def workflow_tokens(db_session: Session):
     mha_org = db.query(Organization).filter_by(id=5).first()
     delhi_org = db.query(Organization).filter_by(id=6).first()
 
+    # Some legacy tests remove the shared demonstration officer rows.  The
+    # lifecycle needs a real recipient in Organization 3, so create a
+    # phase-scoped identity rather than depending on that mutable fixture.
+    indore_email = "phase13.destination.indore@cybershield.test"
+    indore_user = db.query(User).filter_by(email=indore_email).first()
+    if indore_user is None:
+        indore_user = User(
+            email=indore_email,
+            hashed_password="test-only-token-authenticated-user",
+            full_name="Phase 13 Indore Destination Officer",
+            role="DISTRICT_LEA",
+            organization_id=indore_org.id,
+            is_active=True,
+        )
+        db.add(indore_user)
+        db.commit()
+
     return {
         "admin": {"Authorization": f"Bearer {create_access_token({'sub': 'admin@cybershield.gov.in', 'role': 'I4C_ADMIN'})}"},
-        "delhi_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'officer@delhipolice.gov.in', 'role': 'DISTRICT_LEA'})}"},
+        "delhi_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'state.lea@delhi.cyber.gov.in', 'role': 'STATE_LEA'})}"},
         "mp_state_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'state.lea@mp.police.gov.in', 'role': 'STATE_LEA'})}"},
-        "indore_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'district.lea@indore.police.gov.in', 'role': 'DISTRICT_LEA'})}"},
+        "indore_lea": {"Authorization": f"Bearer {create_access_token({'sub': indore_email, 'role': 'DISTRICT_LEA'})}"},
         "bank_officer": {"Authorization": f"Bearer {create_access_token({'sub': 'officer@sbi.co.in', 'role': 'BANK_OFFICER'})}"},
         "analyst": {"Authorization": f"Bearer {create_access_token({'sub': 'analyst@cybershield.gov.in', 'role': 'ANALYST'})}"},
         "auditor": {"Authorization": f"Bearer {create_access_token({'sub': 'auditor@mha.gov.in', 'role': 'AUDITOR'})}"},

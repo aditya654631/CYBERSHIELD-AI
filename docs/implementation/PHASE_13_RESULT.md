@@ -1,11 +1,13 @@
 # Phase 13 Result: Integrated Pilot Readiness and Final PS Acceptance
 
 **Phase Number:** Phase 13  
-**Status:** COMPLETED & VERIFIED (Acceptance Gate Passed)  
+**Status:** Functional workflow verified; production performance acceptance **OPEN** after 24 September revalidation
 **Date:** September 2026  
 **Host Environment:** Windows 11 x86_64, Python 3.13.0, SQLite (PRAGMA foreign_keys=ON) in isolated temporary sessions, Docker/PostgreSQL offline on local test host  
 **Model Artifacts:** All 45 production model artifact SHA-256 hashes verified 100% intact  
-**Next Phase:** HALT STRICTLY. No Phase 14 or deployment authorized.
+**Next Phase:** This phase handoff stopped at Phase 13. The owner later authorized GitHub source publication and sandbox deployment; that authorization does not close the performance gate.
+
+> **24 September revalidation:** The original latency results below are historical and are not comparable to the corrected isolated test database. The current documented budgets fail for complaint ingestion, inference and GIS on the Windows TestClient/SQLite host (3 failed, 1 passed). See [UPLOAD_READINESS_RESULT.md](UPLOAD_READINESS_RESULT.md) for exact measurements. A production-like PostgreSQL load run remains pending.
 
 ---
 
@@ -31,14 +33,14 @@ The phase verified:
 | **EXTERNALLY_VALIDATED**| **0** | None | Deferred to 90-day prospective shadow pilot in live field conditions. |
 | **NOT_IMPLEMENTED** | **0** | None | Zero unaddressed requirements. |
 
-*Full line-by-line evidence mapping is maintained in [FINAL_PS_ACCEPTANCE_MATRIX.md](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/docs/implementation/FINAL_PS_ACCEPTANCE_MATRIX.md).*
+*Full line-by-line evidence mapping is maintained in [FINAL_PS_ACCEPTANCE_MATRIX.md](../../docs/implementation/FINAL_PS_ACCEPTANCE_MATRIX.md).*
 
 ---
 
 ## 3. Pillar Execution & Verification Evidence
 
 ### Pillar 1: Source / Evidence / Acceptance Matrix
-- **Artifact:** [FINAL_PS_ACCEPTANCE_MATRIX.md](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/docs/implementation/FINAL_PS_ACCEPTANCE_MATRIX.md)
+- **Artifact:** [FINAL_PS_ACCEPTANCE_MATRIX.md](../../docs/implementation/FINAL_PS_ACCEPTANCE_MATRIX.md)
 - **Status:** Complete. Audited against code, endpoints, schemas, database tables, and test evidence.
 
 ### Pillar 2: Integrated 10-Step Operational Workflow Test
@@ -70,7 +72,7 @@ The phase verified:
   8. Unsupported region prediction strict refusal (`MODEL_NOT_SUPPORTED_FOR_REGION`, 0 candidates, zero silent fallback)
 
 ### Pillar 4 & 7: Operational Runbook
-- **Artifact:** [OPERATIONAL_RUNBOOK.md](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/docs/implementation/OPERATIONAL_RUNBOOK.md)
+- **Artifact:** [OPERATIONAL_RUNBOOK.md](../../docs/implementation/OPERATIONAL_RUNBOOK.md)
 - **Status:** Complete. Covers architecture, Alembic migrations, PostgreSQL backup/restore, outbox worker recovery, bank sandbox isolation, model fallback, and audit verification.
 
 ### Pillar 5: Production Load Benchmarks & Acceptance Budgets
@@ -106,7 +108,7 @@ The phase verified:
   ```
 
 ### Pillar 8: Pilot Readiness Checklist & Shadow Evaluation Protocol
-- **Artifact:** [PILOT_READINESS_CHECKLIST.md](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/docs/implementation/PILOT_READINESS_CHECKLIST.md)
+- **Artifact:** [PILOT_READINESS_CHECKLIST.md](../../docs/implementation/PILOT_READINESS_CHECKLIST.md)
 - **Status:** Complete. Defines prospective evaluation, warning-time metrics, false-alert thresholds, data drift triggers, and the strict Human-in-the-Loop mandate.
 
 ---

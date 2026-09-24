@@ -108,7 +108,7 @@ All 26 automated tests in `tests/test_phase9_outcome_observations.py` executed c
 ```
 ============================= test session starts =============================
 platform win32 -- Python 3.13.0, pytest-9.1.1, pluggy-1.6.0
-rootdir: C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI
+rootdir: <repository-root>
 configfile: pytest.ini
 plugins: anyio-4.15.1
 collected 26 items

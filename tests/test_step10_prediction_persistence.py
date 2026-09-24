@@ -72,6 +72,8 @@ def test_cmp_new_000002_live_persistence(db):
 
     # Counts before POST
     pred_count_before = db.query(Prediction).filter(Prediction.complaint_id == comp.id).count()
+    previous_latest = prediction_persistence_service.get_latest_prediction(db, comp.id)
+    previous_id = previous_latest.id if previous_latest is not None else None
     loc_count_before = (
         db.query(PredictionLocation)
         .join(Prediction, PredictionLocation.prediction_id == Prediction.id)
@@ -87,10 +89,11 @@ def test_cmp_new_000002_live_persistence(db):
     assert data["status"] == "SUCCESS"
     assert data["prediction_id"] > 0
     assert data["prediction_mode"] == "trained_ml"
-    assert data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
+    assert data["model_version"] == "cashout-location-xgb-v8-debiased"
     assert "min after complaint report" in data["when_window"] or "operational estimate window" in data["when_window"]
 
-    # Verify DB delta: exactly 1 Prediction and 3 PredictionLocations
+    # The same evidence is idempotent: a prior operational prediction can be
+    # reused, while a fresh case creates exactly one version and three rows.
     pred_count_after = db.query(Prediction).filter(Prediction.complaint_id == comp.id).count()
     loc_count_after = (
         db.query(PredictionLocation)
@@ -98,15 +101,19 @@ def test_cmp_new_000002_live_persistence(db):
         .filter(Prediction.complaint_id == comp.id)
         .count()
     )
-    assert pred_count_after == pred_count_before + 1
-    assert loc_count_after == loc_count_before + 3
+    if data["prediction_id"] == previous_id:
+        assert pred_count_after == pred_count_before
+        assert loc_count_after == loc_count_before
+    else:
+        assert pred_count_after == pred_count_before + 1
+        assert loc_count_after == loc_count_before + 3
 
     # Retrieve from DB via persistence service
     persisted = prediction_persistence_service.get_latest_prediction(db, comp.id)
     assert persisted is not None
     assert persisted.id == data["prediction_id"]
     assert persisted.prediction_mode == "trained_ml"
-    assert persisted.model_version in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
+    assert persisted.model_version == "cashout-location-xgb-v8-debiased"
     assert "min after complaint report" in persisted.window_label or "operational estimate window" in persisted.window_label
 
     # Verify children
@@ -167,7 +174,7 @@ def test_cmp_dl_0001_live_persistence(db):
 
     assert data["status"] == "SUCCESS"
     assert data["prediction_mode"] == "trained_ml"
-    assert data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
+    assert data["model_version"] == "cashout-location-xgb-v8-debiased"
     assert len(data["top_locations"]) == 3
     assert data["time_prediction"]["predicted_minutes_to_cashout"] > 0
 

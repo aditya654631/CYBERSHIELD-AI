@@ -10,6 +10,39 @@ from backend.app.models.models import (
     Prediction, PredictionLocation, Alert, CaseNote, AuditLog
 )
 
+
+def _make_schema_prediction(db, complaint):
+    """Create the relationship rows this test needs without relying on test order."""
+    cluster = db.query(LocationCluster).first()
+    assert cluster is not None
+    now = datetime.datetime.utcnow()
+    pred = Prediction(
+        complaint_id=complaint.id,
+        model_version="schema-relationship-test",
+        predicted_window_start=now,
+        predicted_window_end=now + datetime.timedelta(hours=2),
+    )
+    db.add(pred)
+    db.flush()
+    for rank in (1, 2, 3):
+        db.add(PredictionLocation(
+            prediction_id=pred.id,
+            cluster_id=cluster.id,
+            location_name=cluster.cluster_name,
+            rank=rank,
+            probability=0.5 / rank,
+        ))
+    alert = Alert(
+        complaint_id=complaint.id,
+        prediction_id=pred.id,
+        title="Schema relationship test",
+        location_name=cluster.cluster_name,
+    )
+    db.add(alert)
+    db.flush()
+    return pred, alert
+
+
 def test_relationship_and_mapper_configuration():
     """Verify all required SQLAlchemy relationships load and navigate without mapper errors."""
     db = SessionLocal()
@@ -17,6 +50,7 @@ def test_relationship_and_mapper_configuration():
         # 1. Complaint -> Transactions & Predictions & Alerts
         cmp = db.query(Complaint).filter(Complaint.complaint_number == "CMP-1042").first()
         assert cmp is not None
+        pred, alert = _make_schema_prediction(db, cmp)
         assert len(cmp.transactions) >= 5
         assert len(cmp.predictions) >= 1
         assert len(cmp.alerts) >= 1
@@ -28,7 +62,6 @@ def test_relationship_and_mapper_configuration():
         assert tx.sender.account_number != tx.receiver.account_number
 
         # 3. Prediction -> Complaint & PredictionLocations
-        pred = cmp.predictions[0]
         assert pred.complaint.id == cmp.id
         assert len(pred.locations) == 3
 
@@ -38,7 +71,6 @@ def test_relationship_and_mapper_configuration():
         assert pred_loc.prediction.id == pred.id
 
         # 5. Alert -> Complaint & Prediction
-        alert = cmp.alerts[0]
         assert alert.complaint.id == cmp.id
         if alert.prediction_id:
             assert alert.prediction is not None
@@ -61,6 +93,7 @@ def test_relationship_and_mapper_configuration():
         db.rollback()
 
     finally:
+        db.rollback()
         db.close()
 
 
@@ -114,8 +147,9 @@ def test_unique_prediction_rank_constraint():
     """Verify UNIQUE(prediction_id, rank) database constraint on prediction_locations."""
     db = SessionLocal()
     try:
-        pred = db.query(Prediction).first()
-        assert pred is not None
+        complaint = db.query(Complaint).filter(Complaint.complaint_number == "CMP-1042").first()
+        assert complaint is not None
+        pred, _ = _make_schema_prediction(db, complaint)
 
         # Existing ranks are 1, 2, 3. Attempting to insert another location with rank=1 must fail.
         duplicate_rank_loc = PredictionLocation(
@@ -133,6 +167,7 @@ def test_unique_prediction_rank_constraint():
         db.rollback()
 
     finally:
+        db.rollback()
         db.close()
 
 

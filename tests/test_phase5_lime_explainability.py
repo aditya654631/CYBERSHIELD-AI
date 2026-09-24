@@ -51,8 +51,8 @@ client.headers["Authorization"] = f"Bearer {_test_token}"
 
 
 @pytest.fixture(scope="module")
-def db():
-    session = SessionLocal()
+def db(guardrail_and_isolate_test_db):
+    session = guardrail_and_isolate_test_db()
     yield session
     session.close()
 

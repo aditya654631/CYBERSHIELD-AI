@@ -336,8 +336,8 @@ class GeographyCatalogValidator:
             errors.append("Model Support Violation: 'MODEL_SUPPORTED' requires a specified 'supported_model_version' that has passed Phase 10 promotion gates.")
 
         # Delhi model cannot be assigned to another region without transfer evaluation
-        if region_id != "delhi" and supported_model_version == "cashout-location-xgb-v7-compat":
-            errors.append("Cross-Region Leakage: The Delhi-trained model 'cashout-location-xgb-v7-compat' cannot be claimed as supported for a non-Delhi region without verified transfer evaluation.")
+        if region_id != "delhi" and supported_model_version:
+            errors.append("Cross-Region Leakage: A Delhi-qualified model cannot be claimed as supported for a non-Delhi region without verified transfer evaluation.")
 
         # 4. Cluster Validation & Deduplication
         clusters = payload.get("clusters") or []
@@ -571,7 +571,7 @@ def ensure_default_regions_and_catalogs(db: Session) -> None:
             districts=DELHI_DISTRICTS,
             data_completeness_status="COMPLETE",
             model_support_status="MODEL_SUPPORTED",
-            supported_model_version="cashout-location-xgb-v7-compat",
+            supported_model_version="cashout-location-xgb-v8-debiased",
             is_synthetic=False,
             is_active=True,
         )

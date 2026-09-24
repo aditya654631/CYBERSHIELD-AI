@@ -364,6 +364,8 @@ def test_promotion_gates_reject_unmet_evidence():
     eval_result = evaluate_promotion_gates(failing_cand, baseline)
     assert eval_result["internal_synthetic_gates_passed"] is False
     assert eval_result["can_promote_to_production"] is False
+    # A rejected candidate must advertise the verified rollback baseline, not
+    # the currently promoted runtime model.
     assert eval_result["active_production_model"] == "cashout-location-xgb-v7-compat"
 
 
@@ -410,7 +412,7 @@ def test_api_evaluation_endpoints(client: TestClient, admin_headers: dict):
     res_gates = client.get("/api/v1/model/evaluation/promotion-gates", headers=headers)
     assert res_gates.status_code == 200
     gates_data = res_gates.json()
-    assert gates_data["active_production_model"] == "cashout-location-xgb-v7-compat"
+    assert gates_data["active_production_model"] == "cashout-location-xgb-v8-debiased"
     assert gates_data["production_artifact_integrity"]["all_production_artifacts_intact"] is True
 
     # 5. Validate Import (Valid)

@@ -22,12 +22,32 @@ from sqlalchemy.orm import Session
 
 from backend.app.models.models import (
     Complaint, Account, ComplaintAccount, Transaction, LocationCluster,
-    Prediction, PredictionLocation, PredictionSnapshot, Withdrawal, ATMLocation
+    Prediction, PredictionLocation, PredictionSnapshot, Withdrawal, ATMLocation, User
 )
 from backend.app.services.prediction_persistence_service import prediction_persistence_service
 from backend.app.services.transaction_context_service import resolve_transaction_context
 from backend.app.services.graph_service import build_complaint_graph
 from backend.app.services.prediction_contract import as_utc, utc_iso
+
+
+def _cross_jurisdiction_indore_token(db_session: Session):
+    """Use an active test-owned actor, independent of mutable demo officers."""
+    from backend.app.auth.security import create_access_token
+
+    email = "phase2.crossjurisdiction.indore@cybershield.test"
+    officer = db_session.query(User).filter_by(email=email).first()
+    if officer is None:
+        officer = User(
+            email=email,
+            hashed_password="test-only-token-authenticated-user",
+            full_name="Phase 2 Indore Officer",
+            role="DISTRICT_LEA",
+            organization_id=3,
+            is_active=True,
+        )
+        db_session.add(officer)
+        db_session.commit()
+    return create_access_token({"sub": email, "role": "DISTRICT_LEA"})
 
 
 @pytest.fixture(autouse=True)
@@ -954,7 +974,7 @@ def test_regression_retry_analysis_authorization(auth_client, client, db_session
 
     # 3. Cross-jurisdiction DISTRICT_LEA (Indore, Madhya Pradesh vs Delhi complaint) → 404
     #    (Complaint must not be revealed to out-of-jurisdiction officer)
-    mp_token = create_access_token({"sub": "district.lea@indore.police.gov.in", "role": "DISTRICT_LEA"})
+    mp_token = _cross_jurisdiction_indore_token(db_session)
     with TestClient(app) as c:
         c.headers.update({"Authorization": f"Bearer {mp_token}"})
         resp = c.post(retry_url)
@@ -1263,12 +1283,7 @@ def test_regression_transaction_correction_and_reversal_api(auth_client, db_sess
     assert bk_res.status_code == 403, f"Expected 403 for BANK_OFFICER, got {bk_res.status_code}"
 
     # Cross-jurisdiction district LEA -> 404 Not Found (no existence disclosure)
-    cross_token = create_access_token({
-        "sub": "district.lea@indore.police.gov.in",
-        "role": "DISTRICT_LEA",
-        "district": "Indore",
-        "state": "Madhya Pradesh"
-    })
+    cross_token = _cross_jurisdiction_indore_token(db_session)
     with TestClient(app) as cross_client:
         cross_client.headers.update({"Authorization": f"Bearer {cross_token}"})
         cross_res = cross_client.post(
@@ -2098,5 +2113,4 @@ def test_alembic_migration_0012_from_populated_0011(tmp_path):
         assert res[0] == 501
         assert res[1] == "TX-MIG-0011-ROW"
         assert res[2] is None  # Preserved as NULL for legacy unproven row
-
 

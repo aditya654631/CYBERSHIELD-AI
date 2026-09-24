@@ -5,7 +5,7 @@ Dependencies: 00.
 PS mapping: PS-03–07, PS-15; reliability foundation.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 

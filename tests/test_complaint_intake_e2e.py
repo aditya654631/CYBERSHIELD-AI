@@ -527,7 +527,12 @@ def test_explicit_prediction_run_persists_prediction(db):
     pred_data = res_pred.json()
 
     assert pred_data["prediction_mode"] == "trained_ml"
-    assert pred_data["model_version"] in ("cashout-location-xgb-v3.1", "cashout-location-xgb-v4", "cashout-location-xgb-v7-compat")
+    assert pred_data["model_version"] in (
+        "cashout-location-xgb-v3.1",
+        "cashout-location-xgb-v4",
+        "cashout-location-xgb-v7-compat",
+        "cashout-location-xgb-v8-debiased",
+    )
     assert len(pred_data["top_locations"]) == 3
     assert pred_data["operational_scope"] == "DELHI_PILOT"
 

@@ -1,6 +1,6 @@
 # Paste this into Antigravity
 
-Work in `C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+Work in `<repository-root>`.
 
 The user has authorized Phase 0: safe checkpoint, executable baseline audit and exact traceability against their cybercrime predictive analytics problem statement. Do not silently start a wholesale rewrite, retraining, destructive cleanup, reseeding of an operational DB, or later-phase feature work.
 

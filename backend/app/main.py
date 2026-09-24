@@ -42,10 +42,12 @@ async def lifespan(app: FastAPI):
     # Startup: Database schema managed authoritatively by Alembic migrations; Base.metadata.create_all retained for test/bootstrap fallback
     print(f"[Startup] Verifying database connectivity and schema readiness for {engine_type}...")
     try:
-        ensure_prototype_schema(engine)
+        is_prod = str(settings.ENVIRONMENT).lower() in ("production", "prod")
+        ensure_prototype_schema(
+            engine, include_demo_users=bool(settings.ALLOW_DEMO_LOGIN) and not is_prod
+        )
 
         # Seed demo dataset only if explicitly configured in non-production, non-test environments
-        is_prod = str(settings.ENVIRONMENT).lower() in ("production", "prod")
         if settings.AUTO_SEED_DEMO_DATA and not is_prod and settings.ENVIRONMENT != "test":
             db = SessionLocal()
             try:

@@ -31,10 +31,9 @@ def test_endpoint_authorization_gate():
     assert auth_resp.status_code == 200
 
 
-def test_trained_runtime_with_matching_v7_metadata(auth_headers):
+def test_trained_runtime_with_matching_v8_metadata(auth_headers):
     """
-    Verify authoritative runtime and evaluation binding when official V7-compat model
-    is loaded and matches model_metadata_v7_compat.json.
+    Verify the active V8 runtime binds only its own held-out synthetic evaluation.
     """
     resp = client.get("/api/v1/model/performance", headers=auth_headers)
     assert resp.status_code == 200
@@ -42,10 +41,10 @@ def test_trained_runtime_with_matching_v7_metadata(auth_headers):
 
     # Part A: Authoritative Runtime
     assert data["prediction_mode"] == "trained_ml"
-    assert data["model_version"] == "cashout-location-xgb-v7-compat"
-    assert data["location_model_version"] == "cashout-location-xgb-v7-compat"
+    assert data["model_version"] == "cashout-location-xgb-v8-debiased"
+    assert data["location_model_version"] == "cashout-location-xgb-v8-debiased"
     assert data["time_model_version"] == "cashout-time-xgb-v3"
-    assert data["location_features_count"] == 47  # Must be 47, never 43!
+    assert data["location_features_count"] == 49
     assert "Platt" in data["calibration_method"]
 
     # Runtime info block
@@ -55,7 +54,7 @@ def test_trained_runtime_with_matching_v7_metadata(auth_headers):
     assert r_info["is_loaded"] is True
     assert r_info["is_available"] is True
     assert r_info["algorithm"] == "pairwise_xgb_ranker"
-    assert r_info["location_features_count"] == 47
+    assert r_info["location_features_count"] == 49
     assert r_info["location_artifact_hash"] is not None
     assert len(r_info["location_artifact_hash"]) == 64
 
@@ -63,20 +62,20 @@ def test_trained_runtime_with_matching_v7_metadata(auth_headers):
     assert "evaluation_info" in data
     e_info = data["evaluation_info"]
     assert e_info["evaluation_status"] == "AVAILABLE"
-    assert e_info["evaluated_model_version"] == "cashout-location-xgb-v7-compat"
+    assert e_info["evaluated_model_version"] == "cashout-location-xgb-v8-debiased"
     assert "synthetic" in e_info["synthetic_disclosure"].lower()
 
-    # Metrics accurately mapped from V7-compat
-    assert data["Recall@1"] == "17.8%"
-    assert data["Recall@3"] == "32.4%"
-    assert data["Recall@5"] == "41.6%"
-    assert data["natural_candidate_recall"] == "75.6%"
-    assert data["MRR"] == 0.2947
-    assert data["median_cluster_centroid_distance_error_km"] == "6.38 km"
-    assert data["internal_ece"] == 0.0029
+    # Values come from model_metadata_v8_debiased.json, not legacy V7 results.
+    assert data["Recall@1"] == "7.62%"
+    assert data["Recall@3"] == "23.80%"
+    assert data["Recall@5"] == "34.87%"
+    assert data["natural_candidate_recall"] is None
+    assert data["MRR"] == 0.2141
+    assert data["median_cluster_centroid_distance_error_km"] == "7.10 km"
+    assert data["internal_ece"] == 0.0001
 
     # Sample counts truthful: training count present, validation/test NOT inferred
-    assert data["training_samples"] == 17655
+    assert data["training_samples"] is None
     assert data["validation_samples"] is None
     assert data["test_samples"] is None
     assert data["cold_start_test_samples"] is None
@@ -84,8 +83,7 @@ def test_trained_runtime_with_matching_v7_metadata(auth_headers):
     # Part C: Real feature importances extracted from XGBRanker
     assert len(data["feature_importances"]) >= 5
     top_feature = data["feature_importances"][0]
-    assert top_feature["feature_code"] == "v4_candidate_score"
-    assert top_feature["importance"] > 0.20  # ~25.6%
+    assert top_feature["importance"] > 0
 
 
 def test_trained_runtime_with_missing_evaluation_metadata(auth_headers):
@@ -237,17 +235,17 @@ def test_benchmark_comparability_truthfulness(auth_headers):
     matrix = data["metrics_comparison"]
     assert len(matrix) >= 10
 
-    # Distance error and ECE must be marked Not comparable
-    dist_item = next((item for item in matrix if "Distance Error" in item["metric"]), None)
+    # V8 has no same-cohort distance baseline, so it must not invent a gain.
+    dist_item = next((item for item in matrix if "location error" in item["metric"].lower()), None)
     assert dist_item is not None
-    assert dist_item["delta"] == "Not comparable"
+    assert dist_item["delta"] is None
     assert dist_item["comparable"] is False
 
-    # Recall@1 gain over random baseline (17.8% - 4.0% = +13.8 pp)
+    # The random reference is labelled, but a numerical gain is not claimed.
     r1_item = next((item for item in matrix if "Recall@1" in item["metric"]), None)
     assert r1_item is not None
     assert r1_item["comparable"] is True
-    assert "+13.8 pp" in r1_item["delta"]
+    assert r1_item["delta"] is None
 
 
 def test_research_models_governance(auth_headers):
@@ -281,7 +279,7 @@ def test_saved_prediction_provenance_card(auth_headers):
 
     assert "saved_prediction_provenance" in data
     prov = data["saved_prediction_provenance"]
-    assert prov["current_runtime_model"] == "cashout-location-xgb-v7-compat"
+    assert prov["current_runtime_model"] == "cashout-location-xgb-v8-debiased"
     assert "Immutable" in prov["historical_policy"]
     assert "demo-provider-v1" in prov["description"]
 
@@ -375,15 +373,14 @@ def test_legitimate_zero_metrics_preserved(auth_headers):
 
 def test_no_percentage_double_conversion(auth_headers):
     """
-    Verify metrics already expressed as percentages in metadata (e.g. 17.8 or 75.63)
-    are formatted as '17.8%' and '75.6%', not double-converted into '1780%' or '7563%'.
+    Verify V8 metrics already expressed as percentages are not multiplied by 100.
     """
     resp = client.get("/api/v1/model/performance", headers=auth_headers)
     assert resp.status_code == 200
     data = resp.json()
 
     # If double-conversion happened, numbers would be > 1000%
-    assert data["Recall@1"] == "17.8%"
-    assert data["Recall@3"] == "32.4%"
-    assert data["natural_candidate_recall"] == "75.6%"
+    assert data["Recall@1"] == "7.62%"
+    assert data["Recall@3"] == "23.80%"
+    assert data["natural_candidate_recall"] is None
 

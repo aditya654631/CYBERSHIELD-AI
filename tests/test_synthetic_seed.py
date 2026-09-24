@@ -57,7 +57,9 @@ def test_delhi_geography_coverage_and_coordinates():
             assert 28.40 <= c.center_lat <= 28.88, f"Latitude {c.center_lat} out of Delhi bounds!"
             assert 76.84 <= c.center_lon <= 77.35, f"Longitude {c.center_lon} out of Delhi bounds!"
 
-        atms = db.query(ATMLocation).filter(ATMLocation.state == "Delhi").all()
+        # Count the deterministic dataset only; other suites may register
+        # additional Delhi ATM fixtures in the shared temporary database.
+        atms = db.query(ATMLocation).filter(ATMLocation.atm_code.like("ATM-DL-%")).all()
         assert len(atms) == 240
         for a in atms:
             assert 28.40 <= a.latitude <= 28.88, f"ATM Latitude {a.latitude} out of Delhi bounds!"

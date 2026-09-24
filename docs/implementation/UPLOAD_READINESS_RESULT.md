@@ -1,17 +1,17 @@
 # CyberShield AI — Repository Public Upload Readiness Result
 
 **Document ID:** CYBERSHIELD-UPLOAD-READINESS-PHASE13  
-**Date:** 21 September 2026  
+**Original audit:** 21 September 2026; **revalidated:** 24 September 2026
 **Auditor / Engine:** CyberShield AI Repository Audit Engine  
 **Target Repository:** `CrimeTrace-AI-SIH-main/CyberShield AI`  
-**Classification Manifest:** [`docs/implementation/UPLOAD_MANIFEST.md`](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/docs/implementation/UPLOAD_MANIFEST.md)  
-**Final Status:** `UPLOAD_READY_FOR_SOURCE_REPOSITORY`
+**Classification Manifest:** [UPLOAD_MANIFEST.md](UPLOAD_MANIFEST.md)
+**Current Status:** `SOURCE_PUBLICATION_AUTHORIZED_SANDBOX_ONLY`; production performance gate remains **OPEN**
 
 ---
 
 ## 1. Executive Summary
 
-This audit evaluated the entire CyberShield AI working tree to verify safe public source-code upload readiness. The working tree has been formatted, verified, and configured with narrow `.gitignore` rules to exclude all private credentials, local environments, runtime databases, test artifacts, and execution reports while preserving 100% of functional source code, schema migrations, documentation, test suites, and promoted ML model artifacts.
+The 21 September source-safety audit classified repository files and configured narrow `.gitignore` exclusions. Revalidation on 24 September corrected test database isolation and stale test expectations. Functional tests now pass, but three documented latency gates fail on this host. The repository owner subsequently authorized GitHub source publication and sandbox deployment despite the open performance gate. This authorization does not establish production performance or real-world model validity.
 
 ### Key Assertions & Scope
 - **Zero Secrets / PII:** Source code, configuration templates, and documentation contain zero hardcoded secrets, private keys, live credentials, or personal identification data.
@@ -23,7 +23,7 @@ This audit evaluated the entire CyberShield AI working tree to verify safe publi
 
 ## 2. Verification Commands & Execution Results
 
-All verifications were executed against the active working tree.
+The table below records the original 21 September audit and is retained as historical evidence; it does not supersede the 24 September revalidation immediately below.
 
 | Verification Step | Exact Command Executed | Exit Code | Result Summary |
 |---|---|---|---|
@@ -33,6 +33,40 @@ All verifications were executed against the active working tree.
 | **Targeted Phase 13 Test Suite** | `python -m pytest tests/test_phase13_integrated_workflow.py tests/test_phase13_unhappy_and_recovery.py tests/test_phase13_load_benchmarks.py tests/test_phase10_model_evaluation.py` | `0` | **15 passed** in 23.06s. |
 | **ML Model Artifact Integrity** | `python scripts/phase0_audit.py` (SHA-256 audit) | `0` | All 45 promoted model artifacts in `ml/artifacts/` verified 100% bit-exact against baseline. |
 | **Secret & Credential Scan** | Pattern regex search across tracked source tree | `0` | Zero live tokens, zero RSA/private keys, zero hardcoded cloud secrets. |
+
+### 24 September 2026 revalidation
+
+| Check | Result |
+|---|---|
+| Functional pytest suite (`pytest tests -k "not benchmark"`) | **687 passed, 4 skipped, 5 deselected**, 0 failed in 207.20s. The five deselections include four load benchmarks and one model-comparability test; that model-comparability test passed in its targeted suite. |
+| Full pytest suite (`pytest tests`) | **688 passed, 4 failed, 4 skipped** in 299.24s. Two failures were timing benchmarks and two were subsequently corrected shared-fixture tests. A post-correction complete full-suite run has not yet passed. |
+| Dedicated four-test load benchmark, earlier run | **4 passed** in 75.17s; inference p50 47.39ms and GIS p95 92.51ms. |
+| Dedicated four-test load benchmark, latest run | **2 passed, 2 failed** in 49.10s; ingestion p50 60.59ms against <60ms, inference p50 119.61ms against <80ms. |
+| `git diff --check` | Passed, exit code 0. |
+| `python -m alembic heads` | Passed; one current head, `0022_atm_csp_context`. The original audit's `0019` head was superseded by subsequent migrations. |
+| Frontend `npm run build` | Passed; TypeScript and Vite completed with 2,509 modules transformed. |
+| Public-path scan | Replaced absolute workstation paths in documentation and the prompt generator with relative links or `<repository-root>`; repeat scan found none. |
+| Secret-pattern scan | No matching source file; the sole regex match was this document's literal phrase `BEGIN PRIVATE KEY`, which describes the scan itself. |
+| ML artifact SHA-256 check | **45/45 match** against `scratch/phase0_20260920T134556Z/baseline.json`; no model artifact was edited or retrained. |
+
+### 24 September performance-gate follow-up
+
+The executable benchmark assertions had been looser than the documented Phase 13 budgets. They are now aligned to the existing documented limits (ingestion p50/p95 <50/<120 ms; inference <60/<250 ms; GIS p95 <200 ms). No budget was raised. This is a test-acceptance correction, not an application performance improvement.
+
+`python -m pytest tests/test_phase13_load_benchmarks.py -q -s --tb=short --disable-warnings` on this Windows host, Python 3.13, FastAPI TestClient, and the isolated SQLite database seeded with 3,000 synthetic complaints and 48,823 transfers returned **1 passed, 3 failed** in 64.83 s:
+
+| Benchmark | Measured | Documented budget | Result |
+|---|---:|---:|---|
+| Complaint ingestion, 50 requests | p50 71.28 ms; p95 98.75 ms; 0 HTTP errors | p50 <50 ms; p95 <120 ms | **FAIL** on p50 |
+| Repeated prediction, 25 requests | p50 140.28 ms; p95 171.02 ms; 0 HTTP errors | p50 <60 ms; p95 <250 ms | **FAIL** on p50 |
+| Concurrent GIS, 24 requests / 4 workers | p95 240.60 ms; 0 HTTP errors | p95 <200 ms | **FAIL** on p95 |
+| Outbox drain, 60 events | 45.4 events/s; 60/60 processed | >=20 events/s | **PASS** |
+
+These TestClient/SQLite timings are not a production PostgreSQL capacity claim. A preliminary cProfile run of the 26-call repeated-prediction path found repeated graph and feature construction; a causal optimization and before/after benchmark are still pending. The corrected isolated test database changes the benchmark setup, so the original Phase 13 low-latency results must not be treated as comparable to this run. The Phase 13-required production-like PostgreSQL benchmark remains pending: Docker Desktop's Linux engine was unavailable (`docker info` could not connect), and no local PostgreSQL service or CLI was found. The production performance gate stays **OPEN**.
+
+After the owner authorized sandbox publication, the auth bootstrap was hardened so production startup does not create demo users and subsequent demo startup does not reset an existing officer's password or reactivate that officer. The targeted bootstrap/environment/API tests passed **20/20**. A fresh functional run passed **689**, skipped **4**, deselected **5**; the separately run model-comparability test passed **1/1**. Frontend `npm run build` passed, the single Alembic head is `0022_atm_csp_context`, and all **45/45** artifact SHA-256 hashes matched. These checks do not close the performance gate.
+
+A subsequent full `python -m pytest tests -q --tb=short --disable-warnings` run returned **692 passed, 4 skipped, 2 failed** in 184.08 s. In that run ingestion p50 was 52.30 ms against <50 ms and GIS p95 was 342.68 ms against <200 ms; inference and outbox passed. Inference failed in the dedicated run above, confirming substantial run-to-run variation. Functional regressions outside the latency gates were not observed.
 
 ---
 
@@ -131,9 +165,9 @@ The following files and paths are present on disk for local execution and develo
 
 ## 7. Remaining Blockers & Warnings
 
-- **Blockers:** `0` (None).
-- **Warnings:** `0` (None).
-- **Git Stage Status:** Working directory is unstaged. No automatic staging, committing, or pushing was executed.
+- **Production blockers:** Repeatable performance acceptance is pending. Dedicated and full-suite latency results differ materially on this host; changing thresholds merely to obtain a green run would misstate measured performance.
+- **Warnings:** Load-benchmark timing still needs a controlled runner and repeated passing measurements before the performance gate can close.
+- **Git Stage Status:** Fifteen `scratch/` files have index-only staged removals as part of upload sanitation; their local copies remain intact. No commit, push, or upload was executed.
 
 ---
 
@@ -141,8 +175,9 @@ The following files and paths are present on disk for local execution and develo
 
 ```
 ================================================================================
-FINAL STATUS: UPLOAD_READY_FOR_SOURCE_REPOSITORY
+CURRENT STATUS: SOURCE_PUBLICATION_AUTHORIZED_SANDBOX_ONLY
+PRODUCTION PERFORMANCE GATE: OPEN (2-3 OF 4 BENCHMARKS FAIL ACROSS RECENT RUNS)
 ================================================================================
 ```
 
-The CyberShield AI repository is fully prepared, sanitized, and safe for public GitHub source-code upload.
+Source publication and sandbox deployment were explicitly requested by the repository owner after this revalidation. Do not describe that publication as a production readiness approval. Record the final Git revision and deployment verification separately after publication.

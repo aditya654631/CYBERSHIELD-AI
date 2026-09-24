@@ -59,3 +59,5 @@ scratch/
 tmp/
 reports/
 backend/storage/
+.codex-build/
+deliverables/

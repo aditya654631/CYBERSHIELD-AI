@@ -29,7 +29,7 @@ from backend.app.services.outbox_service import outbox_service
 def auth_tokens():
     return {
         "admin": {"Authorization": f"Bearer {create_access_token({'sub': 'admin@cybershield.gov.in', 'role': 'I4C_ADMIN'})}"},
-        "delhi_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'officer@delhipolice.gov.in', 'role': 'DISTRICT_LEA'})}"},
+        "delhi_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'state.lea@delhi.cyber.gov.in', 'role': 'STATE_LEA'})}"},
     }
 
 
@@ -115,8 +115,8 @@ def test_burst_complaint_ingestion_benchmark(client: TestClient, auth_tokens):
     # Assert acceptance budgets
     assert errors == 0, f"Burst ingestion encountered {errors} errors"
     assert error_rate == 0.0
-    assert p50 < 60.0, f"p50 exceeded budget: {p50:.2f}ms >= 60ms"
-    assert p95 < 150.0, f"p95 exceeded budget: {p95:.2f}ms >= 150ms"
+    assert p50 < 50.0, f"p50 exceeded budget: {p50:.2f}ms >= 50ms"
+    assert p95 < 120.0, f"p95 exceeded budget: {p95:.2f}ms >= 120ms"
 
 
 # =============================================================================
@@ -191,8 +191,8 @@ def test_prediction_inference_repeated_benchmark(client: TestClient, auth_tokens
     print(f"  Errors:      {errors}")
 
     assert errors == 0
-    assert p50 < 80.0, f"p50 exceeded budget: {p50:.2f}ms >= 80ms"
-    assert p95 < 300.0, f"p95 exceeded budget: {p95:.2f}ms >= 300ms"
+    assert p50 < 60.0, f"p50 exceeded budget: {p50:.2f}ms >= 60ms"
+    assert p95 < 250.0, f"p95 exceeded budget: {p95:.2f}ms >= 250ms"
 
 
 # =============================================================================
@@ -253,7 +253,7 @@ def test_gis_risk_map_concurrent_queries_benchmark(client: TestClient, auth_toke
     print(f"  Errors:      {errors}")
 
     assert errors == 0
-    assert p95 < 250.0, f"GIS concurrent p95 exceeded budget: {p95:.2f}ms >= 250ms"
+    assert p95 < 200.0, f"GIS concurrent p95 exceeded budget: {p95:.2f}ms >= 200ms"
 
 
 # =============================================================================

@@ -12,6 +12,13 @@ htmlcov/
 .git/
 .gitignore
 .env
+.env.*
+frontend/.env*
+backend/storage/
+reports/
+tmp/
+*.db
+*.sqlite3
 scratch/
 frontend/node_modules/
 frontend/dist/

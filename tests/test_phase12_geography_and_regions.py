@@ -7,6 +7,7 @@ Prediction Refusal on Unvalidated Regions, and Strict Parity for Delhi.
 import pytest
 from fastapi.testclient import TestClient
 from backend.app.main import app
+from backend.app.auth.security import create_access_token
 from backend.app.models import models
 from backend.app.services.geography_catalog_service import (
     GeographyCatalogValidator,
@@ -15,7 +16,7 @@ from backend.app.services.geography_catalog_service import (
     get_region_by_id,
 )
 from ml.evaluation.second_region_readiness import evaluate_region_readiness
-from tests.conftest import TestingSessionLocal
+from conftest import TestingSessionLocal
 
 
 @pytest.fixture
@@ -32,13 +33,11 @@ def auth_headers(client):
 
 @pytest.fixture
 def delhi_lea_headers(client):
-    """Delhi LEA officer credentials."""
-    login_res = client.post(
-        "/api/v1/auth/login",
-        json={"email": "officer@delhipolice.gov.in", "password": "officer123"}
-    )
-    assert login_res.status_code == 200, f"Login failed: {login_res.text}"
-    token = login_res.json()["access_token"]
+    """Authenticated canonical Delhi State LEA identity for the RBAC contract."""
+    # Login behavior is covered by the authentication suite.  This geography
+    # authorization test uses a token so it cannot depend on password-hash
+    # mutations made by unrelated tests sharing the session database.
+    token = create_access_token({"sub": "state.lea@delhi.cyber.gov.in", "role": "STATE_LEA"})
     return {"Authorization": f"Bearer {token}"}
 
 
@@ -62,7 +61,7 @@ def test_geography_regions_list(client, auth_headers):
     assert delhi["state"] == "Delhi"
     assert delhi["data_completeness_status"] == "COMPLETE"
     assert delhi["model_support_status"] == "MODEL_SUPPORTED"
-    assert delhi["supported_model_version"] == "cashout-location-xgb-v7-compat"
+    assert delhi["supported_model_version"] == "cashout-location-xgb-v8-debiased"
     assert delhi["is_synthetic"] is False
     assert delhi["total_clusters"] == 60
     assert delhi["total_atms"] in (120, 240)
@@ -111,7 +110,7 @@ def test_delhi_prediction_parity(client, auth_headers):
     assert pred["complaint_number"] == "CMP-NEW-000002"
     assert pred["status"] in ("AVAILABLE", "SUCCESS")
     assert pred["prediction_mode"] == "trained_ml"
-    assert pred["model_version"] == "cashout-location-xgb-v7-compat"
+    assert pred["model_version"] == "cashout-location-xgb-v8-debiased"
     assert len(pred["top_locations"]) == 3
     assert pred["top_locations"][0]["rank"] == 1
     assert pred["top_locations"][0]["probability"] > 0.0

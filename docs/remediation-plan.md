@@ -1221,7 +1221,7 @@ Inspection of the existing `CytoscapeNetwork.tsx` and `TransactionNetwork.tsx` r
 4. **Label Collision & Ambiguity**: Node display labels were hardcoded to identical strings like "Beneficiary Account" without secondary masked account identifiers, rendering distinct accounts visually indistinguishable. Furthermore, edge labels lacked bounding constraints, colliding with adjacent edges.
 
 #### 2. Layout Algorithm and Dependency Choice
-Rather than introducing heavy third-party layout plugins (e.g., `cytoscape-dagre` or `cytoscape-klay`) that introduce version skew and bundle bloat, we implemented a custom, pure TypeScript Sugiyama-style layered directed layout engine ([frontend/src/graphs/layeredLayout.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/layeredLayout.ts)):
+Rather than introducing heavy third-party layout plugins (e.g., `cytoscape-dagre` or `cytoscape-klay`) that introduce version skew and bundle bloat, we implemented a custom, pure TypeScript Sugiyama-style layered directed layout engine ([frontend/src/graphs/layeredLayout.ts](../frontend/src/graphs/layeredLayout.ts)):
 - **Zero External Dependencies**: Implemented in 180 lines of pure TypeScript, eliminating third-party npm package vulnerabilities.
 - **Topological Flow Direction**:
   $$\text{Victim / Source (Layer 0)} \longrightarrow \text{Intermediaries (Layer 1)} \longrightarrow \text{Mule Beneficiaries (Layer 2)} \longrightarrow \text{Cash-Out Endpoints (Layer 3)}$$
@@ -1241,7 +1241,7 @@ Rather than introducing heavy third-party layout plugins (e.g., `cytoscape-dagre
   - **Expanded Workspace / Fullscreen**: Toggles viewport into `fixed inset-0 z-50` full-window presentation with explicit Exit control.
 
 #### 4. Visual Hierarchy & Accessible Presentation
-- **Multi-Line Labels ([frontend/src/graphs/graphUtils.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/graphUtils.ts))**: Combines primary role name with masked account/terminal ID on line two (e.g., `Beneficiary Account\nACC••••8129`).
+- **Multi-Line Labels ([frontend/src/graphs/graphUtils.ts](../frontend/src/graphs/graphUtils.ts))**: Combines primary role name with masked account/terminal ID on line two (e.g., `Beneficiary Account\nACC••••8129`).
 - **Bounded Edge Widths**: Logarithmic scaling from $2.0\text{px}$ (at $\le \text{₹}1,000$) to $5.5\text{px}$ (at $\ge \text{₹}1,000,000$).
 - **Role Differentiation**:
   - *Victim Source*: Sky blue ellipse with dark blue outline.
@@ -1254,7 +1254,7 @@ Rather than introducing heavy third-party layout plugins (e.g., `cytoscape-dagre
 - **Neutral Language**: Graph indicators reflect bank transfer telemetry only; neutral disclaimers reinforce that network indicators prioritize operational review and do not establish legal guilt.
 
 #### 5. Verification Fixture Coverage
-Ten comprehensive fixtures were defined in [frontend/src/graphs/layoutFixtures.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/layoutFixtures.ts):
+Ten comprehensive fixtures were defined in [frontend/src/graphs/layoutFixtures.ts](../frontend/src/graphs/layoutFixtures.ts):
 1. **Single Direct Transfer**: 2 nodes, 1 edge (direct victim to beneficiary transfer).
 2. **Branched Multi-Hop Flow**: 7 nodes, 6 edges (1 source branching into 2 intermediaries, fanning out into 4 mules).
 3. **Merging Paths**: 3 nodes, 2 edges (2 independent sources merging into a single funnel collector).
@@ -1307,15 +1307,15 @@ Ten comprehensive fixtures were defined in [frontend/src/graphs/layoutFixtures.t
      - Scroll to the "Accessible Entity Directory" and verify keyboard navigation across rows.
 
 #### 8. Files Changed in Phase 6
-- [frontend/src/graphs/layeredLayout.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/layeredLayout.ts) (New): Pure TypeScript Sugiyama-style layered directed layout engine.
-- [frontend/src/graphs/graphUtils.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/graphUtils.ts) (New): Neutral label formatting and bounded edge width utilities.
-- [frontend/src/graphs/layoutFixtures.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/layoutFixtures.ts) (New): 10 topological verification fixtures.
-- [frontend/src/graphs/verifyLayout.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/verifyLayout.ts) (New): Node/tsx layout verification runner.
-- [frontend/src/graphs/CytoscapeNetwork.tsx](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/graphs/CytoscapeNetwork.tsx): Cytoscape canvas integration, ResizeObserver, bounded initial zoom, accessible toolbar.
-- [frontend/src/pages/TransactionNetwork.tsx](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/pages/TransactionNetwork.tsx): Graph-first full width, removal of initial auto-selection, collapsible side panel, honest states, accessible directory table.
-- [frontend/src/types/index.ts](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/frontend/src/types/index.ts): Made `is_hotspot?: boolean` optional in `CytoscapeNodeData`.
-- [tests/test_phase6_graph_contracts.py](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/tests/test_phase6_graph_contracts.py) (New): 6 hermetic tests verifying graph contract, invariants, and permissions.
-- [docs/remediation-plan.md](file:///c:/Users/adity/Downloads/CrimeTrace-AI-SIH-main/CyberShield%20AI/docs/remediation-plan.md): Recorded Phase 5 limitations and complete Phase 6 implementation report.
+- [frontend/src/graphs/layeredLayout.ts](../frontend/src/graphs/layeredLayout.ts) (New): Pure TypeScript Sugiyama-style layered directed layout engine.
+- [frontend/src/graphs/graphUtils.ts](../frontend/src/graphs/graphUtils.ts) (New): Neutral label formatting and bounded edge width utilities.
+- [frontend/src/graphs/layoutFixtures.ts](../frontend/src/graphs/layoutFixtures.ts) (New): 10 topological verification fixtures.
+- [frontend/src/graphs/verifyLayout.ts](../frontend/src/graphs/verifyLayout.ts) (New): Node/tsx layout verification runner.
+- [frontend/src/graphs/CytoscapeNetwork.tsx](../frontend/src/graphs/CytoscapeNetwork.tsx): Cytoscape canvas integration, ResizeObserver, bounded initial zoom, accessible toolbar.
+- [frontend/src/pages/TransactionNetwork.tsx](../frontend/src/pages/TransactionNetwork.tsx): Graph-first full width, removal of initial auto-selection, collapsible side panel, honest states, accessible directory table.
+- [frontend/src/types/index.ts](../frontend/src/types/index.ts): Made `is_hotspot?: boolean` optional in `CytoscapeNodeData`.
+- [tests/test_phase6_graph_contracts.py](../tests/test_phase6_graph_contracts.py) (New): 6 hermetic tests verifying graph contract, invariants, and permissions.
+- [docs/remediation-plan.md](../docs/remediation-plan.md): Recorded Phase 5 limitations and complete Phase 6 implementation report.
 
 #### 9. Phase 7 Scope Boundary
 Phase 6 is strictly complete. The following features are reserved for Phase 7 and have **not** been implemented:

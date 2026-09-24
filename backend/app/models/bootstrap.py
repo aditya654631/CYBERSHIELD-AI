@@ -25,7 +25,7 @@ def ensure_delhi_auth_users(engine):
     """
     from sqlalchemy.orm import Session
     from backend.app.models.models import Organization, User
-    from backend.app.auth.security import get_password_hash, verify_password
+    from backend.app.auth.security import get_password_hash
     from backend.app.services.geography_catalog_service import ensure_default_regions_and_catalogs
 
     with Session(engine) as db:
@@ -83,11 +83,8 @@ def ensure_delhi_auth_users(engine):
             )
             db.add(state_lea)
         else:
-            state_lea.is_active = True
             state_lea.organization_id = delhi_nct.id
             state_lea.role = "STATE_LEA"
-            if not verify_password("StateLea@2026", state_lea.hashed_password):
-                state_lea.hashed_password = get_password_hash("StateLea@2026")
 
         dist_lea = db.query(User).filter(User.email == "district.lea@southdelhi.cyber.gov.in").first()
         if not dist_lea:
@@ -102,11 +99,8 @@ def ensure_delhi_auth_users(engine):
             )
             db.add(dist_lea)
         else:
-            dist_lea.is_active = True
             dist_lea.organization_id = south_delhi.id
             dist_lea.role = "DISTRICT_LEA"
-            if not verify_password("DistrictLea@2026", dist_lea.hashed_password):
-                dist_lea.hashed_password = get_password_hash("DistrictLea@2026")
 
         # 3. Deactivate legacy MP/Indore users
         legacy_emails = ["state.lea@mp.police.gov.in", "district.lea@indore.police.gov.in"]
@@ -118,7 +112,7 @@ def ensure_delhi_auth_users(engine):
         db.commit()
 
 
-def ensure_prototype_schema(engine):
+def ensure_prototype_schema(engine, *, include_demo_users: bool = True):
     added = []
     with engine.begin() as connection:
         if connection.dialect.name == "postgresql":
@@ -137,9 +131,10 @@ def ensure_prototype_schema(engine):
                 ddl = str(CreateColumn(column).compile(dialect=connection.dialect))
                 connection.execute(text(f"ALTER TABLE {preparer.quote(table_name)} ADD COLUMN {ddl}"))
                 added.append(f"{table_name}.{name}")
-    try:
-        ensure_delhi_auth_users(engine)
-    except Exception as e:
-        print(f"[Bootstrap] Warning: Delhi auth initialization warning: {e}")
+    if include_demo_users:
+        try:
+            ensure_delhi_auth_users(engine)
+        except Exception as e:
+            print(f"[Bootstrap] Warning: Delhi auth initialization warning: {e}")
     return added
 

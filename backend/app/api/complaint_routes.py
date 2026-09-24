@@ -642,8 +642,9 @@ def create_complaint(
         if org_region and resolved_region_id and org_region != resolved_region_id:
             raise HTTPException(status_code=403, detail="Officer organization scope is outside the target region")
 
-    # Controlled Pilot Enforcement: Delhi Pilot environment operates in Controlled Synthetic Demo Mode
-    is_demo = True if (data.demo_mode is True or resolved_region_id == "delhi" or getattr(settings, "PILOT_MODE", True)) else bool(data.demo_mode)
+    # Provenance comes from the submitted record. A Delhi location is a supported
+    # pilot geography; it must not silently turn an officer-entered case into demo data.
+    is_demo = bool(data.demo_mode)
     assigned_provenance = "CONTROLLED_SYNTHETIC_DEMO" if is_demo else "DIRECT_OFFICER_INPUT"
 
     # Atomic Registration Block (Rollback on any step failure)

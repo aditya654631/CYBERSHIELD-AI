@@ -24,7 +24,7 @@ from sqlalchemy.orm import Session
 
 from backend.app.auth.security import create_access_token
 from backend.app.models.models import (
-    Complaint, Prediction, PredictionLocation, PredictionSnapshot, LocationCluster, User, Organization, Alert, Transaction
+    Complaint, Prediction, PredictionLocation, PredictionSnapshot, LocationCluster, User, Organization, Alert, Transaction, InterventionPlan
 )
 
 
@@ -33,6 +33,8 @@ def _clean_test_predictions(db_session: Session, pred_ids):
         return
     db_session.query(Transaction).filter(Transaction.prediction_id.in_(pred_ids)).update({Transaction.prediction_id: None}, synchronize_session=False)
     db_session.query(Alert).filter(Alert.prediction_id.in_(pred_ids)).update({Alert.prediction_id: None}, synchronize_session=False)
+    db_session.query(InterventionPlan).filter(InterventionPlan.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
+    db_session.query(Prediction).filter(Prediction.parent_prediction_id.in_(pred_ids)).update({Prediction.parent_prediction_id: None}, synchronize_session=False)
     db_session.query(PredictionLocation).filter(PredictionLocation.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
     db_session.query(PredictionSnapshot).filter(PredictionSnapshot.prediction_id.in_(pred_ids)).delete(synchronize_session=False)
     db_session.query(Prediction).filter(Prediction.id.in_(pred_ids)).delete(synchronize_session=False)
@@ -832,8 +834,18 @@ def test_authorized_versus_unauthorized_case_visibility(db_session: Session, cli
     now = datetime.utcnow()
     ts = int(time.time())
 
-    # Create an Indore user (Madhya Pradesh)
-    indore_headers = _make_auth_header("district.lea@indore.police.gov.in", "DISTRICT_LEA")
+    # Create an active Indore actor for this test instead of relying on demo users.
+    indore_email = f"phase3.indore.{time.time_ns()}@cybershield.test"
+    db_session.add(User(
+        email=indore_email,
+        hashed_password="test-only-token-authenticated-user",
+        full_name="Phase 3 Indore Officer",
+        role="DISTRICT_LEA",
+        organization_id=3,
+        is_active=True,
+    ))
+    db_session.commit()
+    indore_headers = _make_auth_header(indore_email, "DISTRICT_LEA")
 
     # Create Delhi complaint in Cluster 16
     comp_delhi = Complaint(

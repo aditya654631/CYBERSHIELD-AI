@@ -9,7 +9,7 @@ Dependencies: None.
 PS mapping: PS-01–25: evidence baseline.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -57,7 +57,7 @@ Dependencies: 00.
 PS mapping: PS-03–07, PS-15; reliability foundation.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -105,7 +105,7 @@ Dependencies: 01.
 PS mapping: PS-06, PS-08, PS-09.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -154,7 +154,7 @@ Dependencies: 01,02.
 PS mapping: PS-15, PS-20, PS-21.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -202,7 +202,7 @@ Dependencies: 02,03.
 PS mapping: PS-10–14.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -249,7 +249,7 @@ Dependencies: 02,03,04.
 PS mapping: PS-08, PS-16, PS-19, PS-20.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -297,7 +297,7 @@ Dependencies: 02,03,05.
 PS mapping: PS-17, PS-18.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -344,7 +344,7 @@ Dependencies: 03,05,06.
 PS mapping: PS-20–22.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -391,7 +391,7 @@ Dependencies: 03,05,07.
 PS mapping: PS-22, PS-23.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -439,7 +439,7 @@ Dependencies: 02,05,06,08.
 PS mapping: PS-24, PS-25.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -487,7 +487,7 @@ Dependencies: 01,02,09.
 PS mapping: PS-03–07, PS-25.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -535,7 +535,7 @@ Dependencies: 02,10.
 PS mapping: Optional timing/LIME quality supporting PS-17, PS-25.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -583,7 +583,7 @@ Dependencies: 03,04,07,10.
 PS mapping: PS-07, PS-12, PS-21; national context.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 
@@ -631,7 +631,7 @@ Dependencies: 00–12 local gates; external gates explicitly tracked.
 PS mapping: PS-01–25.
 
 You are implementing one bounded phase in the existing CyberShield AI repository:
-`C:\Users\adity\Downloads\CrimeTrace-AI-SIH-main\CyberShield AI`.
+`<repository-root>`.
 
 Read applicable AGENTS.md, `docs/phase0/AUDIT_REPORT.md`, `docs/phase0/PS_TRACEABILITY.md`, and the preceding phase handoff before editing. Inspect current code: paths below are starting points, not permission to overwrite newer work. Preserve user changes and working functionality. Reuse FastAPI/SQLAlchemy/Alembic and React/TypeScript; do not replace the stack or redesign unrelated screens.
 

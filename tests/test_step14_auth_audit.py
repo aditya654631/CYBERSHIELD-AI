@@ -185,7 +185,8 @@ def test_complaint_creation_ignores_body_spoofed_officer(db):
 
     assert audit is not None
     # Authoritative identity must match token, NOT spoofed payload
-    assert audit.user_id == 13
+    actor = db.query(User).filter_by(email="district.lea@southdelhi.cyber.gov.in").one()
+    assert audit.user_id == actor.id
     assert audit.officer_name == "Inspector Amit Sharma"
     assert audit.role == "DISTRICT_LEA"
     assert "Ghost Hacker" not in audit.officer_name
@@ -208,7 +209,8 @@ def test_prediction_run_records_authenticated_officer_in_audit(db):
     ).order_by(AuditLog.id.desc()).first()
 
     assert audit is not None
-    assert audit.user_id == 12  # DCP Rajesh Kumar, IPS
+    actor = db.query(User).filter_by(email="state.lea@delhi.cyber.gov.in").one()
+    assert audit.user_id == actor.id
     assert audit.officer_name == "DCP Rajesh Kumar, IPS"
     assert audit.role == "STATE_LEA"
 
@@ -417,7 +419,8 @@ def test_alert_escalation_records_authenticated_officer(db):
     ).order_by(AuditLog.id.desc()).first()
 
     assert audit is not None
-    assert audit.user_id == 12
+    actor = db.query(User).filter_by(email="state.lea@delhi.cyber.gov.in").one()
+    assert audit.user_id == actor.id
     assert audit.officer_name == "DCP Rajesh Kumar, IPS"
     assert audit.role == "STATE_LEA"
 

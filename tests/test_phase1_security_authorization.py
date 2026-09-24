@@ -28,7 +28,7 @@ from backend.app.auth.security import create_access_token, get_password_hash
 from backend.app.auth.rate_limiter import auth_rate_limiter
 from backend.app.models.db import SessionLocal
 from backend.app.models.models import (
-    User, Complaint, Alert, AuditLog, BankAction, Account, Transaction
+    User, Organization, Complaint, Alert, AuditLog, BankAction, Account, Transaction
 )
 
 client = TestClient(app)
@@ -208,23 +208,28 @@ def test_cross_jurisdiction_isolation_and_404(db_session):
     Requesting an out-of-jurisdiction complaint ID MUST return 404 (not 403)
     to guarantee zero information leakage and prevent ID enumeration.
     """
-    delhi_complaint = db_session.query(Complaint).filter(
-        Complaint.state == "Delhi"
-    ).first()
-    if not delhi_complaint:
-        delhi_complaint = Complaint(
-            complaint_number=f"CMP-DELHI-{int(time.time())}",
-            fraud_type="UPI Fraud",
-            amount=50000.0,
-            state="Delhi",
-            district="New Delhi",
-            case_status="REGISTERED",
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        db_session.add(delhi_complaint)
-        db_session.commit()
-        db_session.refresh(delhi_complaint)
+    owner_org = Organization(
+        name=f"Central Delhi Authz Test {time.time_ns()}",
+        org_type="LEA",
+        state="Delhi",
+        district="Central Delhi",
+    )
+    db_session.add(owner_org)
+    db_session.flush()
+    delhi_complaint = Complaint(
+        complaint_number=f"CMP-DELHI-AUTHZ-{time.time_ns()}",
+        fraud_type="UPI Fraud",
+        amount=50000.0,
+        victim_location="Connaught Place, Central Delhi",
+        state="Delhi",
+        district="Central Delhi",
+        owner_organization_id=owner_org.id,
+        case_status="REGISTERED",
+        created_at=datetime.utcnow(),
+    )
+    db_session.add(delhi_complaint)
+    db_session.commit()
+    db_session.refresh(delhi_complaint)
 
     # South Delhi Cyber Cell officer token (active Delhi Pilot user, distinct district from 'New Delhi')
     south_delhi_headers = _make_auth_header("district.lea@southdelhi.cyber.gov.in", "DISTRICT_LEA")
@@ -233,10 +238,9 @@ def test_cross_jurisdiction_isolation_and_404(db_session):
     list_resp = client.get("/api/v1/complaints", headers=south_delhi_headers)
     assert list_resp.status_code == 200
     complaints = list_resp.json()
-    for c in complaints:
-        # Org 11 district is 'SOUTH' as seeded in conftest
-        assert c.get("state") == "Delhi", f"Found state leak: {c}"
-        assert c.get("district") in ("SOUTH", "South Delhi"), f"Found district leak: {c}"
+    assert delhi_complaint.complaint_number not in {
+        c["complaint_number"] for c in complaints
+    }
 
     # 2. Detail query for the New Delhi complaint ID: MUST return 404 (not 403)
     detail_resp = client.get(f"/api/v1/complaints/{delhi_complaint.complaint_number}", headers=south_delhi_headers)

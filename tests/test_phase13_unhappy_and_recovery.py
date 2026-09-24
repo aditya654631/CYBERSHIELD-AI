@@ -34,11 +34,24 @@ from backend.app.adapters.bank_adapter import (
 
 
 @pytest.fixture
-def auth_tokens():
+def auth_tokens(db_session: Session):
+    indore_email = "phase13.fault.indore@cybershield.test"
+    indore_user = db_session.query(User).filter_by(email=indore_email).first()
+    if indore_user is None:
+        indore_user = User(
+            email=indore_email,
+            hashed_password="test-only-token-authenticated-user",
+            full_name="Phase 13 Fault Test Indore Officer",
+            role="DISTRICT_LEA",
+            organization_id=3,
+            is_active=True,
+        )
+        db_session.add(indore_user)
+        db_session.commit()
     return {
         "admin": {"Authorization": f"Bearer {create_access_token({'sub': 'admin@cybershield.gov.in', 'role': 'I4C_ADMIN'})}"},
-        "delhi_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'officer@delhipolice.gov.in', 'role': 'DISTRICT_LEA'})}"},
-        "indore_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'district.lea@indore.police.gov.in', 'role': 'DISTRICT_LEA'})}"},
+        "delhi_lea": {"Authorization": f"Bearer {create_access_token({'sub': 'state.lea@delhi.cyber.gov.in', 'role': 'STATE_LEA'})}"},
+        "indore_lea": {"Authorization": f"Bearer {create_access_token({'sub': indore_email, 'role': 'DISTRICT_LEA'})}"},
         "bank_officer": {"Authorization": f"Bearer {create_access_token({'sub': 'officer@sbi.co.in', 'role': 'BANK_OFFICER'})}"},
         "auditor": {"Authorization": f"Bearer {create_access_token({'sub': 'auditor@mha.gov.in', 'role': 'AUDITOR'})}"},
     }
@@ -124,7 +137,10 @@ def test_outbox_stale_lease_recovery_and_backoff(db_session: Session):
     db_session.commit()
 
     # Recovery worker claims pending events
-    claimed = outbox_service.claim_pending_events(db_session, worker_id=recovery_worker, limit=10)
+    # The session-wide test database can contain earlier alert events.  Claim a
+    # complete local batch so this test verifies stale-lease recovery itself,
+    # rather than relying on its event being among the ten oldest rows.
+    claimed = outbox_service.claim_pending_events(db_session, worker_id=recovery_worker, limit=100)
     claimed_ids = [item.id for item in claimed]
     assert ev.id in claimed_ids
 
@@ -310,15 +326,28 @@ def test_bank_callback_forgery_replay_and_spoofing(client: TestClient, db_sessio
 # 4. Cross-State Handoff Fault Boundaries
 # =============================================================================
 
-def test_cross_state_handoff_fault_rules(client: TestClient, db_session: Session, auth_tokens, registered_delhi_case):
+def test_cross_state_handoff_fault_rules(client: TestClient, db_session: Session, auth_tokens):
     """
     Verifies:
     - Origin officer cannot accept its own handoff (403).
     - Destination officer cannot cancel an initiated handoff (403).
     - Expired acknowledgement window results in refusal (EXPIRED).
     """
-    case_id = registered_delhi_case["id"]
-    delhi_user = db_session.query(User).filter_by(id=7).first()  # Delhi LEA
+    delhi_user = db_session.query(User).filter_by(email="state.lea@delhi.cyber.gov.in").one()
+    case = Complaint(
+        complaint_number=f"CMP-P13-HANDOFF-{uuid.uuid4().hex[:10].upper()}",
+        fraud_type="UPI Fraud",
+        amount=75000.0,
+        victim_location="Connaught Place, Central Delhi",
+        state="Delhi",
+        district="Central Delhi",
+        owner_organization_id=delhi_user.organization_id,
+        owner_user_id=delhi_user.id,
+        case_status="REGISTERED",
+    )
+    db_session.add(case)
+    db_session.commit()
+    case_id = case.id
     handoff = request_case_handoff(
         db=db_session,
         complaint_id=case_id,

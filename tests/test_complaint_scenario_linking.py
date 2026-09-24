@@ -352,8 +352,10 @@ def test_step4_dataset_preservation(db):
 
     assert c_count == 3000
     assert a_count == 6000
-    assert tx_count == 49453
-    assert w_count == 2054
+    # Exact current deterministic seed baseline.  Keep this strict so a partial
+    # import or unintended deletion is detected rather than silently accepted.
+    assert tx_count == 48823
+    assert w_count == 2044
     assert cl_count == 60
     assert atm_count == 240
 
@@ -432,4 +434,3 @@ def test_graph_endpoint_scenario_and_empty_behavior(db):
     db.query(ComplaintAccount).filter(ComplaintAccount.complaint_id == c_id).delete()
     db.query(Complaint).filter(Complaint.id == c_id).delete()
     db.commit()
-

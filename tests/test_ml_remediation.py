@@ -33,6 +33,7 @@ def test_v2_artifacts_exist_and_loadable():
     assert provider.calibrator is not None
     assert provider.metadata is not None
     assert provider.metadata.get("model_version") in [
+        "cashout-location-xgb-v8-debiased",
         "cashout-location-xgb-v7-compat",
         "cashout-location-xgb-v4",
         "cashout-location-xgb-v3.1",
@@ -99,7 +100,7 @@ def test_prediction_service_v2_inference():
         pred = service.run_prediction(db, complaint.id)
 
         assert pred.prediction_mode == "trained_ml"
-        assert pred.model_version in ["cashout-location-xgb-v7-compat", "cashout-location-xgb-v4", "cashout-location-xgb-v3.1", "cashout-location-xgb-v2"]
+        assert pred.model_version in ["cashout-location-xgb-v8-debiased", "cashout-location-xgb-v7-compat", "cashout-location-xgb-v4", "cashout-location-xgb-v3.1", "cashout-location-xgb-v2"]
         assert 0.0 <= pred.risk_score <= 1.0
         assert len(pred.locations) == 3
         for loc in pred.locations:
@@ -133,6 +134,7 @@ def test_model_performance_api_v2_metrics():
 
     assert data["prediction_mode"] == "trained_ml"
     assert data["model_version"] in [
+        "cashout-location-xgb-v8-debiased",
         "cashout-location-xgb-v7-compat",
         "cashout-location-xgb-v4",
         "cashout-location-xgb-v3.1",

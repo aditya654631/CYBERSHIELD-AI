@@ -13,8 +13,6 @@ import os
 import sys
 import tempfile
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from fastapi.testclient import TestClient
 
 # Ensure root is on path
@@ -25,6 +23,12 @@ if BASE_DIR not in sys.path:
 # Force test environment before application imports
 os.environ["ENVIRONMENT"] = "test"
 os.environ["AUTO_SEED_DEMO_DATA"] = "false"
+# Set the temporary URL before importing any application module. main.py keeps
+# import-time references to engine/SessionLocal; replacing db_mod afterwards
+# leaves those references connected to a different database.
+_temp_dir = tempfile.mkdtemp(prefix="cybershield_test_")
+_test_db_path = os.path.join(_temp_dir, "isolated_test.db")
+os.environ["DATABASE_URL"] = f"sqlite:///{_test_db_path}"
 
 from backend.app.config.settings import settings
 import backend.app.models.db as db_mod
@@ -34,29 +38,21 @@ import datetime
 from backend.app.main import app
 from backend.app.auth.security import get_password_hash, create_access_token
 
-# Guardrail: Override database url for test session
-db_url = str(settings.DATABASE_URL).lower()
-if any(k in db_url for k in ["neon.tech", "prod", "railway.app"]) and os.environ.get("FORCE_LIVE_DB") != "1":
-    settings.DATABASE_URL = "sqlite:///:memory:"
+test_engine = db_mod.engine
+TestingSessionLocal = db_mod.SessionLocal
+assert str(settings.DATABASE_URL) == os.environ["DATABASE_URL"]
+assert str(test_engine.url) == os.environ["DATABASE_URL"]
 
-# Create temporary database file for test session at conftest import time
-_temp_dir = tempfile.mkdtemp(prefix="cybershield_test_")
-_test_db_path = os.path.join(_temp_dir, "isolated_test.db")
-test_engine = create_engine(
-    f"sqlite:///{_test_db_path}",
-    connect_args={"check_same_thread": False}
-)
 
-from sqlalchemy import event
-@event.listens_for(test_engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
+def _isolated_get_db():
+    """FastAPI dependency bound to this test session's isolated SQLite DB."""
+    session = TestingSessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
-
-# Intercept engine and SessionLocal immediately so any test file importing them gets test_engine
+# All imports now point to the same temporary test database.
 _original_session_local = db_mod.SessionLocal
 _original_engine = db_mod.engine
 db_mod.SessionLocal = TestingSessionLocal
@@ -90,6 +86,53 @@ def reset_rate_limiter_fixture():
     login_rate_limiter.reset()
     yield
     login_rate_limiter.reset()
+
+
+@pytest.fixture(autouse=True)
+def restore_isolated_fastapi_db_override(guardrail_and_isolate_test_db):
+    """Prevent one test's dependency_overrides.clear() from leaking into another."""
+    app.dependency_overrides[get_db] = _isolated_get_db
+    yield
+    app.dependency_overrides[get_db] = _isolated_get_db
+
+
+_legacy_seeded_modules = {
+    "test_prediction_explainability_lime",
+    "test_step9_prediction_flow",
+    "test_step10_prediction_persistence",
+    "test_step11_gis_persistence_integration",
+    "test_step12_prediction_alert_integration",
+    "test_step13_dashboard_db_integration",
+    "test_step14_auth_audit",
+    "test_synthetic_seed",
+    "test_transaction_scenario_linking",
+}
+_legacy_dataset_seeded = False
+
+
+@pytest.fixture(autouse=True)
+def seed_legacy_integration_dataset_when_required(request, guardrail_and_isolate_test_db):
+    """Load synthetic fixtures only for tests that explicitly require the full corpus.
+
+    This remains inside the temporary SQLite test database. Most tests use the
+    small baseline fixture and avoid the 3,000-case/50,000-transfer seed cost.
+    """
+    global _legacy_dataset_seeded
+    if request.module.__name__.rsplit(".", 1)[-1] not in _legacy_seeded_modules:
+        return
+    if _legacy_dataset_seeded:
+        return
+    from database.seed.seed_data import seed_delhi_operational_dataset
+
+    with TestingSessionLocal() as db:
+        clusters = db.query(models.LocationCluster).filter_by(state="Delhi").order_by(models.LocationCluster.id).all()
+        atms = db.query(models.ATMLocation).filter(
+            models.ATMLocation.atm_code.like("ATM-DL-%")
+        ).order_by(models.ATMLocation.id).all()
+        assert len(clusters) == 60 and len(atms) == 240
+        seed_delhi_operational_dataset(db, clusters, atms)
+        db.commit()
+    _legacy_dataset_seeded = True
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -134,11 +177,11 @@ def guardrail_and_isolate_test_db():
                 ),
                 models.User(
                     id=2, email="state.lea@mp.police.gov.in", hashed_password=get_password_hash("StateLea@2026"),
-                    full_name="SP Anand Shekhawat, IPS", role="STATE_LEA", badge_number="MP-CYBER-09", organization_id=org_2.id if org_2 else None, is_active=False
+                    full_name="SP Anand Shekhawat, IPS", role="STATE_LEA", badge_number="MP-CYBER-09", organization_id=org_2.id if org_2 else None, is_active=True
                 ),
                 models.User(
                     id=3, email="district.lea@indore.police.gov.in", hashed_password=get_password_hash("IndoreLea@2026"),
-                    full_name="Inspector Rajesh Verma", role="DISTRICT_LEA", badge_number="IND-CY-441", organization_id=org_3.id if org_3 else None, is_active=False
+                    full_name="Inspector Rajesh Verma", role="DISTRICT_LEA", badge_number="IND-CY-441", organization_id=org_3.id if org_3 else None, is_active=True
                 ),
                 models.User(
                     id=4, email="officer@sbi.co.in", hashed_password=get_password_hash("BankOfficer@2026"),
@@ -280,14 +323,7 @@ def guardrail_and_isolate_test_db():
         db.close()
 
     # Override FastAPI dependency
-    def override_get_db():
-        session = TestingSessionLocal()
-        try:
-            yield session
-        finally:
-            session.close()
-
-    app.dependency_overrides[get_db] = override_get_db
+    app.dependency_overrides[get_db] = _isolated_get_db
 
     yield TestingSessionLocal
 
@@ -303,8 +339,6 @@ def guardrail_and_isolate_test_db():
         os.rmdir(_temp_dir)
     except Exception:
         pass
-
-
 @pytest.fixture
 def db_session(guardrail_and_isolate_test_db):
     """Provides an isolated session to individual tests."""

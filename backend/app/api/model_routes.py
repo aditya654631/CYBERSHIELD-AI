@@ -295,8 +295,37 @@ def get_model_performance(current_user: User = Depends(get_current_user)):
     metrics_comparison: List[MetricComparisonItem] = []
 
     if metadata and evaluation_status == "AVAILABLE":
+        # V8-debiased metadata stores its held-out metrics under
+        # ``validation_metrics`` rather than the older V7 ``internal_metrics``.
+        # Keep the public performance endpoint populated for the active model.
+        if "validation_metrics" in metadata:
+            vm = metadata["validation_metrics"]
+            r1 = f"{float(vm['r1']):.2f}%"
+            r3 = f"{float(vm['r3']):.2f}%"
+            r5 = f"{float(vm['r5']):.2f}%"
+            mrr = float(vm["mrr"])
+            med_dist = f"{float(vm['median_error_km']):.2f} km"
+            brier = float(vm["brier_score"])
+            internal_ece = float(vm["ece"])
+            dataset_type = "controlled_synthetic_delhi_v8_debiased"
+            dataset_split = "Held-out validation split from the controlled synthetic Delhi corpus"
+            synthetic_disclosure = metadata.get("synthetic_disclosure")
+            model_architecture = "XGBoost Pairwise Ranker + Platt Probability Calibrator"
+            cal_method_name = "Platt Logistic Regression"
+            metrics_comparison = [
+                MetricComparisonItem(metric="Recall@1", baseline="Random 1/60", cybershield=r1, delta=None, unit="%", comparable=True, comparability_note="Held-out synthetic validation."),
+                MetricComparisonItem(metric="Recall@3", baseline="Random 3/60", cybershield=r3, delta=None, unit="%", comparable=True, comparability_note="Held-out synthetic validation."),
+                MetricComparisonItem(metric="Recall@5", baseline="Random 5/60", cybershield=r5, delta=None, unit="%", comparable=True, comparability_note="Held-out synthetic validation."),
+                MetricComparisonItem(metric="Mean Reciprocal Rank", baseline="Not comparable", cybershield=f"{mrr:.4f}", delta=None, unit="score", comparable=False, comparability_note="Held-out synthetic validation."),
+                MetricComparisonItem(metric="Median location error", baseline="Not comparable", cybershield=med_dist, delta=None, unit="km", comparable=False, comparability_note="Held-out synthetic validation."),
+                MetricComparisonItem(metric="Mean location error", baseline="Not comparable", cybershield=f"{float(vm['mean_error_km']):.2f} km", delta=None, unit="km", comparable=False, comparability_note="Held-out synthetic validation."),
+                MetricComparisonItem(metric="Expected calibration error", baseline="Not comparable", cybershield=f"{internal_ece:.4f}", delta=None, unit="score", comparable=False, comparability_note="Held-out synthetic validation."),
+                MetricComparisonItem(metric="Brier score", baseline="Not comparable", cybershield=f"{brier:.4f}", delta=None, unit="score", comparable=False, comparability_note="Held-out synthetic validation."),
+                MetricComparisonItem(metric="Training queries", baseline="Not applicable", cybershield=str(metadata.get('dataset_summary', {}).get('train_queries')), delta=None, unit="queries", comparable=False, comparability_note="Controlled synthetic corpus."),
+                MetricComparisonItem(metric="Validation queries", baseline="Not applicable", cybershield=str(metadata.get('dataset_summary', {}).get('val_queries')), delta=None, unit="queries", comparable=False, comparability_note="Controlled synthetic corpus."),
+            ]
         # 1. Schema: V7-compat internal_metrics format
-        if "internal_metrics" in metadata:
+        elif "internal_metrics" in metadata:
             im = metadata["internal_metrics"]
             if "candidate_recall@25" in im:
                 nat_cand = f"{im['candidate_recall@25']:.1f}%"
