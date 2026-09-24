@@ -4,7 +4,7 @@
 **Status:** Functional workflow verified; production performance acceptance **OPEN** after 24 September revalidation
 **Date:** September 2026  
 **Host Environment:** Windows 11 x86_64, Python 3.13.0, SQLite (PRAGMA foreign_keys=ON) in isolated temporary sessions, Docker/PostgreSQL offline on local test host  
-**Model Artifacts:** All 45 production model artifact SHA-256 hashes verified 100% intact  
+**Model Artifacts:** 45 local historical baseline artifact SHA-256 hashes verified intact; 24 of these are tracked, with active V8 artifacts verified separately
 **Next Phase:** This phase handoff stopped at Phase 13. The owner later authorized GitHub source publication and sandbox deployment; that authorization does not close the performance gate.
 
 > **24 September revalidation:** The original latency results below are historical and are not comparable to the corrected isolated test database. The current documented budgets fail for complaint ingestion, inference and GIS on the Windows TestClient/SQLite host (3 failed, 1 passed). See [UPLOAD_READINESS_RESULT.md](UPLOAD_READINESS_RESULT.md) for exact measurements. A production-like PostgreSQL load run remains pending.

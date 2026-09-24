@@ -20,7 +20,7 @@
 | **Alembic Migrations** | `SOURCE_TO_INCLUDE` | Linear migration sequence (0001 through 0019) and env configuration | **INCLUDE** |
 | **Frontend Application** | `SOURCE_TO_INCLUDE` | React, TypeScript, Leaflet/Map components, pages, utils, types, styling | **INCLUDE** |
 | **Machine Learning Core** | `SOURCE_TO_INCLUDE` | Feature pipelines, candidate generators, evaluation engines, promotion gates | **INCLUDE** |
-| **Promoted ML Artifacts** | `SOURCE_TO_INCLUDE` | 45 verified production model artifacts & metadata strictly tracked in `ml/artifacts/` | **INCLUDE** |
+| **Promoted ML Artifacts** | `SOURCE_TO_INCLUDE` | 31 tracked files in `ml/artifacts/`, including the active V8 model and metadata. The older 45-file local baseline includes 21 ignored historical model files that are not uploaded. | **INCLUDE TRACKED FILES** |
 | **Configuration Templates** | `SOURCE_TO_INCLUDE` | `.env.example`, `docker-compose.yml`, `pytest.ini`, `package.json`, `tsconfig.json` | **INCLUDE** |
 | **Documentation & Runbooks** | `DOCUMENTATION_TO_INCLUDE` | Implementation handoffs (Phases 00–13), PS Traceability, Runbooks, Manifests | **INCLUDE** |
 | **Test Suites & Fixtures** | `TEST_TO_INCLUDE` | Complete unit, integration, and regression test suites across all phases | **INCLUDE** |

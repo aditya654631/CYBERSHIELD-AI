@@ -16,7 +16,7 @@ The 21 September source-safety audit classified repository files and configured 
 ### Key Assertions & Scope
 - **Zero Secrets / PII:** Source code, configuration templates, and documentation contain zero hardcoded secrets, private keys, live credentials, or personal identification data.
 - **Operational & Runtime Exclusions:** Local SQLite databases (`*.db`, `*.sqlite3`), local environment files (`.env`, `frontend/.env`), test outputs (`reports/`, `reports/backend_pytest_report.xml`), temporary scratch files (`scratch/`), and local evidence uploads (`backend/storage/`) remain safely on disk but are strictly excluded via `.gitignore`.
-- **Integrity Preserved:** 100% of production source files, documentation, linear Alembic migrations (`0001` through `0019`), and all 45 promoted ML model artifacts match their baseline SHA-256 integrity hashes.
+- **Integrity Preserved:** The 45-file local historical artifact baseline matched its SHA-256 hashes. Of those 45, 24 are tracked and 21 older experimental model files remain local-only; the active V8 files are tracked and verified separately. The current Alembic head is `0022_atm_csp_context`.
 - **Truthful Status:** All simulated interfaces (banking outbox, NCRP/CFCFRMS adapters, ATM/POS tracking) remain explicitly designated with `SYNTHETIC`, `SANDBOX`, `PENDING_EXTERNAL`, and `MODEL_NOT_SUPPORTED_FOR_REGION` flags. No claims of real bank connections, external certification, or real data validation are made.
 
 ---
@@ -65,6 +65,8 @@ The executable benchmark assertions had been looser than the documented Phase 13
 These TestClient/SQLite timings are not a production PostgreSQL capacity claim. A preliminary cProfile run of the 26-call repeated-prediction path found repeated graph and feature construction; a causal optimization and before/after benchmark are still pending. The corrected isolated test database changes the benchmark setup, so the original Phase 13 low-latency results must not be treated as comparable to this run. The Phase 13-required production-like PostgreSQL benchmark remains pending: Docker Desktop's Linux engine was unavailable (`docker info` could not connect), and no local PostgreSQL service or CLI was found. The production performance gate stays **OPEN**.
 
 After the owner authorized sandbox publication, the auth bootstrap was hardened so production startup does not create demo users and subsequent demo startup does not reset an existing officer's password or reactivate that officer. The targeted bootstrap/environment/API tests passed **20/20**. A fresh functional run passed **689**, skipped **4**, deselected **5**; the separately run model-comparability test passed **1/1**. Frontend `npm run build` passed, the single Alembic head is `0022_atm_csp_context`, and all **45/45** artifact SHA-256 hashes matched. These checks do not close the performance gate.
+
+The first GitHub CI run on `86b3c02` exposed a checkout-specific V8 metadata hash mismatch: historical hashes were generated from CRLF working-tree JSON, while GitHub's Linux checkout used LF bytes. `.gitattributes` now preserves the verified line endings for each tracked artifact. A clean checkout with `core.autocrlf=false` matched **24/24 tracked files** from the local baseline (the other 21 are intentionally untracked), and independent active V8 metadata verification returned `COMPATIBLE` with all declared artifacts verified. GitHub CI on the corrective commit must still pass before the deployment is considered verified.
 
 A subsequent full `python -m pytest tests -q --tb=short --disable-warnings` run returned **692 passed, 4 skipped, 2 failed** in 184.08 s. In that run ingestion p50 was 52.30 ms against <50 ms and GIS p95 was 342.68 ms against <200 ms; inference and outbox passed. Inference failed in the dedicated run above, confirming substantial run-to-run variation. Functional regressions outside the latency gates were not observed.
 
@@ -115,7 +117,7 @@ The following files and directories are verified and safe to stage and include i
 ### D. Machine Learning Engine & Promoted Artifacts (`SOURCE_TO_INCLUDE`)
 - `ml/src/` (Feature generation, inference orchestrators, ensemble pipeline)
 - `ml/evaluation/` (Dataset inventory, LIME stability, promotion gates, real data validator, reproducible evaluator, second region readiness, timing evaluation)
-- `ml/artifacts/` (45 promoted model weights, scalers, metadata JSONs, calibration curves, SHAP explainers strictly tracked for production inference)
+- `ml/artifacts/` (31 tracked artifact files, including active V8 weights, calibration and metadata; 21 older local-only baseline files remain excluded)
 
 ### E. Configuration Templates & Docker (`SOURCE_TO_INCLUDE`)
 - `.gitignore` (narrow, strict exclusion rules)
