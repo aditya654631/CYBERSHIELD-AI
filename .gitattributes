@@ -1,5 +1,10 @@
 # Model metadata and schemas participate in SHA-256 integrity checks.
-# Keep their repository and working-tree bytes identical on every OS.
-ml/artifacts/*.json text eol=lf
+# Historical promoted files have mixed checkout line endings. Preserve their
+# verified byte representation on every OS without changing model artifacts.
+ml/artifacts/*.json text eol=crlf
+ml/artifacts/feature_schema_v7_compat.json text eol=lf
+ml/artifacts/model_metadata_v7_compat.json text eol=lf
+ml/artifacts/v7_lime_background_metadata.json text eol=lf
+ml/artifacts/v8_lime_background_metadata.json text eol=lf
 backend/ml/artifacts/*.json text eol=lf
 

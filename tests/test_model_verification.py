@@ -27,6 +27,16 @@ def test_model_verification_official_artifacts():
     assert details["ranker"]["status"] == "VERIFIED"
 
 
+def test_model_verification_active_v8_artifacts():
+    """The deployed V8 metadata must verify after checkout on every CI OS."""
+    report = ModelVerificationService().verify_model_artifacts(
+        "model_metadata_v8_debiased.json"
+    )
+    assert report["is_ready"] is True
+    assert report["artifacts_verified"] is True
+    assert report["artifact_details"]["feature_schema"]["status"] == "VERIFIED"
+
+
 def test_model_verification_missing_metadata(tmp_path):
     # Empty directory without metadata file
     service = ModelVerificationService(artifacts_dir=str(tmp_path))
