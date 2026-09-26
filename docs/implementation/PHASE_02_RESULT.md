@@ -11,7 +11,7 @@
 
 ## 1. Executive Summary
 
-Phase 02 completes the implementation of causal transaction updates, deduplication contracts, authorized transaction correction/reversal workflows, effective evidence semantics, and immutable prediction versions across the CyberShield AI platform according to `docs/antigravity/PHASE_02.md` and user directives. This phase eliminates the stale-prediction defect, introduces bi-temporal event/knowledge ingestion, enforces sequential immutable prediction lineage per complaint, and ensures strict causal isolation between investigation time and future events:
+Phase 02 completes causal transaction updates, deduplication contracts, authorized transaction correction/reversal workflows, effective evidence semantics, and immutable prediction versions across CyberShield AI. This phase eliminates the stale-prediction defect, introduces bi-temporal event/knowledge ingestion, enforces sequential immutable prediction lineage per complaint, and ensures strict causal isolation between investigation time and future events:
 
 1. **Stale Prediction Defect Eliminated:**
    - **Root Cause:** Prior logic in `prediction_persistence_service.py` checked only whether the rank-1 location cluster remained identical to the previous prediction. If rank-1 was unchanged while rank-2 or rank-3 clusters changed, it skipped persistence and returned the previous prediction unchanged.

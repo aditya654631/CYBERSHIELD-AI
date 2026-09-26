@@ -38,7 +38,6 @@ Phase 00 establishes the verified baseline of the CyberShield AI repository prio
   - `scripts/phase0_case_probe.py` (isolated synthetic complaint E2E probe)
   - `scripts/phase0_database_snapshot.py` (read-only PostgreSQL data extractor)
   - `scripts/phase0_report.py` (XML parser and failure aggregator)
-  - `scripts/generate_antigravity_plan.py` (phase prompt generation reference)
 
 ---
 

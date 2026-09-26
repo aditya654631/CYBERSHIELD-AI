@@ -61,3 +61,9 @@ reports/
 backend/storage/
 .codex-build/
 deliverables/
+
+# Local planning prompts and exploratory research (not application inputs)
+docs/antigravity/
+docs/phase0/ANTIGRAVITY_PHASE0_PROMPT.md
+docs/research/scratch_*.py
+scripts/generate_antigravity_plan.py

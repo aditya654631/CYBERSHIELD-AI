@@ -68,4 +68,4 @@ Separate optional choices: LIME, blockchain, exact ATM-level output, Top-3 count
 
 No exhaustive defect guarantee, real-bank action, live NCRP/CFCFRMS connection, live Fabric proof, national load capacity, formal security certification, representative real-data model accuracy, or measured money recovery. Browser visual operation was not tested. `backend/tests` and miscellaneous standalone scripts outside the configured main suite were not comprehensively executed.
 
-Phase 0 audit/handoff is available; full recovery readiness remains pending the native DB backup/restore gate. Later implementation prompts are in `docs/antigravity/`.
+Phase 0 audit/handoff is available; full recovery readiness remains pending the native DB backup/restore gate.

@@ -140,7 +140,6 @@
 #### Database Seed & Scripts
 - `database/seed/seed_data.py`
 - `database/seed/synthetic_generator.py`
-- `scripts/generate_antigravity_plan.py`
 - `scripts/phase0_audit.py`
 - `scripts/phase0_case_probe.py`
 - `scripts/phase0_database_snapshot.py`
@@ -180,14 +179,16 @@
 - `docs/phase0/AUDIT_REPORT.md`
 - `docs/phase0/PS_TRACEABILITY.md`
 - `docs/phase0/DATABASE_VERIFICATION.md`
-- `docs/antigravity/*.md` (all 14 phase instruction guides)
-- `docs/antigravity/manifest.json`
 - `docs/implementation/PHASE_00_RESULT.md` through `PHASE_13_RESULT.md`
 - `docs/implementation/FINAL_PS_ACCEPTANCE_MATRIX.md`
 - `docs/implementation/PILOT_READINESS_CHECKLIST.md`
 - `docs/implementation/OPERATIONAL_RUNBOOK.md`
 - `docs/implementation/UPLOAD_MANIFEST.md`
 - `docs/implementation/UPLOAD_READINESS_RESULT.md`
+
+Internal planning prompts and exploratory research scripts remain local and are excluded
+from the published source tree. Application code, tests, model artifacts, and the
+requirement/evaluation evidence remain included.
 
 ---
 

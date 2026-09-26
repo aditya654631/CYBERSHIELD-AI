@@ -3,7 +3,6 @@
 **Status:** Completed End-to-End  
 **Date:** 2026-09-21  
 **Phase:** 12 of 14  
-**Author:** Antigravity Agent  
 **Environment:** Python 3.13, SQLite / PostgreSQL (Alembic Head `0019_phase12_geography_catalog_and_regions`), React 18 / TypeScript / Vite  
 
 ---
