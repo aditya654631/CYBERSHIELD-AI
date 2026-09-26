@@ -1,199 +1,115 @@
-# CyberShield AI | Delhi Pilot Cybercrime Predictive Intelligence Platform
-**Smart India Hackathon SIH26184**
+# CyberShield AI
 
-Predicting likely fraudulent cash-withdrawal locations and time windows from cybercrime complaint and transaction data using **Machine Learning + Graph Intelligence + Geospatial Intelligence + Temporal Intelligence**.
+**AxiomSix · Smart India Hackathon 2026 · SIH26184 · Delhi pilot**
 
----
+CyberShield AI is a decision-support prototype for predicting likely cash-withdrawal areas from cybercrime complaints and transaction context. It ranks three candidate locations, estimates an operational time window, and helps authorized officers review the supporting signals and coordinate a response. An officer makes the final decision.
 
-## 🎯 Core Capabilities: WHERE, WHEN, RISK, WHY
+[Prototype](https://cybershield-ai-ruddy.vercel.app/) · [Problem-statement traceability](docs/implementation/FINAL_PS_ACCEPTANCE_MATRIX.md) · [Pilot readiness checklist](docs/implementation/PILOT_READINESS_CHECKLIST.md)
 
-| Dimension | Engine Output | Explanation / Value |
-| :--- | :--- | :--- |
-| **WHERE** | **Top-ranked candidate clusters** | Versioned candidate ranking for the supported Delhi pilot geography |
-| **WHEN** | **Operational time window** | A complaint-report-relative estimate; its basis and uncertainty are shown with each prediction |
-| **RISK** | **Relative risk score** | A dynamic model/graph/geography/temporal signal, not a confirmed crime probability |
-| **WHY** | **Local LIME factors** | A local approximation of the selected candidate score; never causal proof of criminal activity |
+> **Pilot boundary:** The location model is supported for the synthetic Delhi pilot only. This repository has no live NCRP/CFCFRMS feed or certified bank integration. Predictions are investigative leads, not confirmed cash-out locations or evidence of criminal activity.
 
-> The production model is supported only for the Delhi pilot catalog. Other registered
-> regions can be used for workflow testing but return `MODEL_NOT_SUPPORTED_FOR_REGION`
-> until independently qualified with authorized geography and outcome data.
+## What the prototype does
 
+| Area | Current capability |
+| --- | --- |
+| Complaint and transaction intake | Records cases and multi-hop transfers; new transaction information can create a new prediction version without overwriting earlier versions. |
+| Location and time | Ranks the top three Delhi candidate clusters with a relative risk signal and an operational time estimate. The displayed window is not a calibrated confidence interval. |
+| Case intelligence | Shows the transaction network, prediction history, ATM/CSP context, and on-demand LIME explanations with fidelity warnings. |
+| GIS dashboard | Displays active candidates and historical hotspots with region, district, crime category, risk, and explicit time-basis filters. |
+| Alerts and coordination | Uses a persistent notification outbox with retry, delivery state, acknowledgement, expiry, and controlled cross-jurisdiction handoff. External SMS/email delivery depends on configured providers. |
+| Bank actions | Tracks requests and signed sandbox callbacks with separate simulated, sandbox, and live labels. No real fund hold is claimed without a verified external response. |
+| Evidence and outcomes | Stores evidence metadata and SHA-256 integrity checks, exports case reports, and records observed outcomes separately from predictions. |
+| Access control | Applies role, jurisdiction, case, and bank scoping on backend APIs. |
 
----
+The second registered geography, `mumbai_mmr`, is a **synthetic workflow fixture**. It does not have a qualified location model; unsupported-region inference returns `MODEL_NOT_SUPPORTED_FOR_REGION` rather than silently using Delhi predictions.
 
-## 🐳 Local Docker Sandbox
+## Architecture
 
-Run the local prototype stack (PostgreSQL 16, FastAPI Backend, React Frontend Nginx) using Docker Compose:
+```text
+Complaint + transaction updates
+          │
+          ▼
+Feature extraction and transaction graph
+          │
+          ▼
+Delhi location model (V8-debiased) + time model (V3)
+          │
+          ▼
+Versioned top-3 prediction and operational window
+          ├── Case intelligence, GIS map, ATM/CSP context
+          ├── Durable alerts and controlled LEA handoff
+          ├── Sandbox bank-action workflow
+          ├── Evidence, reports, and verified outcome records
+          └── On-demand LIME explanation
+
+Optional Hyperledger Fabric components support consortium signals and
+tamper-evident audit records. They are not required for core prediction.
+```
+
+The experimental Fabric-signal re-ranker did **not** meet its predefined promotion gate and is inactive. Its result is not a deployed accuracy gain.
+
+## Run locally with Docker
+
+Prerequisite: Docker Engine with Compose. Copy the configuration template and set local secrets before using any shared environment.
 
 ```bash
-# 1. Start core services in background
+cp .env.example .env
 docker compose up --build -d
-
-# 2. Run database migrations to head
 docker compose exec backend alembic upgrade head
-
-# 3. Seed demo accounts & sample complaints (optional, explicit command)
-docker compose --profile seed run --rm seed-demo
+# Optional: populate the local database with synthetic demo records
+docker compose --profile demo run --rm seed-demo
 ```
 
-- **Frontend Application**: [http://localhost:5173](http://localhost:5173) (or `http://localhost:3000` via Nginx)
-- **Backend API & Health**: [http://localhost:8000/health](http://localhost:8000/health)
-- **System Diagnostics**: [http://localhost:8000/api/v1/system/status](http://localhost:8000/api/v1/system/status)
-- **Interactive OpenAPI Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+- Frontend: [http://localhost:5173](http://localhost:5173) (also exposed at `http://localhost:3000`)
+- Backend health: [http://localhost:8000/health](http://localhost:8000/health)
+- API documentation: [http://localhost:8000/docs](http://localhost:8000/docs)
 
----
+The seed command changes the **local** database. Do not run it against a database containing real cases. Demo accounts are for isolated development only; change credentials before sharing an instance. Keep `.env`, local databases, uploaded evidence, and generated reports outside Git.
 
-## 🚀 Local Development Setup
+## Run without Docker (Windows PowerShell)
 
-### 1. Environment & Dependencies
+Python, Node.js/npm, and a configured database are required. `.env.example` defaults to local SQLite for development; use PostgreSQL for a deployment environment.
+
 ```powershell
-# Copy environment configuration
 Copy-Item .env.example .env
-
-# Create & activate Python virtual environment
 python -m venv .venv
 .venv\Scripts\Activate.ps1
-
-# Install pinned production & development dependencies
-pip install -r requirements.txt
-pip install -r requirements-dev.txt
-
-# Frontend dependencies
-cd frontend
-npm install
-cd ..
-```
-
-### 2. Database Migrations & Seeding
-```powershell
-# Run authoritative Alembic migrations
+pip install -r requirements.txt -r requirements-dev.txt
 alembic upgrade head
-
-# Seed initial prototype demo data (Delhi NCT operational topology)
+# Optional synthetic demo data:
 python -m database.seed.seed_data
 ```
 
-### 3. Running Development Servers
-**Terminal 1 — Backend (FastAPI):**
+Start the two application servers in separate terminals:
+
 ```powershell
-uvicorn backend.app.main:app --host 0.0.0.0 --port 8000 --reload
+uvicorn backend.app.main:app --host 127.0.0.1 --port 8000 --reload
 ```
 
-**Terminal 2 — Frontend (Vite):**
 ```powershell
-cd frontend
+Set-Location frontend
+npm ci
 npm run dev
 ```
 
----
-
-## 🧪 Testing & Verification
-
-CyberShield AI includes an isolated test suite using session-scoped temporary SQLite databases with safeguards against mutating production databases:
+## Verification
 
 ```powershell
-# Run complete test suite (unit + integration + security + migrations)
-pytest -v
-
-# Run backend isolated tests only (excluding blockchain testnet)
-pytest -m "not live" --ignore=blockchain/ -v
-
-# Run Phase 1 security & RBAC tests
-pytest tests/test_phase1_security_authorization.py -v
-
-# Run Phase 2 database migration tests
-pytest tests/test_database_migrations_phase2.py -v
-
-# Run ML model & artifact verification tests
-pytest tests/test_model_verification.py -v
-
-# Run frontend production bundle build
-cd frontend
+python -m pytest tests -k "not benchmark"
+python -m pytest tests/test_phase13_integrated_workflow.py tests/test_phase13_unhappy_and_recovery.py
+Set-Location frontend
 npm run build
 ```
 
----
+The functional suite and frontend build have passed in the recorded local audit. **Production performance acceptance remains open:** local latency benchmark results have varied, and a production-like PostgreSQL load test is still needed. See the [latest upload/readiness audit](docs/implementation/UPLOAD_READINESS_RESULT.md) for measured results and pending gates.
 
-## 🔑 Local Demo Credentials
+## Evaluation and limitations
 
-The seeded prototype has role-based access control and jurisdiction isolation. These are
-public demo credentials for a locally seeded database only; never reuse them in a shared
-or production deployment.
+- The project uses controlled **synthetic Delhi data**. Its accuracy and impact have not been established on authorized, independent real-world cases.
+- The active runtime uses a V8-debiased location model. The separate Phase 10 baseline evaluator measures V7-compat; do not quote its uplift as a V8 result. [Evaluation handoff](docs/implementation/PHASE_10_RESULT.md).
+- Time windows are operational estimates. Missing observed withdrawal times are excluded from timing evaluation, and uncalibrated windows are not advertised as 95% intervals. [Timing and LIME handoff](docs/implementation/PHASE_11_RESULT.md).
+- LIME approximates the model near one prediction. Low local fidelity is displayed as a warning; an explanation neither proves causation nor changes the ranking.
+- Outcome reporting separates known, unknown, excluded, and synthetic cases, and separates confirmed held funds from recovered funds. It does not infer savings from missing observations.
+- Live government intake, bank core-system actions, provider-backed notifications, second-region model qualification, and external field validation require authorized partner access and additional testing.
 
-| Stakeholder Role | Police / Bank Email | Password | Access Scope |
-| :--- | :--- | :--- | :--- |
-| **I4C_ADMIN** | `admin@cybershield.gov.in` | `CyberAdmin@2026` | National Command (All jurisdictions) |
-| **STATE_LEA** | `state.lea@delhi.cyber.gov.in` | `StateLea@2026` | Delhi Cyber Crime Unit (NCT) |
-| **DISTRICT_LEA** | `district.lea@southdelhi.cyber.gov.in` | `DistrictLea@2026` | District Cyber Cell (South Delhi) |
-| **BANK_OFFICER** | `officer@sbi.co.in` | `BankOfficer@2026` | Bank Hold Actions & Account Liens |
-| **ANALYST** | `analyst@cybershield.gov.in` | `Analyst@2026` | Analytics & Graph Investigation |
-| **AUDITOR** | `auditor@mha.gov.in` | `Auditor@2026` | Regulatory & Audit Log Review |
-
----
-
-## 🏛️ System Architecture & Subsystems
-
-```
-Complaint Intake
-       │
-       ▼
-Feature Extraction (V8-Debiased Schema: 49 Features)
-       │
-       ▼
-Official Trained ML Engine (cashout-location-xgb-v8-debiased + cashout-time-xgb-v3)
-       │
-       ▼
-Authoritative Top-3 Cash-Out Predictions
-       ├── Database Persistence (Atomic 1 Prediction + 3 Locations)
-       ├── Case Intelligence & Triage
-       ├── GIS Risk Map (Cluster Centroids & Radii)
-       ├── Tactical Alerts & Dispatch (Authenticated WebSocket streaming)
-       ├── Hyperledger Fabric Prediction Audit Anchor (Canonical SHA-256)
-       └── On-Demand LIME Tabular Explainability (Non-blocking Local Surrogate)
-
-Separately (Consortium Layer):
-BankA / BankB / BankC / I4C / LEA
-       │
-       ▼
-Hyperledger Fabric Blockchain Consortium (Channel: cyber-intelligence)
-       ├── geo-intelligence chaincode (Multi-org mule & ATM corridor signals)
-       └── prediction-audit chaincode (Tamper-evident hash ledger)
-```
-
----
-
-## 🔬 Research Qualification & Ablation Audit (Phase B.6)
-
-During Phase B.6, an experimental second-stage **Blockchain Shadow Re-Ranker V1** was ablated against the official production baseline:
-- **Baseline (Model B — Official V8 Features)**: 33.60% Top-3 Recall
-- **Candidate (Model C — V8 + Fabric Consortium Signals)**: 33.67% Top-3 Recall
-- **Incremental Gain**: +0.07 percentage points
-- **Pre-Registered Promotion Gate**: `>= +1.0 pp Top-3 Gain`
-- **Qualification Decision**: **DID NOT MEET PROMOTION GATE**
-
-Following scientific integrity standards, the promotion gate was not relaxed. The experimental re-ranker remains inactive, and the validated official **cashout-location-xgb-v8-debiased** model is authoritative in production. Consortium blockchain signals function as operational intelligence and versioned audit infrastructure.
-
----
-
-## ⚖️ Explainability (Phase B.7 LIME)
-
-LIME provides a non-blocking, on-demand local surrogate explanation for official predictions:
-- Explains feature contributions for Top-3 candidate locations without modifying probabilities or rankings.
-- Fidelity Thresholds:
-  - $R^2 \ge 0.70$: `HIGH_FIDELITY`
-  - $0.40 \le R^2 < 0.70$: `MODERATE_FIDELITY`
-  - $R^2 < 0.40$: `LOW_FIDELITY`
-- Explicit Disclaimer: *LIME provides a local approximation of model behavior and does not prove causality or criminal activity.*
-
----
-
-## 🔒 Security, Compliance & Truthful Disclosures
-
-### Approved Scientific Statement:
-> "We trained our own XGBoost-based cash-out location prediction pipeline on controlled synthetic Delhi cybercrime data using a 49-feature V8 Debiased schema. Hyperledger Fabric provides a permissioned multi-organization intelligence and versioned audit layer. Verified consortium signals can be converted into geo-risk features. We experimentally tested those features in a second-stage shadow ranker, but it did not meet our pre-defined promotion threshold (+1.0 pp Top-3), so we retained the validated V8 production model. LIME provides local explanations for the official prediction on demand without altering the prediction itself."
-
-### Operational Prototype Truthfulness:
-- **Dataset**: Controlled synthetic prototype data modeled after Delhi NCT cybercrime topology. No real NCRP production data or victim PII is used.
-- **Banking Actions**: Bank actions remain explicitly labelled `SIMULATED` or `SANDBOX` unless verified partner callback evidence supports a configured integration. The system does not claim external core-banking settlement.
-- **Consortium Network**: Simulated multi-bank/LEA consortium nodes (BankA, BankB, BankC, I4C, LEA). No live bank API keys or customer credentials.
-- **Explainability**: LIME is a local surrogate approximation, not causal proof of criminal intent.
+For implementation evidence, see the [Phase 13 handoff](docs/implementation/PHASE_13_RESULT.md), [acceptance matrix](docs/implementation/FINAL_PS_ACCEPTANCE_MATRIX.md), and [operational runbook](docs/implementation/OPERATIONAL_RUNBOOK.md).
