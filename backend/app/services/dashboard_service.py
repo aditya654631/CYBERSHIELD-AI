@@ -262,16 +262,28 @@ class DashboardService:
             .all()
         )
 
+        # Fetch the rank-1 locations together. A separate query for every row is
+        # especially expensive when the application and PostgreSQL are in
+        # different cloud regions.
+        recent_comp_prediction_ids = [
+            latest_pred_map[c.id].id for c in recent_comp_rows if c.id in latest_pred_map
+        ]
+        recent_comp_locations = {}
+        if recent_comp_prediction_ids:
+            for location in (db.query(PredictionLocation)
+                .filter(
+                    PredictionLocation.prediction_id.in_(recent_comp_prediction_ids),
+                    PredictionLocation.rank == 1,
+                )
+                .order_by(PredictionLocation.id.asc())
+                .all()):
+                recent_comp_locations.setdefault(location.prediction_id, location)
+
         recent_complaints = []
         for c in recent_comp_rows:
             pred = latest_pred_map.get(c.id)
             if pred:
-                # Retrieve rank-1 location
-                r1_loc = (
-                    db.query(PredictionLocation)
-                    .filter(PredictionLocation.prediction_id == pred.id, PredictionLocation.rank == 1)
-                    .first()
-                )
+                r1_loc = recent_comp_locations.get(pred.id)
                 r1_name = r1_loc.location_name if r1_loc else None
                 recent_complaints.append({
                     "id": c.id,
@@ -318,18 +330,33 @@ class DashboardService:
             .limit(10)
             .all()
         )
+
+        recent_pred_locations = {}
+        if recent_pred_rows:
+            for location in (db.query(PredictionLocation)
+                .filter(
+                    PredictionLocation.prediction_id.in_([p.id for p in recent_pred_rows]),
+                    PredictionLocation.rank == 1,
+                )
+                .order_by(PredictionLocation.id.asc())
+                .all()):
+                recent_pred_locations.setdefault(location.prediction_id, location)
+
+        recent_pred_complaints = {}
+        if recent_pred_rows:
+            recent_pred_complaints = dict(
+                db.query(Complaint.id, Complaint.complaint_number)
+                .filter(Complaint.id.in_([p.complaint_id for p in recent_pred_rows]))
+                .all()
+            )
         recent_predictions = []
         for p in recent_pred_rows:
-            comp = db.query(Complaint).filter(Complaint.id == p.complaint_id).first()
-            r1 = (
-                db.query(PredictionLocation)
-                .filter(PredictionLocation.prediction_id == p.id, PredictionLocation.rank == 1)
-                .first()
-            )
+            complaint_number = recent_pred_complaints.get(p.complaint_id)
+            r1 = recent_pred_locations.get(p.id)
             recent_predictions.append({
                 "id": p.id,
                 "complaint_id": p.complaint_id,
-                "complaint_number": comp.complaint_number if comp else f"CMP-{p.complaint_id}",
+                "complaint_number": complaint_number if complaint_number is not None else f"CMP-{p.complaint_id}",
                 "prediction_mode": p.prediction_mode,
                 "model_version": p.model_version,
                 "risk_level": p.risk_level,
@@ -348,13 +375,21 @@ class DashboardService:
             .limit(10)
             .all()
         )
+
+        recent_alert_complaints = {}
+        if recent_alert_rows:
+            recent_alert_complaints = dict(
+                db.query(Complaint.id, Complaint.complaint_number)
+                .filter(Complaint.id.in_([a.complaint_id for a in recent_alert_rows]))
+                .all()
+            )
         recent_alerts = []
         for a in recent_alert_rows:
-            comp = db.query(Complaint).filter(Complaint.id == a.complaint_id).first()
+            complaint_number = recent_alert_complaints.get(a.complaint_id)
             recent_alerts.append({
                 "id": a.id,
                 "complaint_id": a.complaint_id,
-                "complaint_number": comp.complaint_number if comp else f"CMP-{a.complaint_id}",
+                "complaint_number": complaint_number if complaint_number is not None else f"CMP-{a.complaint_id}",
                 "prediction_id": a.prediction_id,
                 "title": a.title,
                 "severity": a.severity,
