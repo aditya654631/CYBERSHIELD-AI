@@ -3,7 +3,7 @@
 > **Audit Date**: September 16, 2026  
 > **Status**: Read-Only Comprehensive Audit Completed (Zero Code Modification Applied)  
 > **Live App Reference**: [https://cybershield-ai-ruddy.vercel.app/login](https://cybershield-ai-ruddy.vercel.app/login)  
-> **Production API Reference**: [https://cybershield-ai-production-66121.up.railway.app/health](https://cybershield-ai-production-66121.up.railway.app/health)  
+> **Production API Reference**: [https://cybershield-ai-production-e133.up.railway.app/health](https://cybershield-ai-production-e133.up.railway.app/health)  
 
 ---
 
@@ -551,7 +551,7 @@ CyberShield AI/
 | Dimension | Local Development | Live Deployed Environment |
 | :--- | :--- | :--- |
 | **Frontend URL** | `http://localhost:5173` | `https://cybershield-ai-ruddy.vercel.app` |
-| **Backend URL** | `http://localhost:8000` | `https://cybershield-ai-production-66121.up.railway.app` |
+| **Backend URL** | `http://localhost:8000` | `https://cybershield-ai-production-e133.up.railway.app` |
 | **Database Engine** | SQLite (`cybershield.db`) or local PostgreSQL | Cloud PostgreSQL 16 (measured latency ~587 ms) |
 | **Frontend Bundle** | Freshly built `dist/assets/index-Cu1po-q6.js` (2,502 modules) | Previous production build `index-CLx0TJeP.js` |
 | **CORS Policy** | Local dev permits localhost:5173 / 3000 | Railway CORS enforces whitelist; rejects unlisted origins |

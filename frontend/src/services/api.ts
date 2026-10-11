@@ -44,7 +44,7 @@ import {
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ||
-  'https://cybershield-ai-production-66121.up.railway.app/api/v1';
+  'https://cybershield-ai-production-e133.up.railway.app/api/v1';
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
